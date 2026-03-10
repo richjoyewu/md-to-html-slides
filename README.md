@@ -7,6 +7,20 @@ Generate polished single-file HTML slide decks from Markdown.
 `md-to-html-slides` is a Markdown-first slide generation project.
 The goal is to turn structured slide content into visually strong, web-native HTML presentations that are easy to publish and easy to maintain.
 
+## Preview
+
+### Dark Card
+
+![Dark Card preview](./assets/previews/dark-card-preview.svg)
+
+Sample output: `examples/01-agent.html`
+
+### Editorial Light
+
+![Editorial Light preview](./assets/previews/editorial-light-preview.svg)
+
+Sample output: `examples/01-agent-editorial.html`
+
 ## Current Direction
 
 - Input: `Markdown + images`
@@ -19,6 +33,7 @@ The goal is to turn structured slide content into visually strong, web-native HT
 
 ```text
 md-to-html-slides/
+├─ assets/
 ├─ README.md
 ├─ LICENSE
 ├─ .gitignore
