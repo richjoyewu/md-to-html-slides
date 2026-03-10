@@ -46,6 +46,13 @@ const renderBlock = (block) => {
   return '';
 };
 
+const renderTabs = (activeIndex, totalSlides) => {
+  return Array.from({ length: totalSlides }, (_, index) => {
+    const tab = index + 1;
+    return `<span class="paper-tab${tab === activeIndex ? ' active' : ''}">Section ${String(tab).padStart(2, '0')}</span>`;
+  }).join('');
+};
+
 export const renderEditorialLightDeck = (deck, options) => {
   const totalSlides = deck.slides.length + 1;
   const titleText = options.title || deck.title;
@@ -53,20 +60,31 @@ export const renderEditorialLightDeck = (deck, options) => {
 
   const titleSlide = `
     <section class="slide title-slide" data-title="${escapeHtml(titleText)}">
-      <div class="slide-count">01 / ${String(totalSlides).padStart(2, '0')}</div>
-      <div class="slide-shell">
-        <div class="slide-content">
-          <div class="eyebrow reveal">Editorial Light</div>
-          <h1 class="slide-title reveal">${escapeHtml(titleText)}</h1>
-          <p class="slide-subtitle reveal">${escapeHtml(subtitle)}</p>
-          <div class="slide-meta reveal">
-            <span class="meta-pill">Theme: ${escapeHtml(options.theme)}</span>
-            <span class="meta-pill">Slides: ${String(totalSlides)}</span>
+      <div class="page-number">01 / ${String(totalSlides).padStart(2, '0')}</div>
+      <div class="paper-tabs">${renderTabs(1, totalSlides)}</div>
+      <div class="paper-shell hero-shell">
+        <div class="paper-card reveal">
+          <div class="cover-kicker">Notebook editorial</div>
+          <h1 class="slide-title">${escapeHtml(titleText)}</h1>
+          <p class="slide-subtitle">${escapeHtml(subtitle)}</p>
+          <div class="slide-meta">
+            <span class="meta-pill">${escapeHtml(options.theme)}</span>
+            <span class="meta-pill">${String(totalSlides)} slides</span>
+          </div>
+        </div>
+        <div class="cover-side reveal">
+          <div class="side-tag">Contents</div>
+          <div class="cover-note">Warm paper textures, structured tabs, and editorial pacing.</div>
+          <div class="cover-index">
+            <span>01 Intro</span>
+            <span>02 Setup</span>
+            <span>03 Practice</span>
+            <span>04 Review</span>
           </div>
         </div>
       </div>
       <div class="slide-footer">
-        <span>Arrow keys, wheel, or swipe</span>
+        <span class="footer-mark">EDITORIAL LIGHT</span>
         <span>${String(1).padStart(2, '0')} / ${String(totalSlides).padStart(2, '0')}</span>
       </div>
     </section>
@@ -77,18 +95,25 @@ export const renderEditorialLightDeck = (deck, options) => {
     const renderedBlocks = slide.blocks.map(renderBlock).join('\n');
     return `
       <section class="slide" data-title="${escapeHtml(slide.title)}" id="${slugify(slide.title)}">
-        <div class="slide-count">${String(count).padStart(2, '0')} / ${String(totalSlides).padStart(2, '0')}</div>
-        <div class="slide-shell">
-          <div class="slide-content">
-            <div class="eyebrow reveal">Chapter ${String(count).padStart(2, '0')}</div>
-            <h2 class="slide-heading reveal">${escapeHtml(slide.title)}</h2>
-            <div class="slide-body">
-              ${renderedBlocks}
+        <div class="page-number">${String(count).padStart(2, '0')} / ${String(totalSlides).padStart(2, '0')}</div>
+        <div class="paper-tabs">${renderTabs(count, totalSlides)}</div>
+        <div class="paper-shell content-shell">
+          <aside class="paper-spine reveal">
+            <div class="spine-chip">Chapter ${String(count).padStart(2, '0')}</div>
+            <div class="spine-rule"></div>
+            <div class="spine-copy">${escapeHtml(slide.title)}</div>
+          </aside>
+          <div class="paper-card reveal content-card">
+            <div class="content-card-inner">
+              <h2 class="slide-heading">${escapeHtml(slide.title)}</h2>
+              <div class="slide-body">
+                ${renderedBlocks}
+              </div>
             </div>
           </div>
         </div>
         <div class="slide-footer">
-          <span>${escapeHtml(slide.title)}</span>
+          <span class="footer-mark">${escapeHtml(slide.title)}</span>
           <span>${String(count).padStart(2, '0')} / ${String(totalSlides).padStart(2, '0')}</span>
         </div>
       </section>
@@ -103,180 +128,252 @@ export const renderEditorialLightDeck = (deck, options) => {
   <title>${escapeHtml(titleText)}</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;700&family=Instrument+Sans:wght@400;500;600;700&family=Newsreader:opsz,wght@6..72,500;6..72,700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:opsz,wght@6..96,600;6..96,700&family=DM+Sans:wght@400;500;700&family=IBM+Plex+Mono:wght@500;700&display=swap" rel="stylesheet" />
   <style>
     :root {
-      --paper: #f5efe2;
-      --paper-strong: #efe4d1;
-      --ink: #191613;
-      --muted: #625748;
-      --line: rgba(25, 22, 19, 0.12);
-      --accent: #b6462f;
-      --accent-soft: #d17158;
-      --accent-alt: #1f5c73;
-      --font-display: 'Newsreader', serif;
-      --font-body: 'Instrument Sans', sans-serif;
+      --bg-outer: #2e2d2d;
+      --bg-page: #f8f4ec;
+      --bg-card: rgba(255,255,255,0.62);
+      --ink: #171514;
+      --muted: rgba(23, 21, 20, 0.62);
+      --line: rgba(23, 21, 20, 0.12);
+      --tab-1: #98d4bb;
+      --tab-2: #c7b8ea;
+      --tab-3: #f4b8c5;
+      --tab-4: #a8d8ea;
+      --tab-5: #ffe6a7;
+      --accent: #c96b4d;
+      --font-display: 'Bodoni Moda', serif;
+      --font-body: 'DM Sans', sans-serif;
       --font-mono: 'IBM Plex Mono', monospace;
-      --title-size: clamp(2.3rem, 6.3vw, 5.4rem);
-      --h2-size: clamp(1.7rem, 3.8vw, 3.2rem);
-      --body-size: clamp(0.96rem, 1.5vw, 1.12rem);
-      --small-size: clamp(0.7rem, 0.95vw, 0.84rem);
-      --slide-padding: clamp(1.2rem, 4vw, 3rem);
-      --content-gap: clamp(1rem, 1.8vw, 1.65rem);
-      --duration-normal: 0.65s;
+      --title-size: clamp(2.7rem, 6.8vw, 5.8rem);
+      --h2-size: clamp(2rem, 4vw, 3.5rem);
+      --body-size: clamp(0.98rem, 1.45vw, 1.08rem);
+      --small-size: clamp(0.68rem, 0.92vw, 0.82rem);
+      --slide-padding: clamp(1rem, 3vw, 2rem);
+      --duration-normal: 0.62s;
       --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
     }
 
     * { margin: 0; padding: 0; box-sizing: border-box; }
-
     html, body { height: 100%; overflow-x: hidden; }
     html { scroll-snap-type: y mandatory; scroll-behavior: smooth; }
+
     body {
       color: var(--ink);
       font-family: var(--font-body);
       background:
-        linear-gradient(0deg, rgba(255,255,255,0.22), rgba(255,255,255,0.22)),
-        repeating-linear-gradient(90deg, transparent 0, transparent calc(25% - 1px), rgba(25,22,19,0.03) calc(25% - 1px), rgba(25,22,19,0.03) 25%),
-        radial-gradient(circle at top left, rgba(182, 70, 47, 0.09), transparent 28%),
-        radial-gradient(circle at 85% 22%, rgba(31, 92, 115, 0.08), transparent 24%),
-        var(--paper);
+        radial-gradient(circle at top left, rgba(201, 107, 77, 0.14), transparent 22%),
+        radial-gradient(circle at 88% 18%, rgba(168, 216, 234, 0.22), transparent 16%),
+        linear-gradient(180deg, #343232 0%, #292827 100%);
     }
 
     .slide {
+      position: relative;
       width: 100vw;
       height: 100vh;
       height: 100dvh;
-      overflow: hidden;
       scroll-snap-align: start;
+      overflow: hidden;
       display: flex;
       flex-direction: column;
-      position: relative;
       padding: var(--slide-padding);
     }
 
-    .slide-shell {
-      flex: 1;
-      width: min(1200px, 100%);
-      margin: 0 auto;
-      display: flex;
-      align-items: stretch;
-    }
-
-    .slide-content {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      gap: var(--content-gap);
-      padding: clamp(1.25rem, 2.6vw, 2.4rem);
-      border: 1px solid var(--line);
-      background:
-        linear-gradient(135deg, rgba(255,255,255,0.55), rgba(255,255,255,0.18)),
-        linear-gradient(180deg, rgba(255,255,255,0.3), rgba(255,255,255,0.08));
-      box-shadow: 0 24px 70px rgba(67, 49, 28, 0.12);
-      position: relative;
-      overflow: hidden;
-    }
-
-    .slide-content::before {
+    .slide::before {
       content: '';
       position: absolute;
       inset: 18px;
-      border: 1px solid rgba(25, 22, 19, 0.08);
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.09), rgba(255,255,255,0.02)),
+        var(--bg-page);
+      box-shadow: 0 28px 90px rgba(0,0,0,0.18);
       pointer-events: none;
     }
 
-    .slide-content::after {
+    .slide::after {
       content: '';
       position: absolute;
-      left: 0;
-      top: 0;
-      bottom: 0;
-      width: 14px;
-      background: linear-gradient(180deg, var(--accent), var(--accent-soft));
-      opacity: 0.96;
+      inset: 34px;
+      border: 1px solid rgba(23, 21, 20, 0.08);
+      pointer-events: none;
     }
 
     .progress-bar {
       position: fixed;
-      left: 0;
       top: 0;
-      z-index: 200;
+      left: 0;
+      z-index: 300;
       width: 100%;
       height: 4px;
-      background: rgba(25, 22, 19, 0.08);
+      background: rgba(255,255,255,0.2);
     }
 
     .progress-bar-fill {
       height: 100%;
       width: 0;
-      background: linear-gradient(90deg, var(--accent), var(--accent-alt));
+      background: linear-gradient(90deg, #c96b4d, #a8d8ea);
       transition: width 0.24s ease;
     }
 
     .nav-dots {
       position: fixed;
-      right: 18px;
+      right: 30px;
       top: 50%;
       transform: translateY(-50%);
       display: flex;
       flex-direction: column;
-      gap: 10px;
-      z-index: 120;
+      gap: 8px;
+      z-index: 220;
     }
 
     .nav-dot {
       width: 12px;
       height: 12px;
       border-radius: 999px;
-      border: 1px solid rgba(25, 22, 19, 0.18);
-      background: rgba(255,255,255,0.44);
+      border: 1px solid rgba(23, 21, 20, 0.16);
+      background: rgba(255,255,255,0.45);
       cursor: pointer;
-      transition: transform 0.2s ease, background 0.2s ease, border-color 0.2s ease;
+      transition: transform 0.2s ease, background 0.2s ease;
     }
 
     .nav-dot.active {
       background: var(--accent);
-      border-color: var(--accent);
       transform: scale(1.18);
-      box-shadow: 0 0 0 6px rgba(182, 70, 47, 0.12);
     }
 
-    .slide-count {
+    .page-number {
       position: absolute;
-      top: 26px;
-      right: 30px;
+      top: 34px;
+      left: 52px;
+      z-index: 2;
       font-family: var(--font-mono);
       font-size: var(--small-size);
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
       color: var(--muted);
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
     }
 
-    .eyebrow {
-      display: inline-flex;
-      align-items: center;
-      gap: 12px;
+    .paper-tabs {
+      position: absolute;
+      top: 110px;
+      right: 18px;
+      z-index: 3;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .paper-tab {
+      writing-mode: vertical-rl;
+      text-orientation: mixed;
+      min-height: 72px;
+      padding: 10px 6px;
+      font-family: var(--font-mono);
+      font-size: clamp(0.5rem, 0.9vh, 0.66rem);
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: rgba(23, 21, 20, 0.62);
+      border: 1px solid rgba(23, 21, 20, 0.08);
+      background: var(--tab-1);
+    }
+
+    .paper-tab:nth-child(2) { background: var(--tab-2); }
+    .paper-tab:nth-child(3) { background: var(--tab-3); }
+    .paper-tab:nth-child(4) { background: var(--tab-4); }
+    .paper-tab:nth-child(5),
+    .paper-tab:nth-child(n+5) { background: var(--tab-5); }
+
+    .paper-tab.active {
+      transform: translateX(-8px);
+      color: var(--ink);
+      box-shadow: -8px 10px 24px rgba(0,0,0,0.08);
+    }
+
+    .paper-shell {
+      position: relative;
+      z-index: 2;
+      flex: 1;
+      width: min(1280px, calc(100% - 80px));
+      margin: 0 auto;
+      display: grid;
+      gap: clamp(1rem, 2vw, 1.4rem);
+      align-items: stretch;
+      min-height: 0;
+      padding-top: clamp(4.8rem, 8vw, 6rem);
+      padding-bottom: 1.4rem;
+    }
+
+    .hero-shell {
+      grid-template-columns: minmax(0, 1.15fr) minmax(260px, 0.6fr);
+    }
+
+    .content-shell {
+      grid-template-columns: 210px minmax(0, 1fr);
+    }
+
+    .paper-card,
+    .cover-side,
+    .paper-spine {
+      min-height: 0;
+    }
+
+    .paper-card {
+      position: relative;
+      background: var(--bg-card);
+      border: 1px solid var(--line);
+      box-shadow: 0 24px 40px rgba(60, 48, 33, 0.1);
+      overflow: hidden;
+    }
+
+    .paper-card::before {
+      content: '';
+      position: absolute;
+      left: 20px;
+      top: 20px;
+      bottom: 20px;
+      width: 1px;
+      background: rgba(201, 107, 77, 0.18);
+    }
+
+    .paper-card::after {
+      content: '';
+      position: absolute;
+      inset: 20px;
+      border: 1px solid rgba(23, 21, 20, 0.08);
+      pointer-events: none;
+    }
+
+    .hero-shell .paper-card {
+      display: grid;
+      align-content: end;
+      gap: 1.15rem;
+      padding: clamp(1.5rem, 3vw, 2.4rem);
+    }
+
+    .cover-kicker,
+    .side-tag,
+    .spine-chip,
+    .footer-mark,
+    .slide-code-lang {
       font-family: var(--font-mono);
       font-size: var(--small-size);
-      color: var(--accent);
       text-transform: uppercase;
-      letter-spacing: 0.18em;
+      letter-spacing: 0.16em;
     }
 
-    .eyebrow::after {
-      content: '';
-      width: 44px;
-      height: 1px;
-      background: rgba(182, 70, 47, 0.34);
+    .cover-kicker,
+    .side-tag,
+    .spine-chip {
+      color: var(--accent);
     }
 
     .slide-title,
     .slide-heading {
       font-family: var(--font-display);
-      line-height: 0.98;
+      line-height: 0.94;
       letter-spacing: -0.04em;
-      max-width: 11ch;
+      max-width: 9ch;
     }
 
     .slide-title { font-size: var(--title-size); }
@@ -288,13 +385,11 @@ export const renderEditorialLightDeck = (deck, options) => {
     .slide-figure figcaption {
       font-size: var(--body-size);
       line-height: 1.72;
-      color: var(--ink);
-      max-width: 62ch;
     }
 
-    .slide-subtitle,
-    .slide-figure figcaption {
+    .slide-subtitle {
       color: var(--muted);
+      max-width: 44ch;
     }
 
     .slide-meta {
@@ -303,108 +398,162 @@ export const renderEditorialLightDeck = (deck, options) => {
       gap: 10px;
     }
 
-    .meta-pill,
-    .slide-code-lang {
+    .meta-pill {
       display: inline-flex;
       align-items: center;
-      min-height: 32px;
-      width: fit-content;
+      min-height: 34px;
       padding: 0 12px;
-      border-radius: 999px;
-      border: 1px solid rgba(25, 22, 19, 0.1);
-      background: rgba(255,255,255,0.55);
+      border: 1px solid rgba(23, 21, 20, 0.1);
+      background: rgba(255,255,255,0.52);
+      color: var(--muted);
       font-family: var(--font-mono);
       font-size: var(--small-size);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+
+    .cover-side {
+      display: grid;
+      align-content: start;
+      gap: 1rem;
+      padding: clamp(1.1rem, 2vw, 1.5rem);
+      background: rgba(255,255,255,0.36);
+      border: 1px solid rgba(23, 21, 20, 0.1);
+    }
+
+    .cover-note,
+    .spine-copy {
       color: var(--muted);
+      font-size: 0.98rem;
+      line-height: 1.65;
+    }
+
+    .cover-index {
+      display: grid;
+      gap: 0.8rem;
+      padding-top: 0.8rem;
+      border-top: 1px solid rgba(23, 21, 20, 0.12);
+      font-family: var(--font-mono);
+      font-size: var(--small-size);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--ink);
+    }
+
+    .paper-spine {
+      display: grid;
+      align-content: start;
+      gap: 0.9rem;
+      padding-top: 0.3rem;
+    }
+
+    .spine-rule {
+      width: 72px;
+      height: 2px;
+      background: var(--accent);
+    }
+
+    .content-card {
+      display: block;
+    }
+
+    .content-card-inner {
+      height: 100%;
+      display: grid;
+      align-content: start;
+      gap: 1.15rem;
+      padding: clamp(1.4rem, 3vw, 2rem) clamp(1.4rem, 3vw, 2.2rem) clamp(1.2rem, 2.4vw, 1.8rem) clamp(2rem, 4vw, 2.8rem);
+      overflow: hidden;
+      position: relative;
+      z-index: 1;
     }
 
     .slide-body {
       display: grid;
-      gap: clamp(0.85rem, 1.4vw, 1.2rem);
+      gap: 0.95rem;
       align-content: start;
-      position: relative;
-      z-index: 1;
+      overflow: auto;
+      padding-right: 0.3rem;
+    }
+
+    .slide-paragraph,
+    .slide-figure figcaption {
+      color: var(--muted);
+      max-width: 58ch;
     }
 
     .slide-list {
       list-style: none;
       display: grid;
       gap: 0.88rem;
+      max-width: 62ch;
     }
 
     .slide-list li {
       display: grid;
-      grid-template-columns: 18px 1fr;
-      gap: 0.9rem;
+      grid-template-columns: 16px 1fr;
+      gap: 0.95rem;
       align-items: start;
+      color: var(--ink);
     }
 
     .slide-list li::before {
       content: '';
       width: 12px;
       height: 12px;
-      margin-top: 0.42rem;
-      background: linear-gradient(135deg, var(--accent), var(--accent-soft));
+      margin-top: 0.4rem;
+      background: var(--accent);
       clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
     }
 
-    .slide-figure {
+    .slide-figure,
+    .slide-code-wrap {
       display: grid;
       gap: 0.85rem;
       padding: 1rem;
-      border: 1px solid rgba(25, 22, 19, 0.1);
-      background: rgba(255,255,255,0.62);
-      box-shadow: 0 18px 36px rgba(67, 49, 28, 0.08);
+      background: rgba(255,255,255,0.54);
+      border: 1px solid rgba(23, 21, 20, 0.1);
     }
 
     .slide-figure img {
       width: 100%;
-      max-height: 52vh;
+      max-height: 46vh;
       object-fit: contain;
+      border: 1px solid rgba(23, 21, 20, 0.08);
       background: #fff;
-      border: 1px solid rgba(25, 22, 19, 0.08);
-    }
-
-    .slide-code-wrap {
-      display: grid;
-      gap: 0.65rem;
-      padding: 1rem;
-      border: 1px solid rgba(25, 22, 19, 0.1);
-      background: #fffdf8;
-      box-shadow: inset 0 1px 0 rgba(255,255,255,0.8);
     }
 
     .slide-code {
       overflow: auto;
-      max-height: 46vh;
+      max-height: 40vh;
       color: #231d18;
       font-family: var(--font-mono);
-      font-size: clamp(0.78rem, 1vw, 0.92rem);
+      font-size: clamp(0.76rem, 1vw, 0.9rem);
       line-height: 1.68;
     }
 
     .slide-footer {
-      width: min(1200px, calc(100% - 2 * var(--slide-padding)));
+      position: relative;
+      z-index: 2;
+      width: min(1280px, calc(100% - 80px));
       margin: 0 auto;
-      padding-top: 0.95rem;
       display: flex;
       justify-content: space-between;
-      gap: 16px;
+      gap: 18px;
+      padding-top: 0.3rem;
+      color: var(--muted);
       font-family: var(--font-mono);
       font-size: var(--small-size);
-      color: var(--muted);
-      letter-spacing: 0.08em;
       text-transform: uppercase;
+      letter-spacing: 0.14em;
     }
 
     .reveal {
       opacity: 0;
-      transform: translateY(22px);
+      transform: translateY(24px);
       transition:
         opacity var(--duration-normal) var(--ease-out-expo),
         transform var(--duration-normal) var(--ease-out-expo);
-      position: relative;
-      z-index: 1;
     }
 
     .slide.is-active .reveal {
@@ -417,47 +566,86 @@ export const renderEditorialLightDeck = (deck, options) => {
     .slide.is-active .reveal:nth-child(4) { transition-delay: 0.24s; }
     .slide.is-active .reveal:nth-child(5) { transition-delay: 0.32s; }
 
-    @media (max-width: 840px) {
-      .slide {
-        padding-left: 1rem;
-        padding-right: 1rem;
+    @media (max-width: 980px) {
+      .hero-shell,
+      .content-shell {
+        grid-template-columns: 1fr;
       }
 
-      .slide-content {
-        justify-content: flex-start;
-        padding-top: 4rem;
-      }
-
-      .slide-content::after {
-        width: 100%;
-        height: 10px;
-        top: 0;
-        bottom: auto;
-      }
-
+      .paper-shell,
       .slide-footer {
-        width: calc(100% - 2rem);
+        width: calc(100% - 52px);
+      }
+
+      .paper-tabs {
+        right: 10px;
+      }
+
+      .paper-spine {
+        display: none;
+      }
+
+      .content-card-inner {
+        padding-left: clamp(1.5rem, 3vw, 2rem);
       }
     }
 
     @media (max-width: 720px) {
-      .slide-count {
-        top: 16px;
-        right: 18px;
+      .slide {
+        padding: 0.85rem;
       }
 
-      .nav-dots {
+      .slide::before {
+        inset: 12px;
+      }
+
+      .slide::after {
+        inset: 24px;
+      }
+
+      .page-number {
+        top: 20px;
+        left: 28px;
+      }
+
+      .paper-tabs {
+        top: auto;
         right: auto;
         left: 50%;
-        bottom: 12px;
-        top: auto;
+        bottom: 16px;
         transform: translateX(-50%);
         flex-direction: row;
+        align-items: flex-end;
+      }
+
+      .paper-tab {
+        writing-mode: horizontal-tb;
+        min-height: auto;
+        min-width: 72px;
+        text-align: center;
+      }
+
+      .paper-tab.active {
+        transform: translateY(-6px);
+      }
+
+      .paper-shell,
+      .slide-footer {
+        width: calc(100% - 30px);
+      }
+
+      .paper-shell {
+        padding-top: 4.4rem;
+      }
+
+      .slide-footer {
+        padding-bottom: 2.4rem;
+        letter-spacing: 0.08em;
       }
 
       .slide-figure img,
       .slide-code {
-        max-height: 38vh;
+        max-height: 34vh;
       }
     }
   </style>
