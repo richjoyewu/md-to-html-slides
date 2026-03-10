@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OpenClaw Demo Slides</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+SC:wght@400;500;700&family=Noto+Serif+SC:wght@600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0b0d12;
+      --surface: #13161e;
+      --card: #181c26;
+      --border: #232838;
+      --border-strong: #2e3448;
+      --text: #e2e6f3;
+      --muted: #7f88a9;
+      --gold: #f5a623;
+      --blue: #3b9eff;
+      --green: #22c97a;
+      --pink: #f0449a;
+      --purple: #a855f7;
+      --danger: #ff5f57;
+      --shadow: 0 20px 60px rgba(0, 0, 0, 0.32);
+      --font-display: 'Noto Serif SC', serif;
+      --font-body: 'Noto Sans SC', sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+      --title-size: clamp(2rem, 5vw, 4.8rem);
+      --h2-size: clamp(1.5rem, 3vw, 2.8rem);
+      --h3-size: clamp(1.05rem, 2vw, 1.35rem);
+      --body-size: clamp(0.88rem, 1.4vw, 1.1rem);
+      --small-size: clamp(0.72rem, 1vw, 0.9rem);
+      --slide-padding: clamp(1.25rem, 4vw, 3.5rem);
+      --content-gap: clamp(1rem, 2vw, 1.8rem);
+      --element-gap: clamp(0.5rem, 1vw, 1rem);
+      --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+      --duration-normal: 0.65s;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      height: 100%;
+      overflow-x: hidden;
+    }
+
+    html {
+      scroll-snap-type: y mandatory;
+      scroll-behavior: smooth;
+    }
+
+    body {
+      background:
+        radial-gradient(ellipse 90% 130% at 50% -10%, rgba(245, 166, 35, 0.10) 0%, transparent 60%),
+        radial-gradient(ellipse 50% 80% at 92% 70%, rgba(59, 158, 255, 0.06) 0%, transparent 60%),
+        var(--bg);
+      color: var(--text);
+      font-family: var(--font-body);
+    }
+
+    .slide {
+      width: 100vw;
+      height: 100vh;
+      height: 100dvh;
+      overflow: hidden;
+      scroll-snap-align: start;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+
+    .slide-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      max-height: 100%;
+      overflow: hidden;
+      padding: var(--slide-padding);
+      gap: var(--content-gap);
+      width: min(1100px, 100%);
+      margin: 0 auto;
+    }
+
+    .progress-bar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 3px;
+      background: rgba(255, 255, 255, 0.06);
+      z-index: 200;
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      width: 0;
+      background: linear-gradient(90deg, var(--gold), #ffd57a);
+      box-shadow: 0 0 18px rgba(245, 166, 35, 0.35);
+      transition: width 0.24s ease;
+    }
+
+    .nav-dots {
+      position: fixed;
+      right: 20px;
+      top: 50%;
+      transform: translateY(-50%);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      z-index: 120;
+    }
+
+    .nav-dot {
+      width: 10px;
+      height: 10px;
+      border: 1px solid var(--border-strong);
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.05);
+      cursor: pointer;
+      transition: transform 0.2s ease, background 0.2s ease, border-color 0.2s ease;
+    }
+
+    .nav-dot.active {
+      background: var(--gold);
+      border-color: var(--gold);
+      transform: scale(1.18);
+      box-shadow: 0 0 0 4px rgba(245, 166, 35, 0.15);
+    }
+
+    .slide-index {
+      position: absolute;
+      top: 24px;
+      right: 28px;
+      font-family: var(--font-mono);
+      font-size: var(--small-size);
+      color: var(--muted);
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      font-family: var(--font-mono);
+      font-size: var(--small-size);
+      color: var(--gold);
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+    }
+
+    .eyebrow::after {
+      content: '';
+      width: 36px;
+      height: 1px;
+      background: rgba(245, 166, 35, 0.24);
+    }
+
+    h1, h2 {
+      font-family: var(--font-display);
+      line-height: 1.08;
+      letter-spacing: -0.02em;
+    }
+
+    h1 {
+      font-size: var(--title-size);
+      max-width: 10ch;
+    }
+
+    h2 {
+      font-size: var(--h2-size);
+      max-width: 12ch;
+    }
+
+    h3 {
+      font-size: var(--h3-size);
+      line-height: 1.3;
+    }
+
+    p, li {
+      font-size: var(--body-size);
+      line-height: 1.7;
+      color: var(--text);
+    }
+
+    .muted {
+      color: var(--muted);
+    }
+
+    .hero-grid,
+    .two-col,
+    .projects-grid,
+    .stages-grid {
+      display: grid;
+      gap: clamp(12px, 1.5vw, 18px);
+    }
+
+    .hero-grid,
+    .two-col {
+      grid-template-columns: 1.15fr 0.85fr;
+      align-items: stretch;
+    }
+
+    .card {
+      border: 1px solid var(--border);
+      background: linear-gradient(180deg, rgba(24, 28, 38, 0.98), rgba(19, 22, 30, 0.98));
+      border-radius: 18px;
+      padding: clamp(16px, 2vw, 24px);
+      box-shadow: var(--shadow);
+    }
+
+    .hero-title em {
+      color: transparent;
+      background: linear-gradient(135deg, var(--gold), #ffd57a);
+      -webkit-background-clip: text;
+      background-clip: text;
+      font-style: normal;
+    }
+
+    .pill-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 40px;
+      border-radius: 999px;
+      padding: 0 14px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--border);
+      font-size: var(--small-size);
+      color: var(--muted);
+    }
+
+    .pill strong {
+      color: var(--text);
+      font-family: var(--font-mono);
+      font-weight: 700;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .stat-box {
+      border-radius: 14px;
+      border: 1px solid var(--border);
+      background: rgba(255, 255, 255, 0.03);
+      padding: 16px;
+    }
+
+    .stat-value {
+      font-family: var(--font-mono);
+      font-size: clamp(1.25rem, 2vw, 1.8rem);
+      color: var(--gold);
+      margin-bottom: 6px;
+    }
+
+    .feature-list {
+      display: grid;
+      gap: 12px;
+      list-style: none;
+    }
+
+    .feature-list li,
+    .timeline-item,
+    .project-card,
+    .stage-card {
+      border: 1px solid var(--border);
+      background: var(--card);
+      border-radius: 16px;
+      padding: 16px;
+    }
+
+    .feature-list li {
+      padding-left: 48px;
+      position: relative;
+    }
+
+    .feature-list li::before {
+      content: '✦';
+      position: absolute;
+      left: 18px;
+      top: 17px;
+      color: var(--gold);
+    }
+
+    .timeline {
+      display: grid;
+      gap: 12px;
+    }
+
+    .timeline-item {
+      position: relative;
+      padding-left: 72px;
+    }
+
+    .timeline-item::before {
+      content: attr(data-step);
+      position: absolute;
+      left: 16px;
+      top: 16px;
+      width: 40px;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 12px;
+      font-family: var(--font-mono);
+      font-size: var(--small-size);
+      font-weight: 700;
+      color: var(--gold);
+      background: rgba(245, 166, 35, 0.10);
+      border: 1px solid rgba(245, 166, 35, 0.24);
+    }
+
+    .timeline-item p,
+    .project-card p,
+    .stage-card p {
+      color: var(--muted);
+      font-size: var(--small-size);
+    }
+
+    .projects-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .project-card {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      min-height: 0;
+    }
+
+    .project-tag {
+      display: inline-flex;
+      align-items: center;
+      width: fit-content;
+      min-height: 24px;
+      padding: 0 8px;
+      border-radius: 999px;
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text);
+      border: 1px solid rgba(255, 255, 255, 0.09);
+      background: rgba(255, 255, 255, 0.04);
+    }
+
+    .stages-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .stage-card {
+      border-left: 3px solid var(--stage-color, var(--gold));
+    }
+
+    .stage-card h3 {
+      margin-bottom: 8px;
+    }
+
+    .stage-card .stage-index {
+      display: inline-flex;
+      align-items: center;
+      min-height: 22px;
+      padding: 0 8px;
+      margin-bottom: 10px;
+      border-radius: 999px;
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      color: var(--stage-color, var(--gold));
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .footer-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px 28px 20px;
+      color: var(--muted);
+      font-family: var(--font-mono);
+      font-size: var(--small-size);
+    }
+
+    .kbd-hint {
+      display: inline-flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .kbd-hint kbd {
+      padding: 4px 7px;
+      border-radius: 6px;
+      border: 1px solid var(--border-strong);
+      background: var(--card);
+      color: var(--text);
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+    }
+
+    .reveal {
+      opacity: 0;
+      transform: translateY(24px);
+      transition: opacity var(--duration-normal) var(--ease-out), transform var(--duration-normal) var(--ease-out);
+    }
+
+    .slide.visible .reveal {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .reveal:nth-child(1) { transition-delay: 0.06s; }
+    .reveal:nth-child(2) { transition-delay: 0.12s; }
+    .reveal:nth-child(3) { transition-delay: 0.18s; }
+    .reveal:nth-child(4) { transition-delay: 0.24s; }
+    .reveal:nth-child(5) { transition-delay: 0.30s; }
+    .reveal:nth-child(6) { transition-delay: 0.36s; }
+
+    @media (max-width: 900px) {
+      .hero-grid,
+      .two-col,
+      .projects-grid,
+      .stages-grid,
+      .stats-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .nav-dots {
+        display: none;
+      }
+
+      .slide-index {
+        top: 18px;
+        right: 18px;
+      }
+    }
+
+    @media (max-height: 700px) {
+      .feature-list,
+      .timeline,
+      .projects-grid,
+      .stages-grid {
+        gap: 10px;
+      }
+
+      .card,
+      .feature-list li,
+      .timeline-item,
+      .project-card,
+      .stage-card {
+        padding: 14px;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.2s !important;
+      }
+
+      html {
+        scroll-behavior: auto;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="progress-bar"><div class="progress-bar-fill" id="progressFill"></div></div>
+  <nav class="nav-dots" id="navDots" aria-label="Slide navigation"></nav>
+
+  <section class="slide" data-title="封面">
+    <div class="slide-index">01 / 05</div>
+    <div class="slide-content">
+      <div class="eyebrow reveal">AI AGENT DEMO</div>
+      <h1 class="hero-title reveal">OpenClaw <em>训练营</em></h1>
+      <p class="muted reveal">这是基于 <code>frontend-slides</code> 思路手工做的一份最小体验 demo。目标不是课程官网，而是先验证“单文件 HTML 课件”的浏览手感。</p>
+      <div class="pill-row reveal">
+        <div class="pill"><span>🎯</span><strong>6 大阶段</strong><span>从认知到落地</span></div>
+        <div class="pill"><span>📚</span><strong>12 节课程</strong><span>适合拆成独立课件</span></div>
+        <div class="pill"><span>🌐</span><strong>HTML 单文件</strong><span>直接部署可看</span></div>
+      </div>
+      <div class="hero-grid reveal">
+        <div class="card">
+          <h3>为什么先做这个 demo</h3>
+          <ul class="feature-list">
+            <li>验证网页课件的翻页、滚动和触摸体验</li>
+            <li>确认你的内容更适合“独立课件站”而不是塞进当前主站</li>
+            <li>后续每一节课都能输出成单独 HTML 文件</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>预览方式</h3>
+          <div class="stats-grid">
+            <div class="stat-box"><div class="stat-value">← →</div><p>键盘翻页</p></div>
+            <div class="stat-box"><div class="stat-value">Wheel</div><p>滚轮切换</p></div>
+            <div class="stat-box"><div class="stat-value">Swipe</div><p>手机触摸</p></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="footer-bar">
+      <span>OpenClaw Demo</span>
+      <span class="kbd-hint"><kbd>←</kbd><kbd>→</kbd><kbd>Space</kbd><span>翻页</span></span>
+    </div>
+  </section>
+
+  <section class="slide" data-title="阶段概览">
+    <div class="slide-index">02 / 05</div>
+    <div class="slide-content">
+      <div class="eyebrow reveal">Roadmap</div>
+      <h2 class="reveal">6 个阶段，适合拆成 12 份独立课件</h2>
+      <div class="stages-grid reveal">
+        <article class="stage-card" style="--stage-color:#f5a623"><span class="stage-index">01</span><h3>认知觉醒</h3><p>Agent 思维、工作流、OpenClaw 本地优势。</p></article>
+        <article class="stage-card" style="--stage-color:#3b9eff"><span class="stage-index">02</span><h3>极速部署</h3><p>环境准备、本地部署、云端部署。</p></article>
+        <article class="stage-card" style="--stage-color:#a855f7"><span class="stage-index">03</span><h3>打破次元壁</h3><p>飞书/钉钉连接器、人格与长期记忆。</p></article>
+        <article class="stage-card" style="--stage-color:#22c97a"><span class="stage-index">04</span><h3>高效协作</h3><p>Obsidian 知识库、AI 日报、自动化情报。</p></article>
+        <article class="stage-card" style="--stage-color:#ff5f57"><span class="stage-index">05</span><h3>生产力引擎</h3><p>内容创作流水线、Excel/CSV 自动分析。</p></article>
+        <article class="stage-card" style="--stage-color:#f0449a"><span class="stage-index">06</span><h3>先锋探索</h3><p>7x24 编程搭档、金融 API 与量化验证。</p></article>
+      </div>
+    </div>
+    <div class="footer-bar">
+      <span>结构建议：一阶段 1 张概览 + 1-2 张正文</span>
+      <span>2 / 5</span>
+    </div>
+  </section>
+
+  <section class="slide" data-title="样例课程">
+    <div class="slide-index">03 / 05</div>
+    <div class="slide-content">
+      <div class="eyebrow reveal">Lesson Sample</div>
+      <h2 class="reveal">样例：第 1 课如何拆成网页课件</h2>
+      <div class="two-col reveal">
+        <div class="card">
+          <h3>课程主题</h3>
+          <div class="timeline">
+            <article class="timeline-item" data-step="01">
+              <h3>什么是 AI Agent</h3>
+              <p>不是聊天窗口，而是“理解目标、规划步骤、调用工具、执行任务”的系统。</p>
+            </article>
+            <article class="timeline-item" data-step="02">
+              <h3>Agent vs Chatbot</h3>
+              <p>Chatbot 偏单轮回答；Agent 更强调持续状态、环境交互和目标完成。</p>
+            </article>
+            <article class="timeline-item" data-step="03">
+              <h3>OpenClaw 的价值</h3>
+              <p>本地优先、隐私友好、可接工具、可接工作流，适合做个人 AI 中枢。</p>
+            </article>
+          </div>
+        </div>
+        <div class="card">
+          <h3>对应课件页面建议</h3>
+          <ul class="feature-list">
+            <li>第 1 页：封面 + 本节收获</li>
+            <li>第 2 页：Agent 概念图</li>
+            <li>第 3 页：Chatbot 与 Agent 对比</li>
+            <li>第 4 页：OpenClaw 本地优势</li>
+            <li>第 5 页：行动清单与下一课预告</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div class="footer-bar">
+      <span>这类内容特别适合用 Markdown 维护，再生成 HTML</span>
+      <span>3 / 5</span>
+    </div>
+  </section>
+
+  <section class="slide" data-title="项目成果">
+    <div class="slide-index">04 / 05</div>
+    <div class="slide-content">
+      <div class="eyebrow reveal">Projects</div>
+      <h2 class="reveal">课程卖点更适合用“成果页”表达</h2>
+      <div class="projects-grid reveal">
+        <article class="project-card">
+          <span class="project-tag">Project 01</span>
+          <h3>知识库管理</h3>
+          <p>Obsidian 联动、对话式检索、自动归档。</p>
+        </article>
+        <article class="project-card">
+          <span class="project-tag">Project 02</span>
+          <h3>AI 日报</h3>
+          <p>Cron + Web Search，定时抓取并推送行业情报。</p>
+        </article>
+        <article class="project-card">
+          <span class="project-tag">Project 03</span>
+          <h3>内容工厂</h3>
+          <p>选题、写作、排版到发布的一体化内容流。</p>
+        </article>
+        <article class="project-card">
+          <span class="project-tag">Project 04</span>
+          <h3>数据分析</h3>
+          <p>Excel/CSV 自动分析，输出报告与洞察。</p>
+        </article>
+        <article class="project-card">
+          <span class="project-tag">Project 05</span>
+          <h3>自动化编程</h3>
+          <p>代码重构、测试生成、运维监控协作。</p>
+        </article>
+        <article class="project-card">
+          <span class="project-tag">Project 06</span>
+          <h3>AI 理财</h3>
+          <p>金融 API、市场分析、策略回测与验证。</p>
+        </article>
+      </div>
+    </div>
+    <div class="footer-bar">
+      <span>比普通 landing page 更适合讲“节奏”和“价值递进”</span>
+      <span>4 / 5</span>
+    </div>
+  </section>
+
+  <section class="slide" data-title="下一步">
+    <div class="slide-index">05 / 05</div>
+    <div class="slide-content">
+      <div class="eyebrow reveal">Next Step</div>
+      <h2 class="reveal">如果体验 OK，下一步就不是继续做 demo</h2>
+      <div class="hero-grid reveal">
+        <div class="card">
+          <h3>建议落地流程</h3>
+          <div class="timeline">
+            <article class="timeline-item" data-step="A1">
+              <h3>先写 12 节课的 Markdown</h3>
+              <p>每节课控制在 5-10 页，先把结构做对。</p>
+            </article>
+            <article class="timeline-item" data-step="A2">
+              <h3>再批量生成 HTML 课件</h3>
+              <p>每节课一个 HTML，部署到独立课件站。</p>
+            </article>
+            <article class="timeline-item" data-step="A3">
+              <h3>最后再决定是否接回主站</h3>
+              <p>先验证内容和体验，再考虑入口整合。</p>
+            </article>
+          </div>
+        </div>
+        <div class="card">
+          <h3>这个 demo 解决了什么</h3>
+          <ul class="feature-list">
+            <li>你已经能实际感受网页课件，而不是抽象讨论</li>
+            <li>不依赖 Claude Code skill，也能先做第一版验证</li>
+            <li>后续我可以直接帮你从 OpenClaw 第 1 课开始正式出课件</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div class="footer-bar">
+      <span>Demo ready for browser testing</span>
+      <span>5 / 5</span>
+    </div>
+  </section>
+
+  <script>
+    class SlidePresentation {
+      constructor() {
+        this.slides = Array.from(document.querySelectorAll('.slide'));
+        this.progressFill = document.getElementById('progressFill');
+        this.navDotsEl = document.getElementById('navDots');
+        this.currentSlide = 0;
+        this.wheelLock = false;
+        this.touchStartY = 0;
+        this.touchEndY = 0;
+        this.buildNavDots();
+        this.setupIntersectionObserver();
+        this.setupKeyboardNav();
+        this.setupTouchNav();
+        this.setupWheelNav();
+        this.updateUI(0);
+      }
+
+      buildNavDots() {
+        this.navDotsEl.innerHTML = '';
+        this.slides.forEach((slide, index) => {
+          const dot = document.createElement('button');
+          dot.className = 'nav-dot';
+          dot.type = 'button';
+          dot.setAttribute('aria-label', slide.dataset.title || `Slide ${index + 1}`);
+          dot.addEventListener('click', () => this.goToSlide(index));
+          this.navDotsEl.appendChild(dot);
+        });
+      }
+
+      setupIntersectionObserver() {
+        const observer = new IntersectionObserver((entries) => {
+          entries.forEach((entry) => {
+            if (!entry.isIntersecting) return;
+            const index = this.slides.indexOf(entry.target);
+            if (index >= 0) {
+              entry.target.classList.add('visible');
+              this.updateUI(index);
+            }
+          });
+        }, { threshold: 0.55 });
+
+        this.slides.forEach((slide) => observer.observe(slide));
+      }
+
+      setupKeyboardNav() {
+        document.addEventListener('keydown', (event) => {
+          if (['ArrowRight', 'ArrowDown', 'PageDown', ' '].includes(event.key)) {
+            event.preventDefault();
+            this.goToSlide(this.currentSlide + 1);
+          }
+          if (['ArrowLeft', 'ArrowUp', 'PageUp'].includes(event.key)) {
+            event.preventDefault();
+            this.goToSlide(this.currentSlide - 1);
+          }
+          if (event.key === 'Home') {
+            event.preventDefault();
+            this.goToSlide(0);
+          }
+          if (event.key === 'End') {
+            event.preventDefault();
+            this.goToSlide(this.slides.length - 1);
+          }
+        });
+      }
+
+      setupWheelNav() {
+        window.addEventListener('wheel', (event) => {
+          if (this.wheelLock) return;
+          if (Math.abs(event.deltaY) < 24) return;
+          this.wheelLock = true;
+          this.goToSlide(this.currentSlide + (event.deltaY > 0 ? 1 : -1));
+          window.setTimeout(() => {
+            this.wheelLock = false;
+          }, 700);
+        }, { passive: true });
+      }
+
+      setupTouchNav() {
+        window.addEventListener('touchstart', (event) => {
+          this.touchStartY = event.changedTouches[0].screenY;
+        }, { passive: true });
+
+        window.addEventListener('touchend', (event) => {
+          this.touchEndY = event.changedTouches[0].screenY;
+          const delta = this.touchStartY - this.touchEndY;
+          if (Math.abs(delta) < 50) return;
+          this.goToSlide(this.currentSlide + (delta > 0 ? 1 : -1));
+        }, { passive: true });
+      }
+
+      goToSlide(index) {
+        const next = Math.max(0, Math.min(index, this.slides.length - 1));
+        this.slides[next].scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+
+      updateUI(index) {
+        this.currentSlide = index;
+        const progress = ((index + 1) / this.slides.length) * 100;
+        this.progressFill.style.width = `${progress}%`;
+        this.navDotsEl.querySelectorAll('.nav-dot').forEach((dot, dotIndex) => {
+          dot.classList.toggle('active', dotIndex === index);
+        });
+      }
+    }
+
+    new SlidePresentation();
+  </script>
+</body>
+</html>

@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>第1课 揭秘 AI Agent</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Inter:wght@400;500;700&family=Fraunces:opsz,wght@9..144,600;9..144,700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg-primary: #0b0d12;
+      --bg-secondary: #13161e;
+      --card-bg: #181c26;
+      --border: #232838;
+      --border-strong: #2e3448;
+      --text-primary: #e2e6f3;
+      --text-secondary: #7f88a9;
+      --accent: #f5a623;
+      --accent-soft: #ffd57a;
+      --accent-alt: #3b9eff;
+      --font-display: 'Fraunces', serif;
+      --font-body: 'Inter', sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+      --title-size: clamp(2.1rem, 6vw, 5rem);
+      --h2-size: clamp(1.55rem, 3.4vw, 2.8rem);
+      --body-size: clamp(0.9rem, 1.4vw, 1.08rem);
+      --small-size: clamp(0.7rem, 1vw, 0.84rem);
+      --slide-padding: clamp(1.25rem, 4vw, 3.4rem);
+      --content-gap: clamp(1rem, 2vw, 1.8rem);
+      --duration-normal: 0.6s;
+      --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html, body { height: 100%; overflow-x: hidden; }
+    html { scroll-snap-type: y mandatory; scroll-behavior: smooth; }
+    body {
+      background:
+        radial-gradient(ellipse 90% 130% at 50% -10%, rgba(245, 166, 35, 0.09) 0%, transparent 60%),
+        radial-gradient(ellipse 50% 80% at 92% 70%, rgba(59, 158, 255, 0.05) 0%, transparent 60%),
+        var(--bg-primary);
+      color: var(--text-primary);
+      font-family: var(--font-body);
+    }
+
+    .slide {
+      width: 100vw;
+      height: 100vh;
+      height: 100dvh;
+      overflow: hidden;
+      scroll-snap-align: start;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+
+    .slide-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      max-height: 100%;
+      overflow: hidden;
+      gap: var(--content-gap);
+      width: min(1120px, 100%);
+      margin: 0 auto;
+      padding: var(--slide-padding);
+    }
+
+    .progress-bar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      z-index: 200;
+      width: 100%;
+      height: 3px;
+      background: rgba(255, 255, 255, 0.06);
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      width: 0;
+      background: linear-gradient(90deg, var(--accent), var(--accent-soft));
+      box-shadow: 0 0 16px rgba(245, 166, 35, 0.3);
+      transition: width 0.24s ease;
+    }
+
+    .nav-dots {
+      position: fixed;
+      right: 20px;
+      top: 50%;
+      transform: translateY(-50%);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      z-index: 120;
+    }
+
+    .nav-dot {
+      width: 10px;
+      height: 10px;
+      border: 1px solid var(--border-strong);
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.04);
+      cursor: pointer;
+      transition: transform 0.2s ease, background 0.2s ease, border-color 0.2s ease;
+    }
+
+    .nav-dot.active {
+      background: var(--accent);
+      border-color: var(--accent);
+      transform: scale(1.18);
+      box-shadow: 0 0 0 4px rgba(245, 166, 35, 0.15);
+    }
+
+    .slide-count {
+      position: absolute;
+      top: 24px;
+      right: 28px;
+      font-family: var(--font-mono);
+      font-size: var(--small-size);
+      color: var(--text-secondary);
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      font-family: var(--font-mono);
+      font-size: var(--small-size);
+      color: var(--accent);
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+    }
+
+    .eyebrow::after {
+      content: '';
+      width: 36px;
+      height: 1px;
+      background: rgba(245, 166, 35, 0.24);
+    }
+
+    .slide-title,
+    .slide-heading {
+      font-family: var(--font-display);
+      line-height: 1.06;
+      letter-spacing: -0.02em;
+    }
+
+    .slide-title {
+      max-width: 10ch;
+      font-size: var(--title-size);
+    }
+
+    .slide-heading {
+      max-width: 12ch;
+      font-size: var(--h2-size);
+    }
+
+    .slide-subtitle,
+    .slide-paragraph,
+    .slide-list li,
+    .slide-figure figcaption {
+      font-size: var(--body-size);
+      line-height: 1.7;
+      color: var(--text-primary);
+    }
+
+    .slide-subtitle {
+      max-width: 58ch;
+      color: var(--text-secondary);
+    }
+
+    .slide-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .meta-pill,
+    .slide-code-lang {
+      display: inline-flex;
+      align-items: center;
+      min-height: 30px;
+      width: fit-content;
+      padding: 0 10px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--border);
+      font-family: var(--font-mono);
+      font-size: var(--small-size);
+      color: var(--text-secondary);
+    }
+
+    .slide-body {
+      display: grid;
+      gap: clamp(0.85rem, 1.4vw, 1.25rem);
+      align-content: start;
+      max-width: 100%;
+      overflow: hidden;
+    }
+
+    .slide-list {
+      list-style: none;
+      display: grid;
+      gap: 0.8rem;
+    }
+
+    .slide-list li {
+      display: grid;
+      grid-template-columns: 14px 1fr;
+      gap: 0.9rem;
+      align-items: start;
+    }
+
+    .slide-list li::before {
+      content: '';
+      width: 9px;
+      height: 9px;
+      margin-top: 0.52rem;
+      border-radius: 50%;
+      background: var(--accent-alt);
+      box-shadow: 0 0 16px rgba(59, 158, 255, 0.35);
+    }
+
+    .slide-figure {
+      display: grid;
+      gap: 0.8rem;
+      padding: 1rem;
+      border-radius: 24px;
+      border: 1px solid var(--border);
+      background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.015));
+      overflow: hidden;
+    }
+
+    .slide-figure img {
+      width: 100%;
+      max-height: 52vh;
+      object-fit: contain;
+      border-radius: 18px;
+      background: rgba(0, 0, 0, 0.18);
+    }
+
+    .slide-figure figcaption {
+      color: var(--text-secondary);
+    }
+
+    .slide-code-wrap {
+      display: grid;
+      gap: 0.65rem;
+      padding: 1rem;
+      border-radius: 24px;
+      border: 1px solid var(--border);
+      background: #0f131b;
+      overflow: hidden;
+    }
+
+    .slide-code {
+      overflow: auto;
+      max-height: 48vh;
+      padding: 0.1rem;
+      color: #d7def5;
+      font-family: var(--font-mono);
+      font-size: clamp(0.76rem, 1vw, 0.92rem);
+      line-height: 1.65;
+    }
+
+    .slide-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      width: min(1120px, calc(100% - 2 * var(--slide-padding)));
+      margin: 0 auto;
+      padding: 0 0 var(--slide-padding);
+      font-family: var(--font-mono);
+      font-size: var(--small-size);
+      color: var(--text-secondary);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .title-slide .slide-content {
+      justify-content: center;
+    }
+
+    .reveal {
+      opacity: 0;
+      transform: translateY(22px);
+      transition:
+        opacity var(--duration-normal) var(--ease-out-expo),
+        transform var(--duration-normal) var(--ease-out-expo);
+    }
+
+    .slide.is-active .reveal {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .slide.is-active .reveal:nth-child(2) { transition-delay: 0.08s; }
+    .slide.is-active .reveal:nth-child(3) { transition-delay: 0.16s; }
+    .slide.is-active .reveal:nth-child(4) { transition-delay: 0.24s; }
+    .slide.is-active .reveal:nth-child(5) { transition-delay: 0.32s; }
+
+    @media (max-width: 960px) {
+      .nav-dots { right: 12px; }
+      .slide-footer { letter-spacing: 0.04em; }
+    }
+
+    @media (max-width: 720px) {
+      .slide-count {
+        top: 16px;
+        right: 18px;
+      }
+
+      .slide-content {
+        justify-content: flex-start;
+        padding-top: 4rem;
+        padding-bottom: 1rem;
+      }
+
+      .slide-title,
+      .slide-heading,
+      .slide-subtitle,
+      .slide-paragraph,
+      .slide-list li,
+      .slide-figure figcaption {
+        max-width: 100%;
+      }
+
+      .slide-figure img,
+      .slide-code {
+        max-height: 40vh;
+      }
+
+      .slide-footer {
+        width: calc(100% - 2 * var(--slide-padding));
+        padding-bottom: 1rem;
+      }
+
+      .nav-dots {
+        right: auto;
+        left: 50%;
+        bottom: 14px;
+        top: auto;
+        transform: translateX(-50%);
+        flex-direction: row;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="progress-bar"><div class="progress-bar-fill" id="progressFill"></div></div>
+  <div class="nav-dots" id="navDots"></div>
+  <main id="slidesRoot">
+    
+    <section class="slide title-slide" data-title="第1课 揭秘 AI Agent">
+      <div class="slide-count">01 / 06</div>
+      <div class="slide-content">
+        <div class="eyebrow reveal">MD TO HTML SLIDES</div>
+        <h1 class="slide-title reveal">第1课 揭秘 AI Agent</h1>
+        <p class="slide-subtitle reveal">Markdown-first HTML slide deck</p>
+        <div class="slide-meta reveal">
+          <span class="meta-pill">Theme: dark-card</span>
+          <span class="meta-pill">Slides: 6</span>
+        </div>
+      </div>
+      <div class="slide-footer">
+        <span>Use arrow keys, wheel, or swipe</span>
+        <span>01 / 06</span>
+      </div>
+    </section>
+  
+    
+      <section class="slide" data-title="本节目标" id="本节目标">
+        <div class="slide-count">02 / 06</div>
+        <div class="slide-content">
+          <div class="eyebrow reveal">Slide 02</div>
+          <h2 class="slide-heading reveal">本节目标</h2>
+          <div class="slide-body">
+            <ul class="slide-list reveal"><li>理解什么是 AI Agent</li><li>理解 Agent 和聊天机器人的区别</li><li>理解 OpenClaw 的本地优势</li></ul>
+          </div>
+        </div>
+        <div class="slide-footer">
+          <span>本节目标</span>
+          <span>02 / 06</span>
+        </div>
+      </section>
+    
+
+      <section class="slide" data-title="1. 什么是 AI Agent" id="1-什么是-ai-agent">
+        <div class="slide-count">03 / 06</div>
+        <div class="slide-content">
+          <div class="eyebrow reveal">Slide 03</div>
+          <h2 class="slide-heading reveal">1. 什么是 AI Agent</h2>
+          <div class="slide-body">
+            <p class="slide-paragraph reveal">Agent 不是简单问答工具，而是能理解目标、规划步骤、调用工具并执行任务的系统。</p>
+          </div>
+        </div>
+        <div class="slide-footer">
+          <span>1. 什么是 AI Agent</span>
+          <span>03 / 06</span>
+        </div>
+      </section>
+    
+
+      <section class="slide" data-title="2. Agent 和 Chatbot 的区别" id="2-agent-和-chatbot-的区别">
+        <div class="slide-count">04 / 06</div>
+        <div class="slide-content">
+          <div class="eyebrow reveal">Slide 04</div>
+          <h2 class="slide-heading reveal">2. Agent 和 Chatbot 的区别</h2>
+          <div class="slide-body">
+            <ul class="slide-list reveal"><li>Chatbot 偏向单轮对话</li><li>Agent 偏向目标执行</li><li>Agent 可以连接工具和外部环境</li></ul>
+          </div>
+        </div>
+        <div class="slide-footer">
+          <span>2. Agent 和 Chatbot 的区别</span>
+          <span>04 / 06</span>
+        </div>
+      </section>
+    
+
+      <section class="slide" data-title="3. OpenClaw 的本地优势" id="3-openclaw-的本地优势">
+        <div class="slide-count">05 / 06</div>
+        <div class="slide-content">
+          <div class="eyebrow reveal">Slide 05</div>
+          <h2 class="slide-heading reveal">3. OpenClaw 的本地优势</h2>
+          <div class="slide-body">
+            <ul class="slide-list reveal"><li>本地部署</li><li>隐私友好</li><li>可扩展连接器</li><li>可做个人 AI 中枢</li></ul>
+          </div>
+        </div>
+        <div class="slide-footer">
+          <span>3. OpenClaw 的本地优势</span>
+          <span>05 / 06</span>
+        </div>
+      </section>
+    
+
+      <section class="slide" data-title="总结" id="总结">
+        <div class="slide-count">06 / 06</div>
+        <div class="slide-content">
+          <div class="eyebrow reveal">Slide 06</div>
+          <h2 class="slide-heading reveal">总结</h2>
+          <div class="slide-body">
+            <ul class="slide-list reveal"><li>Agent = 模型 + 工具 + 规划 + 执行</li><li>OpenClaw 更适合做个人工作流助手</li></ul>
+          </div>
+        </div>
+        <div class="slide-footer">
+          <span>总结</span>
+          <span>06 / 06</span>
+        </div>
+      </section>
+    
+  </main>
+  <script>
+    (() => {
+      const slides = Array.from(document.querySelectorAll('.slide'));
+      const navDotsRoot = document.getElementById('navDots');
+      const progressFill = document.getElementById('progressFill');
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            const activeIndex = slides.indexOf(entry.target);
+            setActiveSlide(activeIndex);
+          }
+        });
+      }, { threshold: 0.6 });
+
+      let activeIndex = 0;
+      let touchStartY = 0;
+      let ticking = false;
+
+      const clampIndex = (value) => Math.max(0, Math.min(value, slides.length - 1));
+
+      const goToSlide = (index) => {
+        const nextIndex = clampIndex(index);
+        slides[nextIndex].scrollIntoView({ behavior: 'smooth', block: 'start' });
+      };
+
+      const setActiveSlide = (index) => {
+        activeIndex = clampIndex(index);
+        slides.forEach((slide, slideIndex) => {
+          slide.classList.toggle('is-active', slideIndex === activeIndex);
+        });
+        const progress = slides.length > 1 ? (activeIndex / (slides.length - 1)) * 100 : 100;
+        progressFill.style.width = progress + '%';
+        Array.from(navDotsRoot.children).forEach((dot, dotIndex) => {
+          dot.classList.toggle('active', dotIndex === activeIndex);
+          dot.setAttribute('aria-current', dotIndex === activeIndex ? 'true' : 'false');
+        });
+      };
+
+      slides.forEach((slide, index) => {
+        observer.observe(slide);
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'nav-dot' + (index === 0 ? ' active' : '');
+        button.setAttribute('aria-label', 'Go to slide ' + (index + 1));
+        button.addEventListener('click', () => goToSlide(index));
+        navDotsRoot.appendChild(button);
+      });
+
+      document.addEventListener('keydown', (event) => {
+        if (event.key === 'ArrowDown' || event.key === 'PageDown' || event.key === 'ArrowRight' || event.key === ' ') {
+          event.preventDefault();
+          goToSlide(activeIndex + 1);
+        }
+        if (event.key === 'ArrowUp' || event.key === 'PageUp' || event.key === 'ArrowLeft') {
+          event.preventDefault();
+          goToSlide(activeIndex - 1);
+        }
+        if (event.key === 'Home') {
+          event.preventDefault();
+          goToSlide(0);
+        }
+        if (event.key === 'End') {
+          event.preventDefault();
+          goToSlide(slides.length - 1);
+        }
+      });
+
+      window.addEventListener('wheel', (event) => {
+        if (ticking || Math.abs(event.deltaY) < 18) return;
+        ticking = true;
+        goToSlide(activeIndex + (event.deltaY > 0 ? 1 : -1));
+        window.setTimeout(() => {
+          ticking = false;
+        }, 420);
+      }, { passive: true });
+
+      window.addEventListener('touchstart', (event) => {
+        touchStartY = event.changedTouches[0].clientY;
+      }, { passive: true });
+
+      window.addEventListener('touchend', (event) => {
+        const deltaY = touchStartY - event.changedTouches[0].clientY;
+        if (Math.abs(deltaY) < 40) return;
+        goToSlide(activeIndex + (deltaY > 0 ? 1 : -1));
+      }, { passive: true });
+
+      setActiveSlide(0);
+      slides[0].classList.add('is-active');
+    })();
+  </script>
+</body>
+</html>
