@@ -53,18 +53,35 @@ export const renderDarkCardDeck = (deck, options) => {
 
   const titleSlide = `
     <section class="slide title-slide" data-title="${escapeHtml(titleText)}">
-      <div class="slide-count">01 / ${String(totalSlides).padStart(2, '0')}</div>
-      <div class="slide-content">
-        <div class="eyebrow reveal">MD TO HTML SLIDES</div>
-        <h1 class="slide-title reveal">${escapeHtml(titleText)}</h1>
-        <p class="slide-subtitle reveal">${escapeHtml(subtitle)}</p>
-        <div class="slide-meta reveal">
-          <span class="meta-pill">Theme: ${escapeHtml(options.theme)}</span>
-          <span class="meta-pill">Slides: ${String(totalSlides)}</span>
+      <div class="frame-number">01</div>
+      <div class="slide-shell hero-shell">
+        <div class="hero-card reveal">
+          <div class="hero-kicker">Markdown-native deck</div>
+          <h1 class="slide-title">${escapeHtml(titleText)}</h1>
+          <p class="slide-subtitle">${escapeHtml(subtitle)}</p>
+          <div class="slide-meta">
+            <span class="meta-pill">${escapeHtml(options.theme)}</span>
+            <span class="meta-pill">${String(totalSlides)} slides</span>
+          </div>
+        </div>
+        <div class="hero-side reveal">
+          <div class="side-label">Playbook</div>
+          <div class="hero-stat">
+            <span class="stat-number">A1</span>
+            <span class="stat-copy">Single-file HTML output</span>
+          </div>
+          <div class="hero-stat">
+            <span class="stat-number">B2</span>
+            <span class="stat-copy">Keyboard, wheel, and touch navigation</span>
+          </div>
+          <div class="hero-stat">
+            <span class="stat-number">C3</span>
+            <span class="stat-copy">Designed for product decks, not generic slides</span>
+          </div>
         </div>
       </div>
       <div class="slide-footer">
-        <span>Use arrow keys, wheel, or swipe</span>
+        <span class="footer-mark">MD TO HTML SLIDES</span>
         <span>${String(1).padStart(2, '0')} / ${String(totalSlides).padStart(2, '0')}</span>
       </div>
     </section>
@@ -75,16 +92,24 @@ export const renderDarkCardDeck = (deck, options) => {
     const renderedBlocks = slide.blocks.map(renderBlock).join('\n');
     return `
       <section class="slide" data-title="${escapeHtml(slide.title)}" id="${slugify(slide.title)}">
-        <div class="slide-count">${String(count).padStart(2, '0')} / ${String(totalSlides).padStart(2, '0')}</div>
-        <div class="slide-content">
-          <div class="eyebrow reveal">Slide ${String(count).padStart(2, '0')}</div>
-          <h2 class="slide-heading reveal">${escapeHtml(slide.title)}</h2>
-          <div class="slide-body">
-            ${renderedBlocks}
+        <div class="frame-number">${String(count).padStart(2, '0')}</div>
+        <div class="slide-shell content-shell">
+          <aside class="side-rail reveal">
+            <div class="rail-tag">Chapter ${String(count).padStart(2, '0')}</div>
+            <div class="rail-rule"></div>
+            <div class="rail-nav">${escapeHtml(slide.title)}</div>
+          </aside>
+          <div class="content-panel reveal">
+            <div class="content-panel-inner">
+              <h2 class="slide-heading">${escapeHtml(slide.title)}</h2>
+              <div class="slide-body">
+                ${renderedBlocks}
+              </div>
+            </div>
           </div>
         </div>
         <div class="slide-footer">
-          <span>${escapeHtml(slide.title)}</span>
+          <span class="footer-mark">${escapeHtml(slide.title)}</span>
           <span>${String(count).padStart(2, '0')} / ${String(totalSlides).padStart(2, '0')}</span>
         </div>
       </section>
@@ -99,153 +124,193 @@ export const renderDarkCardDeck = (deck, options) => {
   <title>${escapeHtml(titleText)}</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Inter:wght@400;500;700&family=Fraunces:opsz,wght@9..144,600;9..144,700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet" />
   <style>
     :root {
-      --bg-primary: #0b0d12;
-      --bg-secondary: #13161e;
-      --card-bg: #181c26;
-      --border: #232838;
-      --border-strong: #2e3448;
-      --text-primary: #e2e6f3;
-      --text-secondary: #7f88a9;
-      --accent: #f5a623;
-      --accent-soft: #ffd57a;
-      --accent-alt: #3b9eff;
-      --font-display: 'Fraunces', serif;
-      --font-body: 'Inter', sans-serif;
+      --bg-primary: #0d0f15;
+      --bg-secondary: #141821;
+      --surface: #171c26;
+      --surface-soft: #11161f;
+      --surface-strong: #ff6333;
+      --surface-strong-2: #ff8a5b;
+      --border: rgba(255, 255, 255, 0.08);
+      --text-primary: #f2f5fb;
+      --text-secondary: rgba(242, 245, 251, 0.68);
+      --text-on-strong: #1a1410;
+      --accent: #ff6333;
+      --accent-alt: #61a7ff;
+      --font-display: 'Archivo Black', sans-serif;
+      --font-body: 'Space Grotesk', sans-serif;
       --font-mono: 'JetBrains Mono', monospace;
-      --title-size: clamp(2.1rem, 6vw, 5rem);
-      --h2-size: clamp(1.55rem, 3.4vw, 2.8rem);
-      --body-size: clamp(0.9rem, 1.4vw, 1.08rem);
-      --small-size: clamp(0.7rem, 1vw, 0.84rem);
-      --slide-padding: clamp(1.25rem, 4vw, 3.4rem);
-      --content-gap: clamp(1rem, 2vw, 1.8rem);
+      --title-size: clamp(2.8rem, 7vw, 6.4rem);
+      --h2-size: clamp(2rem, 4.2vw, 3.8rem);
+      --body-size: clamp(1rem, 1.45vw, 1.1rem);
+      --small-size: clamp(0.72rem, 0.95vw, 0.84rem);
+      --slide-padding: clamp(1rem, 3vw, 2.4rem);
       --duration-normal: 0.6s;
       --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
     }
 
     * { margin: 0; padding: 0; box-sizing: border-box; }
-
     html, body { height: 100%; overflow-x: hidden; }
     html { scroll-snap-type: y mandatory; scroll-behavior: smooth; }
+
     body {
       background:
-        radial-gradient(ellipse 90% 130% at 50% -10%, rgba(245, 166, 35, 0.09) 0%, transparent 60%),
-        radial-gradient(ellipse 50% 80% at 92% 70%, rgba(59, 158, 255, 0.05) 0%, transparent 60%),
-        var(--bg-primary);
+        radial-gradient(circle at 20% 10%, rgba(255, 99, 51, 0.16), transparent 28%),
+        radial-gradient(circle at 85% 84%, rgba(97, 167, 255, 0.12), transparent 22%),
+        linear-gradient(135deg, #0d0f15 0%, #171b24 52%, #0b0d12 100%);
       color: var(--text-primary);
       font-family: var(--font-body);
     }
 
     .slide {
+      position: relative;
       width: 100vw;
       height: 100vh;
       height: 100dvh;
-      overflow: hidden;
       scroll-snap-align: start;
+      overflow: hidden;
       display: flex;
       flex-direction: column;
-      position: relative;
+      padding: var(--slide-padding);
     }
 
-    .slide-content {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      max-height: 100%;
-      overflow: hidden;
-      gap: var(--content-gap);
-      width: min(1120px, 100%);
-      margin: 0 auto;
-      padding: var(--slide-padding);
+    .slide::before {
+      content: '';
+      position: absolute;
+      inset: 16px;
+      border: 1px solid rgba(255,255,255,0.04);
+      pointer-events: none;
     }
 
     .progress-bar {
       position: fixed;
       top: 0;
       left: 0;
-      z-index: 200;
+      z-index: 300;
       width: 100%;
-      height: 3px;
-      background: rgba(255, 255, 255, 0.06);
+      height: 4px;
+      background: rgba(255,255,255,0.05);
     }
 
     .progress-bar-fill {
       height: 100%;
       width: 0;
-      background: linear-gradient(90deg, var(--accent), var(--accent-soft));
-      box-shadow: 0 0 16px rgba(245, 166, 35, 0.3);
+      background: linear-gradient(90deg, var(--surface-strong), var(--surface-strong-2));
       transition: width 0.24s ease;
+      box-shadow: 0 0 24px rgba(255, 99, 51, 0.4);
     }
 
     .nav-dots {
       position: fixed;
-      right: 20px;
-      top: 50%;
-      transform: translateY(-50%);
+      top: 26px;
+      right: 32px;
       display: flex;
-      flex-direction: column;
-      gap: 10px;
-      z-index: 120;
+      gap: 8px;
+      z-index: 220;
     }
 
     .nav-dot {
-      width: 10px;
-      height: 10px;
-      border: 1px solid var(--border-strong);
-      border-radius: 50%;
-      background: rgba(255, 255, 255, 0.04);
+      width: 28px;
+      height: 6px;
+      border: 0;
+      background: rgba(255,255,255,0.14);
       cursor: pointer;
-      transition: transform 0.2s ease, background 0.2s ease, border-color 0.2s ease;
+      transition: transform 0.2s ease, background 0.2s ease;
     }
 
     .nav-dot.active {
-      background: var(--accent);
-      border-color: var(--accent);
-      transform: scale(1.18);
-      box-shadow: 0 0 0 4px rgba(245, 166, 35, 0.15);
+      background: var(--surface-strong);
+      transform: scaleX(1.08);
     }
 
-    .slide-count {
+    .frame-number {
       position: absolute;
-      top: 24px;
-      right: 28px;
-      font-family: var(--font-mono);
-      font-size: var(--small-size);
-      color: var(--text-secondary);
-      letter-spacing: 0.14em;
-      text-transform: uppercase;
+      top: 34px;
+      left: 34px;
+      font-family: var(--font-display);
+      font-size: clamp(3rem, 7vw, 5.8rem);
+      line-height: 0.9;
+      color: rgba(255,255,255,0.08);
+      letter-spacing: -0.05em;
+      z-index: 1;
     }
 
-    .eyebrow {
-      display: inline-flex;
-      align-items: center;
-      gap: 10px;
-      font-family: var(--font-mono);
-      font-size: var(--small-size);
-      color: var(--accent);
-      letter-spacing: 0.18em;
-      text-transform: uppercase;
+    .slide-shell {
+      position: relative;
+      z-index: 2;
+      flex: 1;
+      width: min(1320px, 100%);
+      margin: 0 auto;
+      display: grid;
+      gap: clamp(1rem, 2vw, 1.4rem);
+      min-height: 0;
+      align-items: stretch;
     }
 
-    .eyebrow::after {
+    .hero-shell {
+      grid-template-columns: minmax(0, 1.2fr) minmax(260px, 0.64fr);
+      padding-top: clamp(4.8rem, 9vw, 6.8rem);
+      padding-bottom: 2rem;
+    }
+
+    .hero-card,
+    .content-panel,
+    .hero-side,
+    .side-rail {
+      min-height: 0;
+    }
+
+    .hero-card {
+      background: linear-gradient(145deg, var(--surface-strong) 0%, var(--surface-strong-2) 100%);
+      color: var(--text-on-strong);
+      padding: clamp(1.4rem, 3vw, 2.4rem);
+      display: grid;
+      align-content: end;
+      gap: 1.1rem;
+      box-shadow: 0 28px 90px rgba(255, 99, 51, 0.22);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero-card::after {
       content: '';
-      width: 36px;
-      height: 1px;
-      background: rgba(245, 166, 35, 0.24);
+      position: absolute;
+      inset: auto -16% -24% auto;
+      width: 40%;
+      aspect-ratio: 1;
+      background: rgba(255,255,255,0.12);
+      border-radius: 999px;
+      filter: blur(6px);
+    }
+
+    .hero-kicker,
+    .rail-tag,
+    .footer-mark,
+    .side-label,
+    .slide-code-lang {
+      font-family: var(--font-mono);
+      font-size: var(--small-size);
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+    }
+
+    .hero-kicker,
+    .side-label {
+      color: rgba(26, 20, 16, 0.68);
     }
 
     .slide-title,
     .slide-heading {
       font-family: var(--font-display);
-      line-height: 1.06;
-      letter-spacing: -0.02em;
+      line-height: 0.92;
+      letter-spacing: -0.05em;
+      text-transform: uppercase;
     }
 
     .slide-title {
-      max-width: 10ch;
+      max-width: 8ch;
       font-size: var(--title-size);
     }
 
@@ -259,13 +324,13 @@ export const renderDarkCardDeck = (deck, options) => {
     .slide-list li,
     .slide-figure figcaption {
       font-size: var(--body-size);
-      line-height: 1.7;
-      color: var(--text-primary);
+      line-height: 1.65;
     }
 
     .slide-subtitle {
-      max-width: 58ch;
-      color: var(--text-secondary);
+      max-width: 40ch;
+      color: rgba(26, 20, 16, 0.72);
+      font-weight: 500;
     }
 
     .slide-meta {
@@ -274,116 +339,200 @@ export const renderDarkCardDeck = (deck, options) => {
       gap: 10px;
     }
 
-    .meta-pill,
-    .slide-code-lang {
+    .meta-pill {
       display: inline-flex;
       align-items: center;
-      min-height: 30px;
-      width: fit-content;
-      padding: 0 10px;
-      border-radius: 999px;
-      background: rgba(255, 255, 255, 0.04);
-      border: 1px solid var(--border);
+      min-height: 34px;
+      padding: 0 12px;
+      background: rgba(255,255,255,0.16);
+      border: 1px solid rgba(26, 20, 16, 0.12);
+      color: rgba(26, 20, 16, 0.86);
       font-family: var(--font-mono);
       font-size: var(--small-size);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+
+    .hero-side {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid var(--border);
+      padding: clamp(1.2rem, 2vw, 1.5rem);
+      display: grid;
+      align-content: start;
+      gap: 1rem;
+      backdrop-filter: blur(10px);
+    }
+
+    .hero-stat {
+      display: grid;
+      grid-template-columns: 56px 1fr;
+      gap: 0.9rem;
+      padding-top: 0.95rem;
+      border-top: 1px solid rgba(255,255,255,0.08);
+    }
+
+    .stat-number {
+      font-family: var(--font-display);
+      font-size: 1.5rem;
+      color: var(--surface-strong-2);
+    }
+
+    .stat-copy {
       color: var(--text-secondary);
+      font-size: 0.98rem;
+      line-height: 1.55;
+    }
+
+    .content-shell {
+      grid-template-columns: 220px minmax(0, 1fr);
+      padding-top: clamp(4.8rem, 9vw, 6.4rem);
+      padding-bottom: 2rem;
+    }
+
+    .side-rail {
+      display: grid;
+      align-content: start;
+      gap: 1rem;
+      padding-top: 0.4rem;
+    }
+
+    .rail-tag {
+      color: var(--surface-strong-2);
+    }
+
+    .rail-rule {
+      width: 72px;
+      height: 4px;
+      background: var(--surface-strong);
+    }
+
+    .rail-nav {
+      color: var(--text-secondary);
+      font-size: 0.95rem;
+      line-height: 1.55;
+      max-width: 18ch;
+    }
+
+    .content-panel {
+      background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02));
+      border: 1px solid var(--border);
+      min-width: 0;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .content-panel::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 10px;
+      background: linear-gradient(180deg, var(--surface-strong), var(--surface-strong-2));
+    }
+
+    .content-panel-inner {
+      height: 100%;
+      display: grid;
+      align-content: start;
+      gap: 1.2rem;
+      padding: clamp(1.4rem, 3vw, 2rem) clamp(1.4rem, 3vw, 2.2rem) clamp(1.2rem, 2.2vw, 1.8rem) clamp(2rem, 4vw, 2.8rem);
+      overflow: hidden;
     }
 
     .slide-body {
       display: grid;
-      gap: clamp(0.85rem, 1.4vw, 1.25rem);
+      gap: 1rem;
       align-content: start;
-      max-width: 100%;
-      overflow: hidden;
+      overflow: auto;
+      padding-right: 0.35rem;
+    }
+
+    .slide-paragraph {
+      color: var(--text-secondary);
+      max-width: 58ch;
     }
 
     .slide-list {
       list-style: none;
       display: grid;
-      gap: 0.8rem;
+      gap: 0.95rem;
+      max-width: 64ch;
     }
 
     .slide-list li {
       display: grid;
-      grid-template-columns: 14px 1fr;
-      gap: 0.9rem;
+      grid-template-columns: 18px 1fr;
+      gap: 0.95rem;
       align-items: start;
+      color: var(--text-primary);
     }
 
     .slide-list li::before {
       content: '';
-      width: 9px;
-      height: 9px;
-      margin-top: 0.52rem;
-      border-radius: 50%;
+      width: 12px;
+      height: 12px;
+      margin-top: 0.38rem;
       background: var(--accent-alt);
-      box-shadow: 0 0 16px rgba(59, 158, 255, 0.35);
+      box-shadow: 0 0 0 4px rgba(97, 167, 255, 0.12);
     }
 
-    .slide-figure {
+    .slide-figure,
+    .slide-code-wrap {
       display: grid;
       gap: 0.8rem;
       padding: 1rem;
-      border-radius: 24px;
-      border: 1px solid var(--border);
-      background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.015));
-      overflow: hidden;
+      background: rgba(9, 12, 18, 0.52);
+      border: 1px solid rgba(255,255,255,0.08);
     }
 
     .slide-figure img {
       width: 100%;
-      max-height: 52vh;
+      max-height: 48vh;
       object-fit: contain;
-      border-radius: 18px;
-      background: rgba(0, 0, 0, 0.18);
+      background: rgba(255,255,255,0.03);
     }
 
     .slide-figure figcaption {
       color: var(--text-secondary);
     }
 
-    .slide-code-wrap {
-      display: grid;
-      gap: 0.65rem;
-      padding: 1rem;
-      border-radius: 24px;
-      border: 1px solid var(--border);
-      background: #0f131b;
-      overflow: hidden;
+    .slide-code-lang {
+      color: var(--surface-strong-2);
     }
 
     .slide-code {
       overflow: auto;
-      max-height: 48vh;
-      padding: 0.1rem;
-      color: #d7def5;
+      max-height: 42vh;
+      color: #eaf0ff;
       font-family: var(--font-mono);
       font-size: clamp(0.76rem, 1vw, 0.92rem);
       line-height: 1.65;
     }
 
     .slide-footer {
+      position: relative;
+      z-index: 2;
+      width: min(1320px, 100%);
+      margin: 0 auto;
+      padding-top: 0.6rem;
       display: flex;
       justify-content: space-between;
-      align-items: center;
-      gap: 16px;
-      width: min(1120px, calc(100% - 2 * var(--slide-padding)));
-      margin: 0 auto;
-      padding: 0 0 var(--slide-padding);
+      gap: 18px;
+      color: var(--text-secondary);
       font-family: var(--font-mono);
       font-size: var(--small-size);
-      color: var(--text-secondary);
-      letter-spacing: 0.08em;
       text-transform: uppercase;
+      letter-spacing: 0.14em;
     }
 
-    .title-slide .slide-content {
-      justify-content: center;
+    .footer-mark {
+      color: rgba(255,255,255,0.5);
     }
 
     .reveal {
       opacity: 0;
-      transform: translateY(22px);
+      transform: translateY(24px);
       transition:
         opacity var(--duration-normal) var(--ease-out-expo),
         transform var(--duration-normal) var(--ease-out-expo);
@@ -399,49 +548,64 @@ export const renderDarkCardDeck = (deck, options) => {
     .slide.is-active .reveal:nth-child(4) { transition-delay: 0.24s; }
     .slide.is-active .reveal:nth-child(5) { transition-delay: 0.32s; }
 
-    @media (max-width: 960px) {
-      .nav-dots { right: 12px; }
-      .slide-footer { letter-spacing: 0.04em; }
+    @media (max-width: 920px) {
+      .nav-dots {
+        top: auto;
+        right: auto;
+        left: 50%;
+        bottom: 16px;
+        transform: translateX(-50%);
+        flex-wrap: wrap;
+        justify-content: center;
+      }
+
+      .hero-shell,
+      .content-shell {
+        grid-template-columns: 1fr;
+      }
+
+      .side-rail {
+        display: none;
+      }
+
+      .content-panel-inner {
+        padding-left: clamp(1.2rem, 3vw, 1.8rem);
+      }
     }
 
     @media (max-width: 720px) {
-      .slide-count {
-        top: 16px;
-        right: 18px;
+      .slide {
+        padding: 0.9rem;
       }
 
-      .slide-content {
-        justify-content: flex-start;
-        padding-top: 4rem;
-        padding-bottom: 1rem;
+      .slide::before {
+        inset: 10px;
       }
 
-      .slide-title,
-      .slide-heading,
-      .slide-subtitle,
-      .slide-paragraph,
-      .slide-list li,
-      .slide-figure figcaption {
-        max-width: 100%;
+      .frame-number {
+        top: 18px;
+        left: 18px;
+      }
+
+      .hero-shell,
+      .content-shell {
+        padding-top: 4.5rem;
+      }
+
+      .slide-footer {
+        width: 100%;
+        padding-inline: 0.25rem;
+        padding-bottom: 2.2rem;
+        letter-spacing: 0.08em;
+      }
+
+      .hero-stat {
+        grid-template-columns: 44px 1fr;
       }
 
       .slide-figure img,
       .slide-code {
-        max-height: 40vh;
-      }
-
-      .slide-footer {
-        width: calc(100% - 2 * var(--slide-padding));
-        padding-bottom: 1rem;
-      }
-
-      .nav-dots {
-        right: auto;
-        left: 50%;
-        bottom: 14px;
-        top: auto;
-        transform: translateX(-50%);
-        flex-direction: row;
+        max-height: 34vh;
       }
     }
   </style>
