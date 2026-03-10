@@ -81,6 +81,7 @@ Early-stage open source project. The current focus is to make one Markdown file 
 ```bash
 npm run build:example
 npm run build:example:editorial
+npm run preview:example
 npm run themes
 npm run validate:example
 npm run check
@@ -91,6 +92,7 @@ Or run the CLI directly:
 ```bash
 node ./scripts/build.mjs build ./slides-src/openclaw/01-agent.md -o ./examples/01-agent.html --theme dark-card
 node ./scripts/build.mjs build ./slides-src/openclaw/01-agent.md -o ./examples/01-agent-editorial.html --theme editorial-light
+node ./scripts/build.mjs preview ./slides-src/openclaw/01-agent.md --theme dark-card
 node ./scripts/build.mjs validate ./slides-src/openclaw/01-agent.md
 node ./scripts/build.mjs themes
 ```

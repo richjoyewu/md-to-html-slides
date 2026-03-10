@@ -85,6 +85,26 @@ Images:  0
 Status:  valid
 ```
 
+### `preview`
+
+Build one deck into a default local preview path without requiring `-o`.
+
+Usage:
+
+```bash
+md-to-html-slides preview <input.md> [--theme <name>] [--title <text>]
+```
+
+Example output:
+
+```text
+Input:  slides-src/openclaw/01-agent.md
+Theme:  dark-card
+Slides: 6
+Output: .tmp/previews/01-agent-dark-card.html
+Preview: open the generated file in your browser.
+```
+
 ## Behavior
 
 ### Input
@@ -132,14 +152,6 @@ md-to-html-slides init
 ```
 
 Create a starter project structure or example slide source file.
-
-### `preview`
-
-```bash
-md-to-html-slides preview <input.md>
-```
-
-Build and preview the result locally.
 
 ## Recommended Phase 1 UX
 

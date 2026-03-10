@@ -18,11 +18,13 @@ const usage = () => {
   return [
     'Usage:',
     '  md-to-html-slides build <input.md> -o <output.html> [--theme <name>] [--title "Deck title"]',
+    '  md-to-html-slides preview <input.md> [--theme <name>] [--title "Deck title"]',
     '  md-to-html-slides validate <input.md>',
     '  md-to-html-slides themes',
     '',
     'Example:',
     '  md-to-html-slides build slides-src/openclaw/01-agent.md -o examples/01-agent.html --theme dark-card',
+    '  md-to-html-slides preview slides-src/openclaw/01-agent.md --theme dark-card',
     '  md-to-html-slides validate slides-src/openclaw/01-agent.md',
     '  md-to-html-slides themes'
   ].join('\n');
@@ -52,6 +54,31 @@ const parseArgs = (argv) => {
       throw new Error('The "validate" command only accepts one input Markdown file.');
     }
     return { command, input };
+  }
+
+  if (command === 'preview') {
+    const input = args.shift();
+    if (!input) {
+      throw new Error('Missing input Markdown file.');
+    }
+
+    let theme = 'dark-card';
+    let title = '';
+
+    while (args.length) {
+      const token = args.shift();
+      if (token === '--theme') {
+        theme = args.shift() || '';
+        continue;
+      }
+      if (token === '--title') {
+        title = args.shift() || '';
+        continue;
+      }
+      throw new Error(`Unknown option: ${token}`);
+    }
+
+    return { command, input, theme, title };
   }
 
   if (command !== 'build') {
@@ -296,6 +323,11 @@ const renderThemesList = () => {
   ].join('\n');
 };
 
+const getPreviewOutputPath = (inputPath, themeName) => {
+  const baseName = path.basename(inputPath, path.extname(inputPath));
+  return path.resolve(process.cwd(), '.tmp', 'previews', `${baseName}-${themeName}.html`);
+};
+
 const main = async () => {
   try {
     const options = parseArgs(process.argv);
@@ -326,7 +358,9 @@ const main = async () => {
       return;
     }
 
-    const outputPath = path.resolve(process.cwd(), options.output);
+    const outputPath = options.command === 'preview'
+      ? getPreviewOutputPath(inputPath, options.theme)
+      : path.resolve(process.cwd(), options.output);
     const preparedDeck = await prepareDeck(parsedDeck, sourceDir);
     const renderDeck = getRenderer(options.theme);
     const html = renderDeck(preparedDeck, options);
@@ -338,6 +372,10 @@ const main = async () => {
     console.log(`Theme:  ${options.theme}`);
     console.log(`Slides: ${preparedDeck.slides.length + 1}`);
     console.log(`Output: ${path.relative(process.cwd(), outputPath)}`);
+    if (options.command === 'preview') {
+      console.log('Preview: open the generated file in your browser.');
+      return;
+    }
     console.log('Done.');
   } catch (error) {
     console.error(error instanceof Error ? error.message : String(error));
