@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>md-to-html-slides Studio</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+SC:wght@400;500;700;800&family=Noto+Serif+SC:wght@600;700;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/studio/styles.css" />
+</head>
+<body>
+  <div class="studio-shell">
+    <header class="studio-topbar minimal-topbar">
+      <div class="brand">
+        <span class="brand-mark">✦</span>
+        <div class="brand-copy">
+          <strong>AI Slides</strong>
+          <span>Agentic Studio</span>
+        </div>
+      </div>
+      <div class="topbar-actions">
+        <button id="copyHtmlBtn" class="top-btn" disabled>复制 HTML</button>
+        <button id="openDeckBtn" class="top-btn primary" disabled>新窗口打开</button>
+      </div>
+    </header>
+
+    <main class="studio-main">
+      <div class="workflow-nav">
+        <button id="stepPlanBtn" class="workflow-step active">01 生成并确认大纲</button>
+        <button id="stepPreviewBtn" class="workflow-step" disabled>02 模板预览与导出</button>
+      </div>
+
+      <section id="planView" class="workflow-view active">
+        <div class="plan-grid">
+          <section class="panel editor-panel input-focused">
+            <div class="input-head minimal">
+              <div>
+                <span class="eyebrow">Markdown Input</span>
+                <h2>输入内容</h2>
+              </div>
+            </div>
+            <textarea id="markdownInput" class="markdown-input" spellcheck="false" placeholder="贴入课程文稿、讲稿或 Markdown 内容..."></textarea>
+            <div class="editor-actions compact inline-tools">
+              <button id="planMarkdownBtn" class="editor-btn primary">生成每页大纲</button>
+            </div>
+            <div id="plannerStatus" class="planner-status text-only">等待输入 Markdown</div>
+          </section>
+
+          <section class="panel outline-panel minimal-outline">
+            <div class="panel-head compact minimal-copy">
+              <span class="eyebrow">Slide Outline</span>
+              <h2>每页展示内容</h2>
+              <p>先确认每页讲什么，再进入模板预览。</p>
+            </div>
+            <div id="outlinePanel" class="outline-list outline-list-empty"></div>
+            <div class="outline-actions">
+              <button id="confirmOutlineBtn" class="editor-btn primary" disabled>确认大纲并进入模板预览</button>
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <section id="previewView" class="workflow-view">
+        <div class="preview-layout solo-preview">
+          <section class="studio-preview full-preview">
+            <div class="preview-head preview-head-actions">
+              <div>
+                <span class="eyebrow">Style Compare</span>
+                <h2 id="previewTitle">Dark Card</h2>
+              </div>
+              <div class="preview-meta preview-meta-actions">
+                <button id="backToPlanBtn" class="editor-btn">返回修改大纲</button>
+                <span id="slideCountPill" class="preview-pill">0 slides</span>
+              </div>
+            </div>
+
+            <section class="theme-dock theme-dock-inline">
+              <div class="dock-head">
+                <span class="eyebrow">Themes</span>
+                <span class="dock-meta">选一个方向生成 HTML</span>
+              </div>
+              <div id="themeGrid" class="theme-grid theme-grid-inline"></div>
+            </section>
+
+            <div id="compareGrid" class="compare-grid"></div>
+
+            <div id="previewStage" class="preview-stage">
+              <iframe id="previewFrame" title="Slide Preview"></iframe>
+            </div>
+          </section>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script type="module" src="/studio/app.mjs"></script>
+</body>
+</html>

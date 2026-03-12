@@ -63,23 +63,18 @@ export const renderEditorialLightDeck = (deck, options) => {
       <div class="page-number">01 / ${String(totalSlides).padStart(2, '0')}</div>
       <div class="paper-tabs">${renderTabs(1, totalSlides)}</div>
       <div class="paper-shell hero-shell">
-        <div class="paper-card reveal">
+        <div class="paper-card cover-card reveal">
           <div class="cover-kicker">Notebook editorial</div>
-          <h1 class="slide-title">${escapeHtml(titleText)}</h1>
+          <h1 class="slide-title" data-fit-text data-fit-min="40" data-fit-max="96" data-fit-lines="2">${escapeHtml(titleText)}</h1>
           <p class="slide-subtitle">${escapeHtml(subtitle)}</p>
-          <div class="slide-meta">
+          <div class="cover-divider"></div>
+          <div class="cover-summary">
+            <span>适合中文课程标题的封面页布局</span>
+            <span>保留编辑感，但不再强行挤压主标题</span>
+          </div>
+          <div class="slide-meta cover-meta">
             <span class="meta-pill">${escapeHtml(options.theme)}</span>
             <span class="meta-pill">${String(totalSlides)} slides</span>
-          </div>
-        </div>
-        <div class="cover-side reveal">
-          <div class="side-tag">Contents</div>
-          <div class="cover-note">Warm paper textures, structured tabs, and editorial pacing.</div>
-          <div class="cover-index">
-            <span>01 Intro</span>
-            <span>02 Setup</span>
-            <span>03 Practice</span>
-            <span>04 Review</span>
           </div>
         </div>
       </div>
@@ -105,7 +100,7 @@ export const renderEditorialLightDeck = (deck, options) => {
           </aside>
           <div class="paper-card reveal content-card">
             <div class="content-card-inner">
-              <h2 class="slide-heading">${escapeHtml(slide.title)}</h2>
+              <h2 class="slide-heading" data-fit-text data-fit-min="30" data-fit-max="60" data-fit-lines="2">${escapeHtml(slide.title)}</h2>
               <div class="slide-body">
                 ${renderedBlocks}
               </div>
@@ -300,12 +295,12 @@ export const renderEditorialLightDeck = (deck, options) => {
       gap: clamp(1rem, 2vw, 1.4rem);
       align-items: stretch;
       min-height: 0;
-      padding-top: clamp(4.8rem, 8vw, 6rem);
-      padding-bottom: 1.4rem;
+      padding-top: clamp(2rem, 4.8vw, 3.4rem);
+      padding-bottom: clamp(2rem, 4.8vw, 3.2rem);
     }
 
     .hero-shell {
-      grid-template-columns: minmax(0, 1.15fr) minmax(260px, 0.6fr);
+      grid-template-columns: minmax(0, 1fr);
     }
 
     .content-shell {
@@ -313,7 +308,6 @@ export const renderEditorialLightDeck = (deck, options) => {
     }
 
     .paper-card,
-    .cover-side,
     .paper-spine {
       min-height: 0;
     }
@@ -346,9 +340,17 @@ export const renderEditorialLightDeck = (deck, options) => {
 
     .hero-shell .paper-card {
       display: grid;
-      align-content: end;
+      align-content: center;
       gap: 1.15rem;
       padding: clamp(1.5rem, 3vw, 2.4rem);
+    }
+
+    .cover-card {
+      min-height: min(72vh, 760px);
+      padding-top: clamp(2.8rem, 7vw, 5rem);
+      padding-right: clamp(1.8rem, 4vw, 3.4rem);
+      padding-bottom: clamp(1.6rem, 3vw, 2.4rem);
+      padding-left: clamp(1.8rem, 4vw, 3.4rem);
     }
 
     .cover-kicker,
@@ -373,11 +375,14 @@ export const renderEditorialLightDeck = (deck, options) => {
       font-family: var(--font-display);
       line-height: 0.94;
       letter-spacing: -0.04em;
-      max-width: 9ch;
     }
 
-    .slide-title { font-size: var(--title-size); }
-    .slide-heading { font-size: var(--h2-size); }
+    .slide-title {
+      max-width: 14ch;
+      font-size: var(--fit-size, var(--title-size));
+      line-height: 1.04;
+    }
+    .slide-heading { font-size: var(--fit-size, var(--h2-size)); }
 
     .slide-subtitle,
     .slide-paragraph,
@@ -389,7 +394,7 @@ export const renderEditorialLightDeck = (deck, options) => {
 
     .slide-subtitle {
       color: var(--muted);
-      max-width: 44ch;
+      max-width: 54ch;
     }
 
     .slide-meta {
@@ -412,32 +417,29 @@ export const renderEditorialLightDeck = (deck, options) => {
       letter-spacing: 0.1em;
     }
 
-    .cover-side {
-      display: grid;
-      align-content: start;
-      gap: 1rem;
-      padding: clamp(1.1rem, 2vw, 1.5rem);
-      background: rgba(255,255,255,0.36);
-      border: 1px solid rgba(23, 21, 20, 0.1);
-    }
-
-    .cover-note,
     .spine-copy {
       color: var(--muted);
       font-size: 0.98rem;
       line-height: 1.65;
     }
 
-    .cover-index {
+    .cover-divider {
+      width: min(320px, 42%);
+      height: 2px;
+      background: linear-gradient(90deg, var(--accent), transparent);
+    }
+
+    .cover-summary {
       display: grid;
-      gap: 0.8rem;
-      padding-top: 0.8rem;
-      border-top: 1px solid rgba(23, 21, 20, 0.12);
-      font-family: var(--font-mono);
-      font-size: var(--small-size);
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      color: var(--ink);
+      gap: 0.45rem;
+      max-width: 48ch;
+      color: var(--muted);
+      font-size: 1rem;
+      line-height: 1.7;
+    }
+
+    .cover-meta {
+      padding-top: 0.3rem;
     }
 
     .paper-spine {
@@ -460,9 +462,9 @@ export const renderEditorialLightDeck = (deck, options) => {
     .content-card-inner {
       height: 100%;
       display: grid;
-      align-content: start;
+      align-content: center;
       gap: 1.15rem;
-      padding: clamp(1.4rem, 3vw, 2rem) clamp(1.4rem, 3vw, 2.2rem) clamp(1.2rem, 2.4vw, 1.8rem) clamp(2rem, 4vw, 2.8rem);
+      padding: clamp(1.4rem, 3vw, 2rem) clamp(1.4rem, 3vw, 2.2rem) clamp(1.4rem, 3vw, 2rem) clamp(2rem, 4vw, 2.8rem);
       overflow: hidden;
       position: relative;
       z-index: 1;
@@ -567,7 +569,6 @@ export const renderEditorialLightDeck = (deck, options) => {
     .slide.is-active .reveal:nth-child(5) { transition-delay: 0.32s; }
 
     @media (max-width: 980px) {
-      .hero-shell,
       .content-shell {
         grid-template-columns: 1fr;
       }
@@ -579,6 +580,10 @@ export const renderEditorialLightDeck = (deck, options) => {
 
       .paper-tabs {
         right: 10px;
+      }
+
+      .cover-card {
+        min-height: auto;
       }
 
       .paper-spine {
@@ -662,6 +667,39 @@ export const renderEditorialLightDeck = (deck, options) => {
       const slides = Array.from(document.querySelectorAll('.slide'));
       const navDotsRoot = document.getElementById('navDots');
       const progressFill = document.getElementById('progressFill');
+      let resizeTimer = 0;
+
+      const fitText = (element) => {
+        const min = Number(element.dataset.fitMin || 28);
+        const max = Number(element.dataset.fitMax || 72);
+        const maxLines = Number(element.dataset.fitLines || 2);
+
+        element.style.setProperty('--fit-size', max + 'px');
+
+        const getRatio = () => {
+          const computed = window.getComputedStyle(element);
+          const fontSize = parseFloat(computed.fontSize) || max;
+          const lineHeight = parseFloat(computed.lineHeight);
+          if (Number.isFinite(lineHeight) && lineHeight > 0) {
+            return lineHeight / fontSize;
+          }
+          return 1.2;
+        };
+
+        const ratio = getRatio();
+        let size = max;
+
+        while (size > min) {
+          const allowedHeight = size * ratio * maxLines + 1;
+          if (element.scrollHeight <= allowedHeight) break;
+          size -= 1;
+          element.style.setProperty('--fit-size', size + 'px');
+        }
+      };
+
+      const fitAllText = () => {
+        document.querySelectorAll('[data-fit-text]').forEach(fitText);
+      };
       const observer = new IntersectionObserver((entries) => {
         entries.forEach((entry) => {
           if (entry.isIntersecting) {
@@ -743,8 +781,22 @@ export const renderEditorialLightDeck = (deck, options) => {
         goToSlide(activeIndex + (deltaY > 0 ? 1 : -1));
       }, { passive: true });
 
+      window.addEventListener('resize', () => {
+        window.clearTimeout(resizeTimer);
+        resizeTimer = window.setTimeout(fitAllText, 120);
+      });
+
       setActiveSlide(0);
       slides[0].classList.add('is-active');
+
+      if (document.fonts && document.fonts.ready) {
+        document.fonts.ready.then(() => {
+          fitAllText();
+          window.requestAnimationFrame(fitAllText);
+        });
+      } else {
+        fitAllText();
+      }
     })();
   </script>
 </body>

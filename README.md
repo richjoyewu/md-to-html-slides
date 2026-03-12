@@ -21,6 +21,26 @@ Sample output: `examples/01-agent.html`
 
 Sample output: `examples/01-agent-editorial.html`
 
+## Studio Demo
+
+There is now a minimal playable studio demo:
+
+```bash
+npm run studio
+```
+
+Then open:
+
+`http://127.0.0.1:4173/`
+
+What it includes:
+
+- left-side markdown editor
+- sample content presets
+- live theme switching
+- right-side iframe preview
+- copy-html and open-in-new-window actions
+
 ## Current Direction
 
 - Input: `Markdown + images`
@@ -82,6 +102,7 @@ Early-stage open source project. The current focus is to make one Markdown file 
 npm run build:example
 npm run build:example:editorial
 npm run preview:example
+npm run studio
 npm run themes
 npm run validate:example
 npm run check
