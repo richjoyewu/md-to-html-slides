@@ -16,7 +16,7 @@
         <span class="brand-mark">✦</span>
         <div class="brand-copy">
           <strong>AI Slides</strong>
-          <span>Agentic Studio</span>
+          <span>输入内容，确认大纲，导出 HTML</span>
         </div>
       </div>
       <div class="topbar-actions">
@@ -27,8 +27,8 @@
 
     <main class="studio-main">
       <div class="workflow-nav">
-        <button id="stepPlanBtn" class="workflow-step active">01 生成并确认大纲</button>
-        <button id="stepPreviewBtn" class="workflow-step" disabled>02 模板预览与导出</button>
+        <button id="stepPlanBtn" class="workflow-step active">01 生成大纲</button>
+        <button id="stepPreviewBtn" class="workflow-step" disabled>02 预览与导出</button>
       </div>
 
       <section id="planView" class="workflow-view active">
@@ -36,8 +36,9 @@
           <section class="panel editor-panel input-focused">
             <div class="input-head minimal">
               <div>
-                <span class="eyebrow">Markdown Input</span>
+                <span class="eyebrow">Input</span>
                 <h2>输入内容</h2>
+                <p class="input-lead">贴入课程文稿、讲稿或 Markdown，系统先生成每页大纲。</p>
               </div>
             </div>
             <textarea id="markdownInput" class="markdown-input" spellcheck="false" placeholder="贴入课程文稿、讲稿或 Markdown 内容..."></textarea>
@@ -49,13 +50,13 @@
 
           <section class="panel outline-panel minimal-outline">
             <div class="panel-head compact minimal-copy">
-              <span class="eyebrow">Slide Outline</span>
-              <h2>每页展示内容</h2>
-              <p>先确认每页讲什么，再进入模板预览。</p>
+              <span class="eyebrow">Outline</span>
+              <h2>确认每页内容</h2>
+              <p>默认显示核心要点，展开查看完整内容。</p>
             </div>
             <div id="outlinePanel" class="outline-list outline-list-empty"></div>
             <div class="outline-actions">
-              <button id="confirmOutlineBtn" class="editor-btn primary" disabled>确认大纲并进入模板预览</button>
+              <button id="confirmOutlineBtn" class="editor-btn primary" disabled>确认大纲并进入选择模板并导出</button>
             </div>
           </section>
         </div>
@@ -66,8 +67,8 @@
           <section class="studio-preview full-preview">
             <div class="preview-head preview-head-actions">
               <div>
-                <span class="eyebrow">Style Compare</span>
-                <h2 id="previewTitle">Dark Card</h2>
+                <span class="eyebrow">Preview</span>
+                <h2 id="previewTitle">选择模板并导出</h2>
               </div>
               <div class="preview-meta preview-meta-actions">
                 <button id="backToPlanBtn" class="editor-btn">返回修改大纲</button>
@@ -78,7 +79,7 @@
             <section class="theme-dock theme-dock-inline">
               <div class="dock-head">
                 <span class="eyebrow">Themes</span>
-                <span class="dock-meta">选一个方向生成 HTML</span>
+                <span class="dock-meta">先看三种方向，再决定导出哪一种</span>
               </div>
               <div id="themeGrid" class="theme-grid theme-grid-inline"></div>
             </section>

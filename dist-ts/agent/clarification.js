@@ -1,43 +1,100 @@
 import { analyzeMarkdown } from './analysis.js';
-import { preprocessMarkdown } from './preprocess.js';
-// Clarification gate：只在缺少关键意图时打断用户，不做无意义追问。
-export const buildClarification = (markdown, context) => {
-    const source = preprocessMarkdown(markdown);
-    const analysis = analyzeMarkdown(markdown);
-    const sectionCount = source.sections.length;
-    const pointCount = source.sections.reduce((sum, section) => sum + section.points.length, 0);
-    const rawLength = String(markdown || '').trim().length;
-    const answers = context?.answers || {};
-    const hasAudience = Boolean(String(answers.audience || '').trim());
-    const hasSlideCount = Boolean(String(answers.slide_count || '').trim());
-    const hasGoal = hasAudience && hasSlideCount;
+function dedupeQuestions(questions) {
+    const seen = new Set();
+    return questions.filter((question) => {
+        if (seen.has(question.id))
+            return false;
+        seen.add(question.id);
+        return true;
+    });
+}
+function fallbackQuestions(options) {
     const questions = [];
-    if (!hasAudience && (analysis.content_type === 'general' || analysis.roughness === 'very_rough' || rawLength < 220)) {
+    if (options.rough) {
         questions.push({
             id: 'audience',
-            label: '这份内容更偏课程、汇报还是宣传？',
-            placeholder: '例如：课程 / 汇报 / 宣传'
+            label: '这份内容主要给谁看？',
+            placeholder: '例如：零基础学员、内部团队、客户、投资人',
         });
     }
-    if (!hasSlideCount && (analysis.density !== 'low' || analysis.roughness !== 'clean' || sectionCount <= 1)) {
+    if (options.dense || options.thin) {
         questions.push({
             id: 'slide_count',
-            label: '你希望大约做几页？',
-            placeholder: '例如：5 页或 8 页'
+            label: '你希望大约生成多少页？',
+            placeholder: '例如：6 页、8 页、10 页',
         });
     }
-    if (!questions.length)
+    if (options.askGoal || questions.length === 0) {
+        questions.push({
+            id: 'goal',
+            label: '这份演示最想让观众记住什么？',
+            placeholder: '例如：理解 Agent 和 Chatbot 的区别',
+        });
+    }
+    return dedupeQuestions(questions).slice(0, 2);
+}
+// 兜底追问：只在输入极短或结构极弱时介入，避免规则层抢主判断。
+export function buildClarification(markdown, _context) {
+    const analysis = analyzeMarkdown(markdown);
+    const rawLength = markdown.trim().length;
+    const obviouslyShort = rawLength < 20;
+    const structurallyThin = analysis.section_count === 0 || (analysis.section_count <= 1 && analysis.point_count <= 1);
+    const roughAndThin = analysis.roughness === 'very_rough' && analysis.section_count <= 1;
+    if (!obviouslyShort && !structurallyThin && !roughAndThin) {
         return null;
-    if (hasGoal)
+    }
+    return fallbackQuestions({
+        rough: analysis.roughness !== 'clean',
+        dense: analysis.density === 'high',
+        thin: structurallyThin,
+        askGoal: true,
+    });
+}
+// 主追问逻辑：优先依赖 Planner 的置信度和不确定点。
+export function buildClarificationFromPlan(outline, _context) {
+    const meta = outline.meta;
+    if (!meta)
         return null;
-    if (sectionCount >= 3 && pointCount >= 6 && rawLength >= 260 && analysis.roughness === 'clean')
+    const questions = [];
+    const uncertainties = meta.uncertainties ?? [];
+    for (const item of uncertainties) {
+        const normalized = item.toLowerCase();
+        if (normalized.includes('audience') || normalized.includes('受众')) {
+            questions.push({
+                id: 'audience',
+                label: '这份内容主要给谁看？',
+                placeholder: '例如：零基础学员、管理层、客户、投资人',
+            });
+            continue;
+        }
+        if (normalized.includes('slide') || normalized.includes('页数')) {
+            questions.push({
+                id: 'slide_count',
+                label: '你希望大约生成多少页？',
+                placeholder: '例如：6 页、8 页、10 页',
+            });
+            continue;
+        }
+        if (normalized.includes('goal') || normalized.includes('重点') || normalized.includes('核心')) {
+            questions.push({
+                id: 'goal',
+                label: '这份演示最想让观众记住什么？',
+                placeholder: '例如：OpenClaw 的本地优势',
+            });
+        }
+    }
+    const deduped = dedupeQuestions(questions).slice(0, 2);
+    if (deduped.length > 0)
+        return deduped;
+    const confidence = meta.planning_confidence ?? 0.75;
+    const thinOutline = outline.slides.length <= 2;
+    if (confidence >= 0.58 && !thinOutline) {
         return null;
-    const message = analysis.roughness === 'very_rough'
-        ? '当前内容更像草稿，先补一点关键信息，Agent 才能更稳地帮你重组为演示大纲。'
-        : '先补一点关键信息，再生成大纲会更准。';
-    return {
-        kind: 'clarification',
-        message,
-        questions: questions.slice(0, 2)
-    };
-};
+    }
+    return fallbackQuestions({
+        rough: confidence < 0.58,
+        dense: false,
+        thin: thinOutline,
+        askGoal: !meta.core_message || meta.core_message.length < 8,
+    });
+}

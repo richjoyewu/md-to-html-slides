@@ -5,7 +5,7 @@ import { createServer } from 'node:http';
 import path from 'node:path';
 import process from 'node:process';
 import { buildExpandCacheKey, getCacheKey } from '../agent/preprocess.js';
-import { buildClarification } from '../agent/clarification.js';
+import { buildClarification, buildClarificationFromPlan } from '../agent/clarification.js';
 import { requestKimiExpand } from '../agent/expander.js';
 import { requestKimiPlan } from '../agent/planner.js';
 const rootDir = process.cwd();
@@ -102,6 +102,57 @@ const readJsonBody = async (request) => {
     const raw = Buffer.concat(chunks).toString('utf8');
     return raw ? JSON.parse(raw) : {};
 };
+const normalizeOutlinePayload = (value) => {
+    const source = (value && typeof value === 'object') ? value : {};
+    const rawSlides = Array.isArray(source.slides) ? source.slides : [];
+    return {
+        deck_title: String(source.deck_title || source.deckTitle || 'Untitled Deck').trim() || 'Untitled Deck',
+        meta: (source.meta && typeof source.meta === 'object')
+            ? {
+                content_intent: String(source.meta.content_intent || 'general presentation'),
+                audience_guess: String(source.meta.audience_guess || '未指定受众'),
+                deck_goal: String(source.meta.deck_goal || '将输入整理成可确认的大纲').trim() || '将输入整理成可确认的大纲',
+                core_message: String(source.meta.core_message || '当前内容的核心信息待进一步确认').trim() || '当前内容的核心信息待进一步确认',
+                omitted_topics: Array.isArray(source.meta.omitted_topics)
+                    ? source.meta.omitted_topics.map((item) => String(item || '').trim()).filter(Boolean).slice(0, 3)
+                    : [],
+                planning_confidence: Number(source.meta.planning_confidence || 0.62),
+                uncertainties: Array.isArray(source.meta.uncertainties)
+                    ? source.meta.uncertainties.map((item) => String(item || '').trim()).filter(Boolean).slice(0, 3)
+                    : []
+            }
+            : {
+                content_intent: 'general presentation',
+                audience_guess: '未指定受众',
+                deck_goal: '将输入整理成可确认的大纲',
+                core_message: '当前内容的核心信息待进一步确认',
+                omitted_topics: [],
+                planning_confidence: 0.62,
+                uncertainties: []
+            },
+        slides: rawSlides
+            .map((slide, index) => {
+            const item = (slide && typeof slide === 'object') ? slide : {};
+            return {
+                index: Number(item.index || index + 1),
+                title: String(item.title || '').trim(),
+                summary: String(item.summary || '').trim(),
+                preview_points: Array.isArray(item.preview_points)
+                    ? item.preview_points.map((entry) => String(entry || '').trim()).filter(Boolean).slice(0, 3)
+                    : Array.isArray(item.previewPoints)
+                        ? item.previewPoints.map((entry) => String(entry || '').trim()).filter(Boolean).slice(0, 3)
+                        : [],
+                detail_points: Array.isArray(item.detail_points)
+                    ? item.detail_points.map((entry) => String(entry || '').trim()).filter(Boolean).slice(0, 5)
+                    : Array.isArray(item.detailPoints)
+                        ? item.detailPoints.map((entry) => String(entry || '').trim()).filter(Boolean).slice(0, 5)
+                        : [],
+                intent: (String(item.intent || 'explain').trim() || 'explain')
+            };
+        })
+            .filter((slide) => slide.title)
+    };
+};
 const normalizePlanContext = (value) => {
     const source = (value && typeof value === 'object') ? value : {};
     const answers = (source.answers && typeof source.answers === 'object') ? source.answers : {};
@@ -139,6 +190,13 @@ const server = createServer(async (request, response) => {
             if (cached) {
                 planCache.delete(cacheKey);
                 planCache.set(cacheKey, cached);
+                const cachedClarification = buildClarificationFromPlan(cached.payload, context);
+                if (cachedClarification) {
+                    console.error('[plan-clarify]', 'source=cache', `ms=${Date.now() - startedAt}`);
+                    sendSseEvent(response, 'final', cachedClarification);
+                    response.end();
+                    return;
+                }
                 console.error('[plan-ok]', 'mode=cache', `ms=${Date.now() - startedAt}`);
                 sendSseEvent(response, 'status', { stage: 'cache', message: '命中缓存，直接返回大纲...' });
                 sendSseEvent(response, 'final', { ...cached.payload, mode: 'cache' });
@@ -147,6 +205,13 @@ const server = createServer(async (request, response) => {
             }
             sendSseEvent(response, 'status', { stage: 'planning', message: '正在规划页顺序与标题...' });
             const { outline, mode } = await requestKimiPlan(kimiConfig, markdown, context);
+            const llmClarification = buildClarificationFromPlan(outline, context);
+            if (llmClarification) {
+                console.error('[plan-clarify]', `source=llm`, `ms=${Date.now() - startedAt}`);
+                sendSseEvent(response, 'final', llmClarification);
+                response.end();
+                return;
+            }
             setPlanCache(cacheKey, { payload: outline });
             console.error('[plan-ok]', `mode=${mode}`, `ms=${Date.now() - startedAt}`);
             if (mode === 'fallback') {
@@ -184,11 +249,23 @@ const server = createServer(async (request, response) => {
             if (cached) {
                 planCache.delete(cacheKey);
                 planCache.set(cacheKey, cached);
+                const cachedClarification = buildClarificationFromPlan(cached.payload, context);
+                if (cachedClarification) {
+                    console.error('[plan-clarify]', 'source=cache', `ms=${Date.now() - startedAt}`);
+                    sendJson(response, 200, cachedClarification);
+                    return;
+                }
                 console.error('[plan-ok]', 'mode=cache', `ms=${Date.now() - startedAt}`);
                 sendJson(response, 200, { ...cached.payload, mode: 'cache' });
                 return;
             }
             const { outline, mode } = await requestKimiPlan(kimiConfig, markdown, context);
+            const llmClarification = buildClarificationFromPlan(outline, context);
+            if (llmClarification) {
+                console.error('[plan-clarify]', `source=llm`, `ms=${Date.now() - startedAt}`);
+                sendJson(response, 200, llmClarification);
+                return;
+            }
             setPlanCache(cacheKey, { payload: outline });
             console.error('[plan-ok]', `mode=${mode}`, `ms=${Date.now() - startedAt}`);
             sendJson(response, 200, { ...outline, mode });
@@ -205,13 +282,13 @@ const server = createServer(async (request, response) => {
         try {
             const body = await readJsonBody(request);
             const markdown = String(body?.markdown || '').trim();
-            const outline = body?.outline;
+            const outline = normalizeOutlinePayload(body?.outline);
             if (!markdown) {
                 sendSseEvent(response, 'error', { error: 'Markdown is required' });
                 response.end();
                 return;
             }
-            if (!outline || !Array.isArray(outline.slides) || !outline.slides.length) {
+            if (!Array.isArray(outline.slides) || !outline.slides.length) {
                 sendSseEvent(response, 'error', { error: 'Confirmed outline is required' });
                 response.end();
                 return;
@@ -254,12 +331,12 @@ const server = createServer(async (request, response) => {
         try {
             const body = await readJsonBody(request);
             const markdown = String(body?.markdown || '').trim();
-            const outline = body?.outline;
+            const outline = normalizeOutlinePayload(body?.outline);
             if (!markdown) {
                 sendJson(response, 400, { error: 'Markdown is required' });
                 return;
             }
-            if (!outline || !Array.isArray(outline.slides) || !outline.slides.length) {
+            if (!Array.isArray(outline.slides) || !outline.slides.length) {
                 sendJson(response, 400, { error: 'Confirmed outline is required' });
                 return;
             }

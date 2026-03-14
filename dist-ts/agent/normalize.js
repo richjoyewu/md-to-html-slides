@@ -2,6 +2,9 @@
 const ALLOWED_INTENTS = new Set(['define', 'explain', 'compare', 'example', 'process', 'summary', 'cta']);
 const ALLOWED_FORMATS = new Set(['title-bullets', 'title-body', 'summary']);
 const compactText = (value) => String(value || '').replace(/\s+/g, ' ').trim();
+const normalizeSurfaceText = (value) => compactText(value)
+    .replace(/^[，、；;:\-]+/g, '')
+    .trim();
 // LLM 产出的标题通常偏长，先在这里压缩，避免直接污染渲染层。
 const compactTitle = (value) => {
     const cleaned = compactText(value)
@@ -22,12 +25,55 @@ const dedupeList = (items) => {
     }
     return output;
 };
-const compactBullet = (value) => compactText(value).replace(/[；;。]+$/g, '').slice(0, 34).trim();
-const compactBody = (value) => compactText(value).slice(0, 96).trim();
+const compactBullet = (value) => normalizeSurfaceText(value).replace(/[；;。]+$/g, '').slice(0, 34).trim();
+const compactBody = (value) => normalizeSurfaceText(value).slice(0, 96).trim();
+const compactUncertainty = (value) => compactText(value).slice(0, 64);
+const compactOutlinePoint = (value) => normalizeSurfaceText(value).replace(/[；;。]+$/g, '').slice(0, 30).trim();
+const compactMetaText = (value, maxLength, fallback) => {
+    const text = compactText(String(value || '')).slice(0, maxLength).trim();
+    return text || fallback;
+};
+const score = (value, fallback) => {
+    const n = Number(value);
+    return Number.isFinite(n) ? Math.max(0, Math.min(1, n)) : fallback;
+};
+const normalizePlanMeta = (source) => {
+    const confidence = Number(source?.planning_confidence ?? source?.confidence ?? 0.72);
+    return {
+        content_intent: compactMetaText(source?.content_intent, 48, 'general presentation'),
+        audience_guess: compactMetaText(source?.audience_guess, 48, '未指定受众'),
+        deck_goal: compactMetaText(source?.deck_goal, 72, '帮助受众快速理解核心内容'),
+        core_message: compactMetaText(source?.core_message, 72, '提炼输入中的主要结论或主线'),
+        omitted_topics: Array.isArray(source?.omitted_topics)
+            ? source.omitted_topics.map((item) => compactMetaText(item, 48, '')).filter(Boolean).slice(0, 3)
+            : [],
+        planning_confidence: Number.isFinite(confidence) ? Math.max(0, Math.min(1, confidence)) : 0.72,
+        uncertainties: Array.isArray(source?.uncertainties)
+            ? source.uncertainties.map((item) => compactUncertainty(String(item || ''))).filter(Boolean).slice(0, 3)
+            : [],
+        review_issues: Array.isArray(source?.review_issues)
+            ? source.review_issues.map((item) => compactMetaText(item, 48, '')).filter(Boolean).slice(0, 5)
+            : [],
+        actions_taken: Array.isArray(source?.actions_taken)
+            ? source.actions_taken.map((item) => compactMetaText(item, 48, '')).filter(Boolean).slice(0, 5)
+            : []
+    };
+};
+const normalizeExpandMeta = (source) => ({
+    rewrite_quality: score(source?.rewrite_quality, 0.68),
+    tone: String(source?.tone || 'presentation').trim() === 'mixed' ? 'mixed' : 'presentation',
+    review_issues: Array.isArray(source?.review_issues)
+        ? source.review_issues.map((item) => compactMetaText(item, 48, '')).filter(Boolean).slice(0, 5)
+        : [],
+    actions_taken: Array.isArray(source?.actions_taken)
+        ? source.actions_taken.map((item) => compactMetaText(item, 48, '')).filter(Boolean).slice(0, 5)
+        : []
+});
 // 把宽松的模型输出规整成稳定的 Planner 结构契约。
 export const normalizeOutline = (payload) => {
     const source = payload;
     const deckTitle = String(source?.deck_title || source?.title || 'Untitled Deck').trim() || 'Untitled Deck';
+    const meta = normalizePlanMeta(source);
     const rawSlides = Array.isArray(source?.slides) ? source?.slides : [];
     const slides = rawSlides
         .map((slide, index) => {
@@ -37,10 +83,10 @@ export const normalizeOutline = (payload) => {
             title: compactTitle(String(item?.title || '').trim()),
             summary: String(item?.summary || '').trim().slice(0, 72),
             preview_points: Array.isArray(item?.preview_points)
-                ? item.preview_points.map((entry) => String(entry || '').trim()).filter(Boolean).slice(0, 3)
+                ? dedupeList(item.preview_points.map((entry) => compactOutlinePoint(String(entry || '')))).slice(0, 3)
                 : [],
             detail_points: Array.isArray(item?.detail_points)
-                ? item.detail_points.map((entry) => String(entry || '').trim()).filter(Boolean).slice(0, 5)
+                ? dedupeList(item.detail_points.map((entry) => compactOutlinePoint(String(entry || '')))).slice(0, 5)
                 : [],
             intent: (() => {
                 const rawIntent = (String(item?.intent || 'explain').trim() || 'explain');
@@ -64,12 +110,13 @@ export const normalizeOutline = (payload) => {
         .filter((slide) => slide.title);
     if (!slides.length)
         throw new Error('Outline is empty');
-    return { deck_title: deckTitle, slides: slides.slice(0, 16) };
+    return { deck_title: deckTitle, meta, slides: slides.slice(0, 16) };
 };
 // 把扩展后的内容规整成稳定结构，让渲染层保持确定性。
 export const normalizeExpanded = (payload) => {
     const source = payload;
     const deckTitle = String(source?.deck_title || source?.title || 'Untitled Deck').trim() || 'Untitled Deck';
+    const meta = normalizeExpandMeta(source?.meta || source);
     const rawSlides = Array.isArray(source?.slides) ? source?.slides : [];
     const slides = rawSlides
         .map((slide, index) => {
@@ -112,5 +159,5 @@ export const normalizeExpanded = (payload) => {
         .filter((slide) => slide.title && (slide.bullets.length || slide.body));
     if (!slides.length)
         throw new Error('Expanded slides are empty');
-    return { deck_title: deckTitle, slides: slides.slice(0, 16) };
+    return { deck_title: deckTitle, meta, slides: slides.slice(0, 16) };
 };

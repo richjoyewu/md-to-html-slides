@@ -429,6 +429,18 @@ button {
   background: linear-gradient(180deg, rgba(17, 24, 42, 0.92), rgba(10, 15, 25, 0.92));
 }
 
+.outline-detail {
+  cursor: default;
+}
+
+.outline-detail > summary {
+  list-style: none;
+}
+
+.outline-detail > summary::-webkit-details-marker {
+  display: none;
+}
+
 .outline-item.empty {
   min-height: 72px;
   place-content: center;
@@ -445,14 +457,7 @@ button {
 
 .outline-title-wrap {
   display: grid;
-  gap: 8px;
   min-width: 0;
-}
-
-.outline-summary {
-  color: var(--muted);
-  font-size: 14px;
-  line-height: 1.7;
 }
 
 .outline-points-label {
@@ -481,6 +486,46 @@ button {
   font-family: var(--font-serif);
   font-size: 18px;
   letter-spacing: -0.02em;
+}
+
+.outline-toggle {
+  margin-left: auto;
+  min-width: 56px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--line-2);
+  color: var(--muted);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.outline-toggle-close {
+  display: none;
+}
+
+.outline-detail[open] .outline-toggle-open {
+  display: none;
+}
+
+.outline-detail[open] .outline-toggle-close {
+  display: inline;
+}
+
+.outline-detail-body {
+  display: none;
+  gap: 8px;
+  padding-top: 4px;
+}
+
+.outline-detail[open] .outline-detail-body {
+  display: grid;
+}
+
+.outline-points-detail {
+  opacity: 0.94;
 }
 
 .minimal-copy p {
@@ -982,3 +1027,72 @@ body[data-task-state='preview_ready'] .outline-panel {
 .minimal-topbar {
   gap: 12px;
 }
+
+
+.clarification-meta {
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.6;
+  margin-top: 10px;
+}
+
+/* Simplified frontend pass: step 1 should feel like a single-task input tool. */
+.studio-shell { grid-template-rows: 64px 1fr; }
+.studio-topbar { gap: 16px; padding: 0 20px; backdrop-filter: blur(12px); }
+.brand { gap: 12px; }
+.brand-mark { width: 28px; height: 28px; font-size: 12px; }
+.brand-copy { gap: 0; }
+.brand-copy strong { font-size: 12px; letter-spacing: 0.06em; }
+.brand-copy span { font-size: 11px; }
+.topbar-actions { margin-left: auto; }
+.top-btn { min-width: 118px; height: 38px; border-radius: 10px; font-size: 11px; }
+
+.studio-main { grid-template-rows: 52px 1fr; }
+.workflow-nav { gap: 10px; padding: 0 20px; background: rgba(7, 10, 17, 0.72); }
+.workflow-step { min-height: 34px; padding: 0 12px; font-size: 10px; letter-spacing: 0.05em; }
+
+.panel { padding: 20px; background: linear-gradient(180deg, rgba(8, 12, 20, 0.94), rgba(5, 8, 14, 0.98)); }
+.plan-grid { grid-template-columns: minmax(420px, 560px) minmax(360px, 1fr); }
+
+body[data-task-state='idle'] .plan-grid,
+body[data-task-state='planning'] .plan-grid,
+body[data-task-state='failed'] .plan-grid {
+  grid-template-columns: minmax(0, 920px);
+  justify-content: center;
+}
+
+body[data-task-state='idle'] .outline-panel,
+body[data-task-state='planning'] .outline-panel,
+body[data-task-state='failed'] .outline-panel {
+  display: none;
+}
+
+.input-head h2 { margin-top: 4px; font-size: clamp(1.3rem, 1.7vw, 1.8rem); }
+.input-lead,
+.minimal-copy p { max-width: 58ch; font-size: 13px; line-height: 1.65; }
+
+.input-focused { grid-template-rows: auto minmax(0, 1fr) auto auto; }
+.markdown-input {
+  min-height: 560px;
+  border-radius: 16px;
+  padding: 20px;
+  font-size: 13px;
+  line-height: 1.75;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.025), rgba(255, 255, 255, 0)), rgba(14, 19, 33, 0.96);
+}
+
+.inline-tools { padding-top: 0; }
+.editor-actions.compact .editor-btn { min-height: 38px; padding: 0 14px; }
+.planner-status.text-only { color: rgba(197, 209, 242, 0.58); }
+
+.outline-panel { gap: 12px; }
+.outline-item { padding: 12px; border-radius: 12px; }
+.outline-title { font-size: 16px; }
+
+.theme-dock { display: none; }
+.studio-preview { grid-template-rows: 82px auto 1fr; }
+.preview-head { padding: 0 20px; }
+.compare-grid { padding: 16px 20px 0; gap: 12px; }
+.compare-card { padding: 10px; border-radius: 14px; }
+.preview-stage { padding: 18px 20px 20px; }
+.preview-stage iframe { border-radius: 16px; }

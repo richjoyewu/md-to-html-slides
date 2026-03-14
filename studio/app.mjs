@@ -171,6 +171,7 @@ const normalizePlan = (payload) => {
     return {
       kind: 'clarification',
       message: String(payload?.message || '').trim(),
+      meta: payload?.meta || null,
       questions: Array.isArray(payload?.questions)
         ? payload.questions
             .map((item, index) => {
@@ -210,9 +211,34 @@ const normalizePlan = (payload) => {
   return {
     kind: 'outline',
     deckTitle: title,
+    meta: payload?.meta || {
+      content_intent: 'general presentation',
+      audience_guess: '未指定受众',
+      planning_confidence: 0.72,
+      uncertainties: []
+    },
     slides: slides.slice(0, 16)
   };
 };
+
+const outlineToApiPayload = (outline) => ({
+  deck_title: outline?.deckTitle || 'Untitled Deck',
+  meta: outline?.meta || null,
+  slides: Array.isArray(outline?.slides)
+    ? outline.slides.map((slide, index) => ({
+        index: Number(slide?.index || index + 1),
+        title: String(slide?.title || '').trim(),
+        summary: String(slide?.summary || '').trim(),
+        preview_points: Array.isArray(slide?.previewPoints)
+          ? slide.previewPoints.map((item) => String(item || '').trim()).filter(Boolean).slice(0, 3)
+          : [],
+        detail_points: Array.isArray(slide?.detailPoints)
+          ? slide.detailPoints.map((item) => String(item || '').trim()).filter(Boolean).slice(0, 5)
+          : [],
+        intent: String(slide?.intent || 'explain').trim() || 'explain'
+      })).filter((slide) => slide.title)
+    : []
+});
 
 const normalizeExpanded = (payload) => {
   const title = String(payload?.deck_title || payload?.title || 'Untitled Deck').trim() || 'Untitled Deck';
@@ -259,7 +285,7 @@ const setPreviewLocked = () => {
   currentHtml = '';
   expandedDeck = null;
   previewFrame.srcdoc = '<!doctype html><html><body style="margin:0;display:grid;place-items:center;height:100vh;background:#05070d;color:#eef3ff;font-family:system-ui,sans-serif">请先确认大纲并生成展示内容</body></html>';
-  previewTitle.textContent = '模板预览';
+  previewTitle.textContent = '选择模板并导出';
   slideCountPill.textContent = '0 slides';
   compareGrid.innerHTML = '';
   stepPreviewBtn.disabled = true;
@@ -280,6 +306,7 @@ const renderOutlineList = (container, plan, emptyText, mode = 'plan') => {
     container.innerHTML = `
       <div class="outline-item">
         <div class="outline-title">${escapeHtml(plan.message || '需要补充信息')}</div>
+        ${plan.meta ? `<div class="clarification-meta">当前规划置信度 ${(Number(plan.meta.planning_confidence || 0) * 100).toFixed(0)}%</div>` : ''}
         <div class="clarification-form">
           ${(plan.questions || []).map((item) => `
             <label class="clarification-field">
@@ -313,17 +340,26 @@ const renderOutlineList = (container, plan, emptyText, mode = 'plan') => {
   container.innerHTML = plan.slides.map((slide, index) => {
     const previewPoints = (slide.previewPoints && slide.previewPoints.length
       ? slide.previewPoints
-      : [slide.summary || '待补充'])
+      : slide.detailPoints && slide.detailPoints.length
+        ? slide.detailPoints.slice(0, 3)
+        : [slide.summary || '待补充'])
       .slice(0, 3);
+    const detailPoints = (slide.detailPoints && slide.detailPoints.length
+      ? slide.detailPoints
+      : previewPoints).slice(0, 6);
+    const cardId = `outline-${mode}-${index + 1}`;
 
     return `
-      <div class="outline-item">
+      <details class="outline-item outline-detail"${index === 0 ? ' open' : ''}>
         <div class="outline-item-head">
           <span class="outline-index">${String(index + 1).padStart(2, '0')}</span>
           <div class="outline-title-wrap">
             <div class="outline-title">${escapeHtml(slide.title)}</div>
-            <div class="outline-summary">${escapeHtml(slide.summary || '待补充本页说明')}</div>
           </div>
+          <summary class="outline-toggle" aria-controls="${cardId}">
+            <span class="outline-toggle-open">展开</span>
+            <span class="outline-toggle-close">收起</span>
+          </summary>
         </div>
         <div class="outline-points-label">本页要点</div>
         <ul class="outline-points">
@@ -331,7 +367,15 @@ const renderOutlineList = (container, plan, emptyText, mode = 'plan') => {
             .map((item) => `<li>${escapeHtml(item)}</li>`)
             .join('')}
         </ul>
-      </div>
+        <div id="${cardId}" class="outline-detail-body">
+          <div class="outline-points-label">完整内容</div>
+          <ul class="outline-points outline-points-detail">
+            ${detailPoints
+              .map((item) => `<li>${escapeHtml(item)}</li>`)
+              .join('')}
+          </ul>
+        </div>
+      </details>
     `;
   }).join('');
 };
@@ -421,9 +465,9 @@ const requestPlan = async () => {
   outlinePlan = null;
   setPreviewLocked();
   setStep('plan');
-  renderOutlineList(outlinePanel, null, '正在生成大纲...');
+  renderOutlineList(outlinePanel, null, '正在整理每页内容...');
   syncTaskState(TASK_STATE.PLANNING);
-  setPlannerStatus('正在连接规划服务...');
+  setPlannerStatus('正在分析内容并生成大纲...');
 
   try {
     const response = await fetch('/api/plan-stream', {
@@ -457,14 +501,16 @@ const requestPlan = async () => {
     renderOutlineList(outlinePanel, outlinePlan, '未生成大纲');
     if (outlinePlan.kind === 'clarification') {
       syncTaskState(TASK_STATE.CLARIFICATION);
-      setPlannerStatus('信息不足，先补充这 1-2 个问题再生成大纲会更准。');
+      setPlannerStatus('补充这 1-2 个关键信息后，大纲会更准确。');
       showToast('需要补充信息');
       return;
     }
     syncTaskState(TASK_STATE.OUTLINE_READY);
     const modeMap = { fallback: '已切换快速模式并生成大纲。', cache: '命中缓存，已直接返回大纲。', llm: '已生成大纲，请确认后继续。' };
     const mode = modeMap[finalPayload?.mode] || '已生成大纲，请确认后继续。';
-    setPlannerStatus(`${mode} 共 ${outlinePlan.slides.length} 页。`);
+    const confidence = Number(outlinePlan?.meta?.planning_confidence || 0);
+    const confidenceText = Number.isFinite(confidence) ? ` 规划置信度 ${(confidence * 100).toFixed(0)}%。` : '';
+    setPlannerStatus(`${mode} 共 ${outlinePlan.slides.length} 页。${confidenceText}`);
     showToast(finalPayload?.mode === 'cache' ? '已命中缓存' : finalPayload?.mode === 'fallback' ? '已切换快速模式' : '已生成大纲');
   } catch (error) {
     const message = error?.message || '生成大纲失败';
@@ -487,7 +533,7 @@ const requestExpand = async () => {
     const response = await fetch('/api/expand-stream', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ markdown, outline: outlinePlan })
+      body: JSON.stringify({ markdown, outline: outlineToApiPayload(outlinePlan) })
     });
 
     if (!response.ok) {
