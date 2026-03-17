@@ -9,14 +9,19 @@
   "scripts": {
     "build:example": "node ./scripts/build.mjs build ./slides-src/openclaw/01-agent.md -o ./examples/01-agent.html --theme dark-card",
     "build:example:editorial": "node ./scripts/build.mjs build ./slides-src/openclaw/01-agent.md -o ./examples/01-agent-editorial.html --theme editorial-light",
+    "build:example:launch": "node ./scripts/build.mjs build ./slides-src/pitch/01-launch.md -o ./examples/01-launch-tech.html --theme tech-launch",
     "preview:example": "node ./scripts/build.mjs preview ./slides-src/openclaw/01-agent.md --theme dark-card",
     "build:ts": "tsc -p tsconfig.json",
-    "check:agent": "npm run build:ts -- --pretty false && node ./dist-ts/scripts/check-agent.js",
+    "check:fallback": "npm run build:ts -- --pretty false && node ./dist-ts/scripts/check-agent.js",
+    "check:agent": "npm run check:fallback",
+    "check:llm": "npm run build:ts -- --pretty false && node ./dist-ts/scripts/check-llm.js",
+    "check:llm:ab": "npm run build:ts -- --pretty false && node ./dist-ts/scripts/check-llm.js --ab",
+    "check:cli": "npm run validate:example && npm run themes && npm run build:example && npm run build:example:editorial && npm run build:example:launch && npm run preview:example",
+    "check": "npm run check:fallback && npm run check:cli",
     "studio": "npm run build:ts -- --pretty false && node ./dist-ts/scripts/studio-server.js",
     "studio:legacy": "node ./scripts/studio-server.mjs",
     "themes": "node ./scripts/build.mjs themes",
-    "validate:example": "node ./scripts/build.mjs validate ./slides-src/openclaw/01-agent.md",
-    "check": "npm run validate:example && npm run themes && npm run build:example && npm run build:example:editorial && npm run preview:example"
+    "validate:example": "node ./scripts/build.mjs validate ./slides-src/openclaw/01-agent.md"
   },
   "devDependencies": {
     "@types/node": "^25.4.0",

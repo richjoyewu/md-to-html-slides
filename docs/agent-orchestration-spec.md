@@ -37,6 +37,13 @@ The agent decides whether the Markdown needs to be:
 - expanded into slide bullets
 - lightly polished or heavily reorganized
 
+The system may also receive an explicit `deck profile` hint such as:
+
+- `general`
+- `pitch-tech-launch`
+
+This hint should bias planning and expansion style, but not bypass content understanding.
+
 ## Why Orchestration Is Needed
 
 A renderer alone is not enough.
@@ -120,6 +127,8 @@ Suggested output:
 ```json
 {
   "deck_title": "第1课 揭秘 AI Agent",
+  "profile": "general",
+  "default_theme": "dark-card",
   "slides": [
     {
       "index": 1,
@@ -143,6 +152,7 @@ Responsibilities:
 - choose content format per slide
 - convert paragraph logic into slide logic
 - keep bullets short and parallel
+- adapt format choice to the active deck profile
 
 Suggested output:
 
@@ -153,7 +163,7 @@ Suggested output:
     {
       "index": 1,
       "title": "什么是 AI Agent",
-      "format": "title-bullets",
+      "format": "hero",
       "bullets": [
         "Agent 不只是问答工具",
         "它围绕目标执行任务",
@@ -213,6 +223,10 @@ Phase 1 responsibilities:
 This means the product flow should be:
 
 `input markdown -> generate outline -> user confirms -> generate html preview`
+
+For profile-aware flows, the effective path becomes:
+
+`markdown + deck profile -> outline -> expanded slide formats -> themed html`
 
 ## Confirmation Gates
 

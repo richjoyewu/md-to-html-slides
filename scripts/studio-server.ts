@@ -7,9 +7,11 @@ import path from 'node:path';
 import process from 'node:process';
 import { buildExpandCacheKey, getCacheKey } from '../agent/preprocess.js';
 import { buildClarification, buildClarificationFromPlan } from '../agent/clarification.js';
-import { requestKimiExpand } from '../agent/expander.js';
-import { requestKimiPlan } from '../agent/planner.js';
-import type { ExpandedResult, KimiConfig, OutlineResult, PlanContext } from '../agent/types.js';
+import { requestExpand } from '../agent/expander.js';
+import { requestPlan } from '../agent/planner.js';
+import { createLlmProvider, resolveLlmProviderConfig } from '../agent/provider.js';
+import type { ExpandedResult, OutlineResult, PlanContext } from '../agent/types.js';
+import { normalizeOutline, normalizePlanContext } from '../shared/core.js';
 
 const rootDir = process.cwd();
 const host = '127.0.0.1';
@@ -37,11 +39,12 @@ const loadDotEnv = (): void => {
 
 loadDotEnv();
 
-const kimiConfig: KimiConfig = {
-  apiKey: process.env.KIMI_API_KEY || process.env.MOONSHOT_API_KEY || '',
-  baseUrl: process.env.KIMI_BASE_URL || 'https://api.moonshot.cn/v1',
-  model: process.env.KIMI_MODEL || 'kimi-k2-5'
-};
+const llmConfig = resolveLlmProviderConfig(process.env, { fallbackToLegacyMoonshot: true });
+if (!llmConfig) {
+  throw new Error('Unable to resolve LLM provider configuration');
+}
+
+const llmProvider = createLlmProvider(llmConfig);
 
 const planCache = new Map<string, { payload: OutlineResult; cached_at: number }>();
 const expandCache = new Map<string, { payload: ExpandedResult; cached_at: number }>();
@@ -117,71 +120,6 @@ const readJsonBody = async (request: IncomingMessage): Promise<Record<string, un
   return raw ? (JSON.parse(raw) as Record<string, unknown>) : {};
 };
 
-const normalizeOutlinePayload = (value: unknown): OutlineResult => {
-  const source = (value && typeof value === 'object') ? (value as Record<string, unknown>) : {};
-  const rawSlides = Array.isArray(source.slides) ? source.slides : [];
-
-  return {
-    deck_title: String(source.deck_title || source.deckTitle || 'Untitled Deck').trim() || 'Untitled Deck',
-    meta: (source.meta && typeof source.meta === 'object')
-      ? {
-          content_intent: String((source.meta as Record<string, unknown>).content_intent || 'general presentation'),
-          audience_guess: String((source.meta as Record<string, unknown>).audience_guess || '未指定受众'),
-          deck_goal: String((source.meta as Record<string, unknown>).deck_goal || '将输入整理成可确认的大纲').trim() || '将输入整理成可确认的大纲',
-          core_message: String((source.meta as Record<string, unknown>).core_message || '当前内容的核心信息待进一步确认').trim() || '当前内容的核心信息待进一步确认',
-          omitted_topics: Array.isArray((source.meta as Record<string, unknown>).omitted_topics)
-            ? ((source.meta as Record<string, unknown>).omitted_topics as unknown[]).map((item) => String(item || '').trim()).filter(Boolean).slice(0, 3)
-            : [],
-          planning_confidence: Number((source.meta as Record<string, unknown>).planning_confidence || 0.62),
-          uncertainties: Array.isArray((source.meta as Record<string, unknown>).uncertainties)
-            ? ((source.meta as Record<string, unknown>).uncertainties as unknown[]).map((item) => String(item || '').trim()).filter(Boolean).slice(0, 3)
-            : []
-        }
-      : {
-          content_intent: 'general presentation',
-          audience_guess: '未指定受众',
-          deck_goal: '将输入整理成可确认的大纲',
-          core_message: '当前内容的核心信息待进一步确认',
-          omitted_topics: [],
-          planning_confidence: 0.62,
-          uncertainties: []
-        },
-    slides: rawSlides
-      .map((slide, index) => {
-        const item = (slide && typeof slide === 'object') ? (slide as Record<string, unknown>) : {};
-        return {
-          index: Number(item.index || index + 1),
-          title: String(item.title || '').trim(),
-          summary: String(item.summary || '').trim(),
-          preview_points: Array.isArray(item.preview_points)
-            ? (item.preview_points as unknown[]).map((entry) => String(entry || '').trim()).filter(Boolean).slice(0, 3)
-            : Array.isArray(item.previewPoints)
-              ? (item.previewPoints as unknown[]).map((entry) => String(entry || '').trim()).filter(Boolean).slice(0, 3)
-              : [],
-          detail_points: Array.isArray(item.detail_points)
-            ? (item.detail_points as unknown[]).map((entry) => String(entry || '').trim()).filter(Boolean).slice(0, 5)
-            : Array.isArray(item.detailPoints)
-              ? (item.detailPoints as unknown[]).map((entry) => String(entry || '').trim()).filter(Boolean).slice(0, 5)
-              : [],
-          intent: ((String(item.intent || 'explain').trim() || 'explain') as OutlineResult['slides'][number]['intent'])
-        };
-      })
-      .filter((slide) => slide.title)
-  };
-};
-
-const normalizePlanContext = (value: unknown): PlanContext => {
-  const source = (value && typeof value === 'object') ? (value as Record<string, unknown>) : {};
-  const answers = (source.answers && typeof source.answers === 'object') ? (source.answers as Record<string, unknown>) : {};
-  return {
-    answers: Object.fromEntries(
-      Object.entries(answers)
-        .map(([key, raw]) => [key, String(raw || '').trim()])
-        .filter(([, raw]) => raw)
-    )
-  };
-};
-
 const server = createServer(async (request, response) => {
   const requestUrl = new URL(request.url || '/', `http://${host}:${port}`);
   let pathname = decodeURIComponent(requestUrl.pathname);
@@ -193,7 +131,7 @@ const server = createServer(async (request, response) => {
     try {
       const body = await readJsonBody(request);
       const markdown = String(body?.markdown || '').trim();
-      const context = normalizePlanContext(body?.context);
+      const context = normalizePlanContext(body?.context) as PlanContext;
       if (!markdown) {
         sendSseEvent(response, 'error', { error: 'Markdown is required' });
         response.end();
@@ -229,7 +167,7 @@ const server = createServer(async (request, response) => {
       }
 
       sendSseEvent(response, 'status', { stage: 'planning', message: '正在规划页顺序与标题...' });
-      const { outline, mode } = await requestKimiPlan(kimiConfig, markdown, context);
+      const { outline, mode } = await requestPlan(llmProvider, markdown, context);
       const llmClarification = buildClarificationFromPlan(outline, context);
       if (llmClarification) {
         console.error('[plan-clarify]', `source=llm`, `ms=${Date.now() - startedAt}`);
@@ -257,7 +195,7 @@ const server = createServer(async (request, response) => {
     try {
       const body = await readJsonBody(request);
       const markdown = String(body?.markdown || '').trim();
-      const context = normalizePlanContext(body?.context);
+      const context = normalizePlanContext(body?.context) as PlanContext;
       if (!markdown) {
         sendJson(response, 400, { error: 'Markdown is required' });
         return;
@@ -286,7 +224,7 @@ const server = createServer(async (request, response) => {
         return;
       }
 
-      const { outline, mode } = await requestKimiPlan(kimiConfig, markdown, context);
+      const { outline, mode } = await requestPlan(llmProvider, markdown, context);
       const llmClarification = buildClarificationFromPlan(outline, context);
       if (llmClarification) {
         console.error('[plan-clarify]', `source=llm`, `ms=${Date.now() - startedAt}`);
@@ -310,7 +248,7 @@ const server = createServer(async (request, response) => {
     try {
       const body = await readJsonBody(request);
       const markdown = String(body?.markdown || '').trim();
-      const outline = normalizeOutlinePayload(body?.outline);
+      const outline = normalizeOutline(body?.outline) as OutlineResult;
       if (!markdown) {
         sendSseEvent(response, 'error', { error: 'Markdown is required' });
         response.end();
@@ -336,7 +274,7 @@ const server = createServer(async (request, response) => {
       }
 
       sendSseEvent(response, 'status', { stage: 'structuring', message: '正在压缩要点并组织页面...' });
-      const { expanded, mode } = await requestKimiExpand(kimiConfig, markdown, outline);
+      const { expanded, mode } = await requestExpand(llmProvider, markdown, outline);
       setExpandCache(expandKey, { payload: expanded });
       console.error('[expand-ok]', `mode=${mode}`, `ms=${Date.now() - startedAt}`);
       if (mode === 'fallback') {
@@ -359,7 +297,7 @@ const server = createServer(async (request, response) => {
     try {
       const body = await readJsonBody(request);
       const markdown = String(body?.markdown || '').trim();
-      const outline = normalizeOutlinePayload(body?.outline);
+      const outline = normalizeOutline(body?.outline) as OutlineResult;
       if (!markdown) {
         sendJson(response, 400, { error: 'Markdown is required' });
         return;
@@ -379,7 +317,7 @@ const server = createServer(async (request, response) => {
         return;
       }
 
-      const { expanded, mode } = await requestKimiExpand(kimiConfig, markdown, outline);
+      const { expanded, mode } = await requestExpand(llmProvider, markdown, outline);
       setExpandCache(expandKey, { payload: expanded });
       console.error('[expand-ok]', `mode=${mode}`, `ms=${Date.now() - startedAt}`);
       sendJson(response, 200, { ...expanded, mode });

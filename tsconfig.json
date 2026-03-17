@@ -4,6 +4,7 @@
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "lib": ["ES2022", "DOM"],
+    "allowJs": true,
     "strict": true,
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
@@ -11,5 +12,5 @@
     "outDir": "dist-ts",
     "rootDir": "."
   },
-  "include": ["agent/**/*.ts", "scripts/**/*.ts"]
+  "include": ["agent/**/*.ts", "scripts/**/*.ts", "shared/**/*.js"]
 }

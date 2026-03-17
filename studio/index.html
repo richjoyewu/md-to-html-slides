@@ -40,6 +40,11 @@
                 <h2>输入内容</h2>
                 <p class="input-lead">贴入课程文稿、讲稿或 Markdown，系统先生成每页大纲。</p>
               </div>
+              <div class="profile-field">
+                <label for="profileSelect">Deck Profile</label>
+                <select id="profileSelect" class="profile-select"></select>
+                <p id="profileHint" class="profile-hint"></p>
+              </div>
             </div>
             <textarea id="markdownInput" class="markdown-input" spellcheck="false" placeholder="贴入课程文稿、讲稿或 Markdown 内容..."></textarea>
             <div class="editor-actions compact inline-tools">
@@ -75,19 +80,28 @@
                 <span id="slideCountPill" class="preview-pill">0 slides</span>
               </div>
             </div>
-
-            <section class="theme-dock theme-dock-inline">
-              <div class="dock-head">
-                <span class="eyebrow">Themes</span>
-                <span class="dock-meta">先看三种方向，再决定导出哪一种</span>
+            <div class="preview-workbench">
+              <div id="previewStage" class="preview-stage">
+                <iframe id="previewFrame" title="Slide Preview"></iframe>
               </div>
-              <div id="themeGrid" class="theme-grid theme-grid-inline"></div>
-            </section>
 
-            <div id="compareGrid" class="compare-grid"></div>
+              <aside class="preview-sidebar">
+                <section class="theme-dock theme-dock-sidebar">
+                  <div class="dock-head dock-head-stack">
+                    <span class="eyebrow">Themes</span>
+                    <span class="dock-meta">主题放到右侧，预览区始终优先。</span>
+                  </div>
+                  <div id="themeGrid" class="theme-grid theme-grid-sidebar"></div>
+                </section>
 
-            <div id="previewStage" class="preview-stage">
-              <iframe id="previewFrame" title="Slide Preview"></iframe>
+                <section class="compare-panel">
+                  <div class="dock-head dock-head-stack">
+                    <span class="eyebrow">Templates</span>
+                    <span class="dock-meta">小尺寸缩略图只负责切换，不再占据主视口。</span>
+                  </div>
+                  <div id="compareGrid" class="compare-grid compare-grid-sidebar"></div>
+                </section>
+              </aside>
             </div>
           </section>
         </div>

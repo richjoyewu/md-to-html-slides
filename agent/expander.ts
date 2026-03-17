@@ -2,8 +2,24 @@ import { analyzeMarkdown } from './analysis.js';
 import { buildHeuristicExpanded } from './fallback.js';
 import { normalizeExpanded } from './normalize.js';
 import { buildExpandPrompt } from './prompt-builder.js';
-import { callKimiJson } from './moonshot-client.js';
-import type { ExpandedResult, ExpandedSlide, KimiConfig, OutlineResult } from './types.js';
+import type { ExpandedResult, ExpandedSlide, LlmJsonProvider, OutlineResult } from './types.js';
+
+interface ExpandRequestOptions {
+  allowFallback?: boolean;
+  timeoutMs?: number;
+  maxTokens?: number;
+}
+
+const FORMAT_LIMITS: Record<ExpandedSlide['format'], number> = {
+  hero: 3,
+  'title-bullets': 4,
+  'title-body': 2,
+  compare: 4,
+  metrics: 4,
+  process: 5,
+  summary: 3,
+  cta: 3
+};
 
 const compactSurface = (value: string): string => String(value || '').replace(/\s+/g, ' ').trim();
 
@@ -35,9 +51,12 @@ const isDraftyBullet = (value: string): boolean => {
 };
 
 const polishSlide = (slide: ExpandedSlide): ExpandedSlide => {
-  const bullets = Array.from(new Set(slide.bullets.map(toDisplayBullet).filter(Boolean))).slice(0, 4);
+  const limit = FORMAT_LIMITS[slide.format] ?? 4;
+  const bullets = Array.from(new Set(slide.bullets.map(toDisplayBullet).filter(Boolean))).slice(0, limit);
   const body = toDisplayBody(slide.body, bullets);
-  const format = bullets.length >= 2 ? 'title-bullets' : body ? 'title-body' : slide.format;
+  const format = slide.format === 'title-bullets' || slide.format === 'title-body'
+    ? (bullets.length >= 2 ? 'title-bullets' : body ? 'title-body' : slide.format)
+    : slide.format;
   return {
     ...slide,
     bullets,
@@ -76,22 +95,25 @@ const polishExpanded = (expanded: ExpandedResult): ExpandedResult => {
 };
 
 // Expander 阶段在已确认大纲基础上补足可上屏内容，并保持大纲顺序稳定。
-export const requestKimiExpand = async (
-  config: KimiConfig,
+export const requestExpand = async (
+  provider: LlmJsonProvider,
   markdown: string,
-  outline: OutlineResult
+  outline: OutlineResult,
+  options: ExpandRequestOptions = {}
 ): Promise<{ expanded: ExpandedResult; mode: 'llm' | 'fallback' }> => {
   const analysis = analyzeMarkdown(markdown);
 
   try {
-    const payload = await callKimiJson({
-      config,
+    const payload = await provider.callJson({
       prompt: buildExpandPrompt({ markdown, outline, analysis }),
-      timeoutMs: 12000,
-      maxTokens: 900
+      timeoutMs: options.timeoutMs ?? 12000,
+      maxTokens: options.maxTokens ?? 900
     });
     return { expanded: polishExpanded(normalizeExpanded(payload)), mode: 'llm' };
   } catch (error) {
+    if (options.allowFallback === false) {
+      throw error;
+    }
     console.error('[expand-fallback]', (error as Error)?.message || error);
     return { expanded: polishExpanded(buildHeuristicExpanded(markdown, outline)), mode: 'fallback' };
   }

@@ -3,7 +3,9 @@
 import { access, mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
-import { THEMES, THEME_MAP } from '../templates/index.mjs';
+import { normalizeRenderDeck } from '../shared/core.js';
+import { parseMarkdownDeck } from '../shared/markdown.js';
+import { getTheme, THEMES } from '../templates/index.mjs';
 
 const MIME_TYPES = new Map([
   ['.png', 'image/png'],
@@ -118,124 +120,6 @@ const parseArgs = (argv) => {
   return { command, input, output, theme, title };
 };
 
-const parseMarkdown = (markdown) => {
-  const normalized = String(markdown || '').replace(/\r\n?/g, '\n');
-  const lines = normalized.split('\n');
-
-  let title = '';
-  let intro = [];
-  let currentSlide = null;
-  const slides = [];
-  let index = 0;
-
-  while (index < lines.length) {
-    const line = lines[index];
-
-    if (!title && line.startsWith('# ')) {
-      title = line.slice(2).trim();
-      index += 1;
-      continue;
-    }
-
-    if (line.startsWith('## ')) {
-      if (currentSlide) slides.push(currentSlide);
-      currentSlide = {
-        title: line.slice(3).trim(),
-        blocks: []
-      };
-      index += 1;
-      continue;
-    }
-
-    if (!currentSlide) {
-      if (line.trim()) intro.push(line.trim());
-      index += 1;
-      continue;
-    }
-
-    if (!line.trim()) {
-      index += 1;
-      continue;
-    }
-
-    if (line.startsWith('```') || line.startsWith('~~~')) {
-      const fence = line.slice(0, 3);
-      const language = line.slice(3).trim();
-      const codeLines = [];
-      index += 1;
-      while (index < lines.length && !lines[index].startsWith(fence)) {
-        codeLines.push(lines[index]);
-        index += 1;
-      }
-      if (index >= lines.length) {
-        throw new Error(`Unclosed code block in slide "${currentSlide.title}".`);
-      }
-      currentSlide.blocks.push({
-        type: 'code',
-        language,
-        content: codeLines.join('\n')
-      });
-      index += 1;
-      continue;
-    }
-
-    const imageMatch = line.trim().match(/^!\[(.*?)\]\((.+?)\)$/);
-    if (imageMatch) {
-      currentSlide.blocks.push({
-        type: 'image',
-        alt: imageMatch[1].trim(),
-        src: imageMatch[2].trim()
-      });
-      index += 1;
-      continue;
-    }
-
-    if (line.trim().startsWith('- ')) {
-      const items = [];
-      while (index < lines.length && lines[index].trim().startsWith('- ')) {
-        items.push(lines[index].trim().slice(2).trim());
-        index += 1;
-      }
-      currentSlide.blocks.push({
-        type: 'list',
-        items
-      });
-      continue;
-    }
-
-    const paragraphLines = [];
-    while (index < lines.length) {
-      const candidate = lines[index];
-      if (!candidate.trim()) break;
-      if (candidate.startsWith('## ')) break;
-      if (candidate.startsWith('```') || candidate.startsWith('~~~')) break;
-      if (candidate.trim().startsWith('- ')) break;
-      if (candidate.trim().match(/^!\[(.*?)\]\((.+?)\)$/)) break;
-      paragraphLines.push(candidate.trim());
-      index += 1;
-    }
-    currentSlide.blocks.push({
-      type: 'paragraph',
-      content: paragraphLines.join(' ')
-    });
-  }
-
-  if (currentSlide) slides.push(currentSlide);
-
-  if (!title) {
-    throw new Error('Markdown file must start with a top-level "# " title.');
-  }
-  if (!slides.length) {
-    throw new Error('Markdown file must contain at least one "## " slide heading.');
-  }
-
-  return {
-    title,
-    intro: intro.join(' '),
-    slides
-  };
-};
-
 const inlineImage = async (sourceDir, src) => {
   if (/^(https?:)?\/\//i.test(src) || src.startsWith('data:')) {
     return src;
@@ -308,12 +192,12 @@ const prepareDeck = async (deck, sourceDir) => {
 };
 
 const getRenderer = (themeName) => {
-  const renderer = THEME_MAP.get(themeName);
-  if (!renderer) {
-    const supportedThemes = THEMES.map((theme) => theme.name).join(', ');
+  const theme = getTheme(themeName);
+  if (!theme) {
+    const supportedThemes = THEMES.map((entry) => entry.name).join(', ');
     throw new Error(`Unsupported theme: ${themeName}. Supported themes: ${supportedThemes}`);
   }
-  return renderer;
+  return theme.renderer;
 };
 
 const renderThemesList = () => {
@@ -346,7 +230,7 @@ const main = async () => {
     const sourceDir = path.dirname(inputPath);
 
     const markdown = await readFile(inputPath, 'utf8');
-    const parsedDeck = parseMarkdown(markdown);
+    const parsedDeck = normalizeRenderDeck(parseMarkdownDeck(markdown));
 
     if (options.command === 'validate') {
       const assets = await validateDeckAssets(parsedDeck, sourceDir);
@@ -361,7 +245,7 @@ const main = async () => {
     const outputPath = options.command === 'preview'
       ? getPreviewOutputPath(inputPath, options.theme)
       : path.resolve(process.cwd(), options.output);
-    const preparedDeck = await prepareDeck(parsedDeck, sourceDir);
+    const preparedDeck = normalizeRenderDeck(await prepareDeck(parsedDeck, sourceDir));
     const renderDeck = getRenderer(options.theme);
     const html = renderDeck(preparedDeck, options);
 

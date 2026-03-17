@@ -1,6 +1,7 @@
 import { analyzeMarkdown } from './analysis.js';
 import { preprocessMarkdown } from './preprocess.js';
 import type {
+  DeckProfileName,
   ExpandedResult,
   ExpandedSlide,
   ExpandMeta,
@@ -10,7 +11,9 @@ import type {
   PlanMeta,
   SlideIntent,
   SourceSection,
+  PlanContext,
 } from './types.js';
+import { getDeckProfile } from '../shared/deck-profiles.js';
 
 function truncate(text: string, max: number): string {
   if (text.length <= max) return text;
@@ -172,7 +175,9 @@ function buildPlanMeta(
   analysis: MarkdownAnalysis,
   slideCount: number,
   slides: Array<{ title: string; points: string[] }>,
+  profileName: DeckProfileName,
 ): PlanMeta {
+  const profile = getDeckProfile(profileName);
   const structurallyThin = source.sections.length <= 1 && analysis.input_shape !== 'slide_like';
   const strongCoverage = slideCount >= Math.max(4, analysis.suggested_slide_count - 1);
   const confidence = structurallyThin
@@ -199,9 +204,13 @@ function buildPlanMeta(
   const deckTitle = source.deck_title || '当前主题';
 
   return {
+    profile: profile.name,
+    default_theme: profile.default_theme,
     planning_confidence: confidence,
     uncertainties: Array.from(new Set(uncertainties)).slice(0, 2),
-    content_intent: analysis.input_shape === 'slide_like' ? 'structured_notes' : 'draft_to_slides',
+    content_intent: profile.name === 'pitch-tech-launch'
+      ? 'product_launch_pitch'
+      : (analysis.input_shape === 'slide_like' ? 'structured_notes' : 'draft_to_slides'),
     audience_guess: structurallyThin ? 'needs_confirmation' : 'general_reader',
     deck_goal: source.deck_title ? `帮助观众快速理解 ${truncate(source.deck_title, 16)}` : '帮助观众快速理解当前主题',
     core_message: inferCoreMessage(source, slides, deckTitle),
@@ -209,9 +218,10 @@ function buildPlanMeta(
   };
 }
 
-export function buildHeuristicOutline(markdown: string): OutlineResult {
+export function buildHeuristicOutline(markdown: string, context?: PlanContext): OutlineResult {
   const source = preprocessMarkdown(markdown);
   const analysis = analyzeMarkdown(markdown);
+  const profile = getDeckProfile(context?.profile);
   const regrouped = regroupSections(source, analysis);
 
   const slides: OutlineSlide[] = regrouped.map((section, index) => {
@@ -229,13 +239,33 @@ export function buildHeuristicOutline(markdown: string): OutlineResult {
   return {
     deck_title: source.deck_title || 'Untitled Deck',
     slides,
-    meta: buildPlanMeta(source, analysis, slides.length, regrouped),
+    meta: buildPlanMeta(source, analysis, slides.length, regrouped, profile.name),
   };
 }
 
 function coerceFormat(slide: OutlineSlide): ExpandedSlide['format'] {
   if ((slide.detail_points?.length ?? 0) >= 2) return 'title-bullets';
   return 'title-body';
+}
+
+function looksMetricSlide(slide: OutlineSlide): boolean {
+  const haystack = `${slide.title} ${(slide.detail_points || []).join(' ')}`.toLowerCase();
+  return /(\d+[%x倍万亿k])|(增长|效率|指标|用户|客户|收入|转化|成本|部署|交付|工单|上线|分钟|小时|天|周|月)/.test(haystack);
+}
+
+function looksCtaSlide(slide: OutlineSlide): boolean {
+  const haystack = `${slide.title} ${(slide.detail_points || []).join(' ')}`.toLowerCase();
+  return /(合作|下一步|现在|加入|试点|融资|联系|启动|一起|预约|cta|行动)/.test(haystack);
+}
+
+function coercePitchFormat(slide: OutlineSlide, index: number, total: number): ExpandedSlide['format'] {
+  if (index === 0) return 'hero';
+  if (slide.intent === 'compare') return 'compare';
+  if (slide.intent === 'process' || /(路线图|阶段|步骤|流程|落地|推进)/.test(slide.title)) return 'process';
+  if (looksMetricSlide(slide)) return 'metrics';
+  if (slide.intent === 'cta' || looksCtaSlide(slide) || (index === total - 1 && slide.intent === 'summary')) return 'cta';
+  if (index === total - 1 && total >= 4) return 'cta';
+  return coerceFormat(slide);
 }
 
 function buildSlideBody(slide: OutlineSlide): string {
@@ -246,6 +276,7 @@ function buildSlideBody(slide: OutlineSlide): string {
 
 function buildExpandMeta(outline: OutlineResult): ExpandMeta {
   return {
+    profile: outline.meta?.profile,
     rewrite_quality: 0.62,
     tone: 'mixed',
     review_issues: outline.meta?.planning_confidence < 0.6 ? ['fallback_used'] : [],
@@ -255,10 +286,13 @@ function buildExpandMeta(outline: OutlineResult): ExpandMeta {
 
 export function buildHeuristicExpanded(markdown: string, outline: OutlineResult): ExpandedResult {
   void markdown;
+  const profile = getDeckProfile(outline.meta?.profile);
   const slides: ExpandedSlide[] = outline.slides.map((slide) => ({
     index: slide.index,
     title: slide.title,
-    format: coerceFormat(slide),
+    format: profile.name === 'pitch-tech-launch'
+      ? coercePitchFormat(slide, slide.index - 1, outline.slides.length)
+      : coerceFormat(slide),
     bullets: (slide.detail_points ?? slide.preview_points ?? []).slice(0, 4).map((item) => compactClause(item)).filter(Boolean),
     body: buildSlideBody(slide),
   }));

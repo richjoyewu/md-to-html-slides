@@ -4,8 +4,19 @@ export type InputShape = 'slide_like' | 'document_like' | 'notes_like';
 export type DensityLevel = 'low' | 'medium' | 'high';
 export type RoughnessLevel = 'clean' | 'rough' | 'very_rough';
 export type RewriteStrategy = 'preserve' | 'light_rewrite' | 'aggressive_rewrite';
-export type ExpandFormat = 'title-bullets' | 'title-body' | 'summary';
+export type DeckProfileName = 'general' | 'pitch-tech-launch';
+export type ExpandFormat =
+  | 'hero'
+  | 'title-bullets'
+  | 'title-body'
+  | 'compare'
+  | 'metrics'
+  | 'process'
+  | 'summary'
+  | 'cta';
 export type AgentMode = 'llm' | 'fallback' | 'cache';
+export type ProviderKind = 'moonshot' | 'openai' | 'openai-compatible';
+export type JsonMode = 'prompt' | 'native';
 
 export interface SourceSection {
   title: string;
@@ -49,6 +60,7 @@ export interface ClarificationQuestion {
 
 export interface PlanContext {
   answers?: Record<string, string>;
+  profile?: DeckProfileName;
 }
 
 export interface OutlineSlide {
@@ -68,6 +80,8 @@ export interface OutlineResult {
 }
 
 export interface PlanMeta {
+  profile: DeckProfileName;
+  default_theme: string;
   content_intent: string;
   audience_guess: string;
   deck_goal: string;
@@ -88,6 +102,7 @@ export interface ExpandedSlide {
 }
 
 export interface ExpandMeta {
+  profile?: DeckProfileName;
   rewrite_quality: number;
   tone: 'presentation' | 'mixed';
   review_issues?: string[];
@@ -101,8 +116,20 @@ export interface ExpandedResult {
   slides: ExpandedSlide[];
 }
 
-export interface KimiConfig {
+export interface LlmProviderConfig {
+  provider: ProviderKind;
   apiKey: string;
   baseUrl: string;
   model: string;
+  jsonMode?: JsonMode;
+}
+
+export interface LlmJsonRequest {
+  prompt: string;
+  timeoutMs?: number;
+  maxTokens?: number;
+}
+
+export interface LlmJsonProvider {
+  callJson(request: LlmJsonRequest): Promise<unknown>;
 }

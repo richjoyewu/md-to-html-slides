@@ -18,10 +18,10 @@ The product is not solving `Markdown to HTML` as a narrow technical transformati
 
 The actual problem is:
 
-> Users have content, but they do not know how to reliably turn that content into a clear, presentable, and publishable slide deck.
+> Users have content, but they do not know how to reliably turn that content into a clear, presentable, and publishable presentation surface.
 
 This breaks down into four recurring user failures:
-- users do not know how to split content into slides
+- users do not know how to split content into presentation units
 - users do not know how to compress document language into presentation language
 - users do not know what should appear on screen versus what should remain speaker context
 - users do not know how to turn structure into a visually usable HTML presentation
@@ -32,7 +32,7 @@ Any feature that does not improve this core conversion path is secondary.
 
 This product should be defined as:
 
-> An agentic system that turns Markdown or draft content into a confirmable slide outline, then into a high-quality HTML presentation.
+> An agentic system that turns Markdown or draft content into a confirmable presentation structure, then into a speaker-friendly HTML presentation surface.
 
 This means the product is not primarily:
 - a Markdown editor
@@ -42,6 +42,15 @@ This means the product is not primarily:
 
 Those are supporting layers.
 The core value is the conversion from raw content to presentation structure.
+
+At the implementation level, the current product is still primarily `deck`-first.
+But the product definition should be broader than decks.
+Over time it should support multiple presentation modes such as:
+
+- `deck`
+- `roadmap`
+- `briefing`
+- `storyflow`
 
 ## Product Principle 1: The User Provides Content, Not Structure
 
@@ -66,7 +75,7 @@ The system is responsible for deciding whether that content must be:
 Implication:
 - avoid exposing internal technical abstractions in the UI
 - avoid making users learn an artificial authoring format too early
-- prefer simple user-facing language like `输入内容`, `生成每页大纲`, `确认大纲`
+- prefer simple user-facing language like `输入内容`, `生成展示大纲`, `确认结构`
 
 ## Product Principle 2: Agentic Means Better Decisions, Not More Freedom
 
@@ -75,9 +84,10 @@ The agent is valuable only when it improves decision quality.
 Agentic behavior in this product means:
 - deciding whether the input is already slide-like or still document-like
 - deciding whether more information is needed before planning
-- deciding how many slides are appropriate
-- deciding what each slide should focus on
-- deciding when to split overloaded slides
+- deciding which presentation mode best fits the content
+- deciding how many slides or sections are appropriate
+- deciding what each presentation unit should focus on
+- deciding when to split overloaded slides or sections
 - deciding when to rewrite long document language into display language
 
 Agentic does not mean:
@@ -102,7 +112,7 @@ The default rule is:
 Good clarification questions are:
 - who is this for
 - is this a course, report, or pitch
-- roughly how many slides are expected
+- roughly how many slides or sections are expected
 
 Bad clarification behavior is:
 - asking for many rounds of details
@@ -117,10 +127,10 @@ Implication:
 
 The MVP flow should remain:
 1. input content
-2. generate slide outline
+2. generate presentation outline
 3. confirm outline
-4. expand slide content
-5. preview themes
+4. expand presentation content
+5. preview presentation surface
 6. export HTML
 
 Anything outside this flow is secondary.
@@ -136,6 +146,9 @@ This means the following are not core during MVP:
 Implication:
 - do not widen the product before the main conversion loop is reliable
 - do not optimize secondary surfaces while the planning loop is still weak
+
+The current implementation should stay focused on `deck` mode until that loop is reliable.
+But the product itself should be judged as a presentation-surface system, not as a PPT clone.
 
 ## Product Principle 5: Reliability Is More Important Than Brilliance
 
@@ -192,7 +205,7 @@ If the outline is wrong:
 So the highest-priority intelligence work belongs in:
 - better planning
 - better clarification
-- better slide-level focus
+- better presentation-unit focus
 
 Implication:
 - planning is a higher priority than new themes
@@ -258,6 +271,32 @@ That means:
 Implication:
 - confirm outline before expand
 - allow returning to plan
+
+## Product Principle 11: Presentation Mode Is A Product Decision, Not A Theme Trick
+
+The system should eventually distinguish between:
+
+- `presentation mode`
+- `theme`
+- `template`
+
+Where:
+
+- presentation mode defines structure and navigation
+- theme defines visual language
+- template defines constrained stylistic defaults within a mode and theme
+
+This means:
+
+- a roadmap should not be forced into artificial slide boundaries if it is better presented as a continuous walkthrough
+- a theme should not fake a different presentation mode through CSS alone
+- the planner should eventually recommend or select the right mode before rendering
+
+Implication:
+
+- keep renderer contracts mode-aware over time
+- keep mode count small and purposeful
+- treat `deck` as the current default, not the permanent product boundary
 - future polishing should suggest, not silently rewrite without visibility
 
 ## Current MVP Priorities

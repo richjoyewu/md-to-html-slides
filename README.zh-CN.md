@@ -2,19 +2,33 @@
 
 [English](./README.md) | 中文
 
-从 Markdown 一键生成高质量 HTML 演示文稿。
+把文字语言变成适合演讲的视觉语言，帮助演讲者更清晰、更有说服力地表达。
 
-## 🎯 项目介绍
+## 🎯 产品使命
 
-**md-to-html-slides** 是一个 AI 驱动的演示文稿生成系统。
+**md-to-html-slides** 是一个面向演讲表达的智能展示系统。
 
 只需写一份 Markdown 笔记，系统会自动：
 - 🧠 理解内容结构
-- 📋 规划幻灯片布局
-- ✨ 生成专业级 HTML 演示文稿
+- 📋 规划展示结构
+- ✨ 生成专业级 HTML 展示页面
 - 📱 响应式设计，支持各种设备
 
-与传统工具不同，这不只是 Markdown 转 HTML —— 它是一个**智能规划引擎**，能理解你的内容意图并重新组织，让演示更有说服力。
+## 它是什么
+
+这不是一个单纯的 Markdown 转 HTML 工具，也不只是一个 PPT 替代品。
+
+它更准确地说是一个 agent 驱动的展示系统，会：
+
+- 理解内容结构
+- 把文字语言转成适合表达的展示结构
+- 以网页原生的 HTML 形式完成最终呈现
+
+当前公开边界：
+
+- 当前仍以 `deck` 模式为主
+- 当前主输出仍是单文件 HTML
+- 后续会扩展到 `roadmap`、`briefing`、`storyflow` 等展示模式
 
 ---
 
@@ -34,11 +48,12 @@ npm run studio
 
 你会看到：
 - 左侧 Markdown 编辑器
+- deck profile 选择器
 - 右侧实时预览
 - 主题实时切换
 - 一键导出 HTML
 
-### 3. 命令行生成演示文稿
+### 3. 命令行生成展示页面
 ```bash
 # 使用 dark-card 主题
 npm run build:example
@@ -46,17 +61,34 @@ npm run build:example
 # 使用 editorial-light 主题
 npm run build:example:editorial
 
+# 使用 tech-launch 主题生成 pitch 示例
+npm run build:example:launch
+
 # 预览演示文稿
 npm run preview:example
 
 # 验证 Markdown 结构
 npm run validate:example
+
+# 跑 live LLM 回归
+npm run check:llm
+
+# 对比 baseline / candidate provider
+npm run check:llm:ab
 ```
 
 ### 4. 用自己的内容
 ```bash
 node ./scripts/build.mjs build ./your-file.md -o ./output.html --theme dark-card
 ```
+
+### 当前产品方向
+
+- 输入：`Markdown + images`
+- 输出：单文件 `HTML` 展示形态
+- 当前默认模式：`deck`
+- 后续目标模式：`roadmap`、`briefing`、`storyflow`
+- 当前重点：先把讲解型 deck 主链路做好，再逐步扩展到更多展示模式
 
 ---
 
@@ -71,10 +103,11 @@ node ./scripts/build.mjs build ./your-file.md -o ./output.html --theme dark-card
 ### 🎨 **专业级设计系统**
 ```
 Dark Card         →  深色卡片风格，适合技术分享
+Tech Launch       →  科技发布风格，适合产品发布和 pitch
 Editorial Light   →  编辑风格，适合内容讲述
 ```
 
-两套主题都经过精心设计，响应式布局，支持键盘和触摸导航。
+这些主题都经过精心设计，响应式布局，支持键盘和触摸导航。
 
 ### 📄 **单文件输出**
 - 生成的 HTML 是**完全独立的单文件**
@@ -87,7 +120,7 @@ Editorial Light   →  编辑风格，适合内容讲述
 - 中文排版美化
 
 ### 🔄 **Fallback 机制**
-- 即使 LLM API 失败，仍能生成可用的演示文稿
+- 即使 LLM API 失败，仍能生成可用的展示页面
 - 自动降级到启发式算法
 - 优雅降级，永不失败
 
@@ -115,9 +148,10 @@ md-to-html-slides/
 │  ├─ analyzer.ts           # 内容分析
 │  ├─ planner.ts            # 幻灯片规划
 │  ├─ expander.ts           # 内容扩展
-│  └─ moonshot-client.ts    # LLM 调用
+│  └─ adapters/             # Provider 适配层
 ├─ templates/               # 主题系统
 │  ├─ dark-card.mjs
+│  ├─ tech-launch.mjs
 │  └─ editorial-light.mjs
 ├─ scripts/                 # 命令行工具
 │  ├─ build.mjs
@@ -137,13 +171,20 @@ md-to-html-slides/
 
 ```bash
 # 使用 Moonshot/Kimi（默认）
-KIMI_API_KEY=your_key_here
-KIMI_MODEL=kimi-k2-5
-KIMI_BASE_URL=https://api.moonshot.cn/v1
+LLM_PROVIDER=moonshot
+LLM_API_KEY=your_key_here
+LLM_MODEL=kimi-k2-5
+LLM_BASE_URL=https://api.moonshot.cn/v1
 
-# 或使用其他 Provider（即将支持）
+# 使用更稳定的原生 JSON 输出模型
 # LLM_PROVIDER=openai
-# LLM_API_KEY=your_key
+# LLM_API_KEY=your_openai_key
+# LLM_MODEL=gpt-4.1-mini
+# LLM_JSON_MODE=native
+
+# 做 baseline / candidate A/B 对比
+# LLM_CANDIDATE_MODEL=gpt-4.1
+# npm run check:llm:ab
 ```
 
 ### 自定义 Markdown 格式
@@ -160,6 +201,9 @@ KIMI_BASE_URL=https://api.moonshot.cn/v1
 
 ## 📚 详细文档
 
+- [设计原则](./docs/design-principles.md)
+- [主题家族定义](./docs/theme-families.md)
+- [展示模式](./docs/presentation-modes.md)
 - [Agent 系统架构](./docs/agent-orchestration-spec.md)
 - [Markdown 格式规范](./docs/markdown-spec.md)
 - [LLM Provider 规范](./docs/llm-provider-spec.md)
@@ -170,7 +214,5 @@ KIMI_BASE_URL=https://api.moonshot.cn/v1
 ## 📄 许可证
 
 MIT License - 详见 [LICENSE](./LICENSE)
-
----
 
 **⭐ 如果这个项目对你有帮助，请给个 Star！**

@@ -41,7 +41,7 @@ Supported options for Phase 1:
 - `--theme <name>`
   - Optional
   - Choose a theme/template
-  - Example: `dark-card`, `editorial-light`
+  - Example: `dark-card`, `tech-launch`, `editorial-light`
 
 - `--title <text>`
   - Optional
@@ -62,6 +62,7 @@ Example output:
 ```text
 Available themes:
 - dark-card: Deep dark background, editorial display typography, high-contrast product deck styling.
+- tech-launch: Neon product-launch theme tuned for hero claims, comparisons, metrics, and CTA slides.
 - editorial-light: Warm paper background, serif-led editorial layout, print-inspired accents.
 ```
 
