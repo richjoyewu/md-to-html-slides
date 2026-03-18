@@ -441,12 +441,12 @@
 
     .slide-compare {
       display: grid;
-      grid-template-columns: minmax(0, 1fr) 64px minmax(0, 1fr);
+      grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 14px;
       align-items: stretch;
     }
 
-    .compare-column {
+    .compare-card-shell {
       border: 1px solid var(--line);
       background: rgba(255,255,255,0.03);
       padding: 1rem;
@@ -454,7 +454,7 @@
       gap: 0.9rem;
     }
 
-    .compare-column.accent {
+    .compare-card-shell.accent {
       background: rgba(118,184,255,0.08);
     }
 
@@ -469,12 +469,10 @@
       line-height: 1.6;
     }
 
-    .compare-vs {
-      display: grid;
-      place-items: center;
-      color: var(--accent);
-      font-family: var(--font-mono);
-      letter-spacing: 0.12em;
+    .compare-caption {
+      color: var(--text-3);
+      font-size: 0.92rem;
+      line-height: 1.5;
     }
 
     .metric-grid {
@@ -770,7 +768,16 @@
               <div class="content-kicker">Chapter 03</div>
               <h2 class="slide-heading" data-fit-text data-fit-min="30" data-fit-max="58" data-fit-lines="2">什么是 AI Agent</h2>
               <div class="slide-body">
-                <p class="slide-paragraph reveal">Agent 不是简单问答工具，而是能理解目标、规划步骤、调用工具并执行任务的系统。</p>
+                <section class="slide-hero-block hero-grid hero-grid-system reveal">
+  <div class="hero-grid-main">
+    <div class="semantic-kicker">Launch Thesis</div>
+    <h3 class="hero-grid-title">什么是 AI Agent</h3>
+    <p class="slide-paragraph">Agent 不是简单问答工具，而是能理解目标、规划步骤、调用工具并执行任务的系统。</p>
+  </div>
+  <div class="hero-grid-side">
+    <div class="hero-stat-grid"><div class="hero-stat-box"><div class="hero-stat-value">3</div><div class="hero-stat-label">core points</div></div><div class="hero-stat-box"><div class="hero-stat-value">1</div><div class="hero-stat-label">support line</div></div></div>
+  </div>
+</section>
               </div>
             </div>
           </div>

@@ -16,6 +16,7 @@
 - `docs/freeform-html-art-mode-decision.zh-CN.md`: mode-splitting decision record for stable system mode versus freeform art mode.
 - `docs/system-mode-vs-art-mode-boundary.zh-CN.md`: boundary definition for default system mode, future art mode, and task prioritisation.
 - `docs/demo-openclaw-design-breakdown.zh-CN.md`: design asset breakdown of the hand-crafted demo baseline and what should enter System Mode.
+- `docs/system-mode-visual-assets-prd.zh-CN.md`: product requirement doc for System Mode visual components, icons, chips, CTA, and image-slot roadmap.
 
 ## Common Commands
 

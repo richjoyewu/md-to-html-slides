@@ -50,6 +50,7 @@ export interface RenderCompareBlock {
   summary?: string;
   left: RenderCompareColumn;
   right: RenderCompareColumn;
+  layout?: 'two-col';
 }
 
 export interface RenderMetricItem {

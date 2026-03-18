@@ -267,14 +267,17 @@ const normalizeRenderBlock = (block) => {
     const leftItems = normalizeTextList(block.left?.items || block.left_items, 4);
     const rightItems = normalizeTextList(block.right?.items || block.right_items, 4);
     const body = compactText(block.body || '');
+    const leftCaption = compactText(block.left?.caption || block.left_caption || '');
+    const rightCaption = compactText(block.right?.caption || block.right_caption || '');
     if (!leftItems.length && !rightItems.length) return null;
     return {
       type: 'compare',
       eyebrow: compactText(block.eyebrow || ''),
       body,
       summary: compactText(block.summary || ''),
-      left: { label: leftLabel || '旧方式', items: leftItems },
-      right: { label: rightLabel || '新方式', items: rightItems }
+      left: { label: leftLabel || '旧方式', items: leftItems, caption: leftCaption },
+      right: { label: rightLabel || '新方式', items: rightItems, caption: rightCaption },
+      layout: 'two-col'
     };
   }
 
@@ -400,19 +403,23 @@ const buildCompareBlockFromBlocks = (title, blocks) => {
   const items = collectListItems(blocks);
   const [leftLabel, rightLabel] = parseCompareLabels(paragraphs[0], title);
   const midpoint = Math.max(2, Math.ceil(items.length / 2));
+  const support = paragraphs.filter((entry) => !entry.includes('|'));
   return {
     type: 'compare',
     eyebrow: 'Signal Shift',
-    body: paragraphs.find((entry) => !entry.includes('|')) || '',
+    body: support[0] || '',
     summary: compactTitle(title),
     left: {
       label: leftLabel,
-      items: items.slice(0, midpoint)
+      items: items.slice(0, midpoint),
+      caption: support[1] || ''
     },
     right: {
       label: rightLabel,
-      items: items.slice(midpoint)
-    }
+      items: items.slice(midpoint),
+      caption: support[2] || ''
+    },
+    layout: 'two-col'
   };
 };
 
@@ -462,6 +469,43 @@ const buildCtaBlockFromBlocks = (title, blocks) => {
   };
 };
 
+const looksHeroSlide = (title, paragraphs, listItems) => {
+  const titleText = compactText(title).toLowerCase();
+  const paragraphSurface = paragraphs.join(' ').toLowerCase();
+  const bulletSurface = listItems.join(' ').toLowerCase();
+  const combined = `${titleText} ${paragraphSurface} ${bulletSurface}`;
+
+  if (!titleText) return false;
+  if (listItems.filter(hasNumericLead).length >= 2) return false;
+  if (/对比|vs|区别|传统|旧方式|新方式/.test(combined)) return false;
+  if (/合作|试点|加入|联系|下一步|窗口期|启动/.test(combined)) return false;
+
+  const titleHeroSignals = [
+    /重新定义/,
+    /让.+变/,
+    /把.+变/,
+    /打造/,
+    /重构/,
+    /统一.+流程/,
+    /产品脑/,
+    /下一代/,
+    /平台/,
+    /引擎/
+  ];
+
+  const sentenceHeroSignals = [
+    /不是.+而是/
+  ];
+
+  const hasTitleHeroSignal = titleHeroSignals.some((pattern) => pattern.test(titleText));
+  const hasSentenceHeroSignal = sentenceHeroSignals.some((pattern) => pattern.test(combined));
+
+  if (hasTitleHeroSignal && (paragraphs.length > 0 || listItems.length >= 2)) return true;
+  if (/指标|数据|增长|效率|收入|用户|客户|转化|速度|上线|工单|留存/.test(combined)) return false;
+
+  return hasSentenceHeroSignal && (paragraphs.length > 0 || listItems.length >= 2);
+};
+
 const inferRenderVariant = (item, blocks) => {
   const explicitVariant = String(item.variant || '').trim();
   if (ALLOWED_VARIANTS.has(explicitVariant)) return explicitVariant;
@@ -482,6 +526,7 @@ const inferRenderVariant = (item, blocks) => {
   const metricSurface = `${semanticSurface} ${listItems.join(' ')}`.toLowerCase();
 
   if (/总结|结论|回顾|recap|summary/.test(title)) return 'summary';
+  if (looksHeroSlide(title, paragraphs, listItems)) return 'hero';
   if (/对比|vs| versus |传统|旧方式|新方式/.test(semanticSurface)) return 'compare';
   if (listItems.length >= 2 && /路线图|阶段|扩张|推进|实施|落地|步骤|流程|path|roadmap/.test(semanticSurface)) return 'process';
   if (/合作|试点|加入|预约|联系|启动|下一步|窗口期|立即|现在/.test(semanticSurface)) return 'cta';
@@ -650,7 +695,8 @@ export const expandedToRenderDeck = (expanded) => {
             body: slide.body,
             summary: slide.title,
             left: { label: leftLabel, items: slide.bullets.slice(0, midpoint) },
-            right: { label: rightLabel, items: slide.bullets.slice(midpoint) }
+            right: { label: rightLabel, items: slide.bullets.slice(midpoint) },
+            layout: 'two-col'
           }];
         }
 

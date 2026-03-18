@@ -11,6 +11,7 @@ This directory keeps only the current source-of-truth documents for the project.
 - `freeform-html-art-mode-decision.zh-CN.md`
 - `system-mode-vs-art-mode-boundary.zh-CN.md`
 - `demo-openclaw-design-breakdown.zh-CN.md`
+- `system-mode-visual-assets-prd.zh-CN.md`
 
 ## Rule
 

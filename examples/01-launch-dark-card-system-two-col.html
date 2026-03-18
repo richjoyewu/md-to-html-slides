@@ -1,228 +1,9 @@
-const escapeHtml = (value = '') => {
-  return String(value)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/\"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-};
-
-const slugify = (value = '') => {
-  return String(value)
-    .toLowerCase()
-    .trim()
-    .replace(/[^\w\u4e00-\u9fff]+/g, '-')
-    .replace(/^-+|-+$/g, '') || 'slide';
-};
-
-const renderItems = (items = []) => items.map((item) => `<li>${escapeHtml(item)}</li>`).join('');
-
-const renderBlock = (block) => {
-  if (block.type === 'paragraph') {
-    return `<p class="slide-paragraph reveal">${escapeHtml(block.content)}</p>`;
-  }
-
-  if (block.type === 'list') {
-    const items = block.items.map((item) => `<li>${escapeHtml(item)}</li>`).join('');
-    return `<ul class="slide-list reveal">${items}</ul>`;
-  }
-
-  if (block.type === 'image') {
-    return [
-      '<figure class="slide-figure reveal">',
-      `  <img src="${block.inlinedSrc}" alt="${escapeHtml(block.alt)}" />`,
-      block.alt ? `  <figcaption>${escapeHtml(block.alt)}</figcaption>` : '',
-      '</figure>'
-    ].filter(Boolean).join('\n');
-  }
-
-  if (block.type === 'code') {
-    return [
-      '<div class="slide-code-wrap reveal">',
-      block.language ? `  <div class="slide-code-lang">${escapeHtml(block.language)}</div>` : '',
-      `  <pre class="slide-code"><code>${escapeHtml(block.content)}</code></pre>`,
-      '</div>'
-    ].filter(Boolean).join('\n');
-  }
-
-  if (block.type === 'hero') {
-    return [
-      '<section class="slide-hero-block hero-grid hero-grid-system reveal">',
-      '  <div class="hero-grid-main">',
-      `    <div class="semantic-kicker">${escapeHtml(block.eyebrow || 'Core Thesis')}</div>`,
-      `    <h3 class="hero-grid-title">${escapeHtml(block.headline || '')}</h3>`,
-      block.body ? `    <p class="slide-paragraph">${escapeHtml(block.body)}</p>` : '',
-      block.proof ? `    <div class="hero-proof-note">${escapeHtml(block.proof)}</div>` : '',
-      '  </div>',
-      '  <div class="hero-grid-side">',
-      block.points?.length ? `    <ul class="semantic-chip-list">${renderItems(block.points)}</ul>` : '',
-      block.stats?.length ? `    <div class="hero-stat-grid">${block.stats.map((item) => `<div class="hero-stat-box"><div class="hero-stat-value">${escapeHtml(item.value)}</div><div class="hero-stat-label">${escapeHtml(item.label)}</div></div>`).join('')}</div>` : '',
-      '  </div>',
-      '</section>'
-    ].filter(Boolean).join('\n');
-  }
-
-  if (block.type === 'compare') {
-    return `
-      <section class="slide-compare two-col-system reveal">
-        <div class="compare-card-shell">
-          <div class="compare-label">${escapeHtml(block.left.label)}</div>
-          ${block.left.caption ? `<p class="compare-caption">${escapeHtml(block.left.caption)}</p>` : ''}
-          <ul class="compare-points">${renderItems(block.left.items)}</ul>
-        </div>
-        <div class="compare-card-shell accent">
-          <div class="compare-label">${escapeHtml(block.right.label)}</div>
-          ${block.right.caption ? `<p class="compare-caption">${escapeHtml(block.right.caption)}</p>` : ''}
-          <ul class="compare-points">${renderItems(block.right.items)}</ul>
-        </div>
-      </section>
-    `;
-  }
-
-  if (block.type === 'metrics') {
-    return `
-      <section class="slide-metrics reveal">
-        ${block.intro ? `<p class="slide-paragraph">${escapeHtml(block.intro)}</p>` : ''}
-        <div class="metric-grid">
-          ${block.items.map((item) => `
-            <div class="metric-card">
-              <div class="metric-value">${escapeHtml(item.value)}</div>
-              <div class="metric-label">${escapeHtml(item.label)}</div>
-            </div>
-          `).join('')}
-        </div>
-      </section>
-    `;
-  }
-
-  if (block.type === 'process') {
-    return `
-      <section class="slide-process reveal">
-        ${block.intro ? `<p class="slide-paragraph">${escapeHtml(block.intro)}</p>` : ''}
-        <ol class="process-list">
-          ${block.steps.map((step, index) => `
-            <li>
-              <span class="process-index">${String(index + 1).padStart(2, '0')}</span>
-              <span class="process-copy">${escapeHtml(step.label)}</span>
-            </li>
-          `).join('')}
-        </ol>
-      </section>
-    `;
-  }
-
-  if (block.type === 'summary') {
-    return `
-      <section class="slide-summary reveal">
-        ${block.intro ? `<p class="slide-paragraph">${escapeHtml(block.intro)}</p>` : ''}
-        <ul class="slide-list">${renderItems(block.items)}</ul>
-      </section>
-    `;
-  }
-
-  if (block.type === 'cta') {
-    return `
-      <section class="slide-cta reveal">
-        <p class="slide-paragraph">${escapeHtml(block.message)}</p>
-        <div class="cta-pill-row">
-          ${block.actions.map((item) => `<span class="cta-pill">${escapeHtml(item)}</span>`).join('')}
-        </div>
-      </section>
-    `;
-  }
-
-  return '';
-};
-
-export const renderDarkCardDeck = (deck, options) => {
-  const totalSlides = deck.slides.length + 1;
-  const titleText = options.title || deck.title;
-  const subtitle = deck.intro || 'Markdown-first HTML slide deck';
-  const previewItems = deck.slides
-    .slice(0, 4)
-    .map((slide, index) => `
-      <div class="cover-item">
-        <span class="cover-item-index">${String(index + 2).padStart(2, '0')}</span>
-        <span class="cover-item-title">${escapeHtml(slide.title)}</span>
-      </div>
-    `)
-    .join('');
-
-  const titleSlide = `
-    <section class="slide title-slide" data-title="${escapeHtml(titleText)}">
-      <div class="page-no">01</div>
-      <div class="slide-shell hero-shell">
-        <aside class="meta-panel reveal">
-          <div class="meta-eyebrow">OpenClaw Deck</div>
-          <div class="meta-stack">
-            <span class="meta-label">Theme</span>
-            <span class="meta-value">${escapeHtml(options.theme)}</span>
-          </div>
-          <div class="meta-stack">
-            <span class="meta-label">Slides</span>
-            <span class="meta-value">${String(totalSlides)}</span>
-          </div>
-          <div class="meta-stack">
-            <span class="meta-label">Mode</span>
-            <span class="meta-value">Single-file HTML</span>
-          </div>
-        </aside>
-        <div class="hero-panel reveal">
-          <div class="hero-grid">
-            <div class="hero-main">
-              <div class="hero-mark">课程封面</div>
-              <h1 class="slide-title" data-fit-text data-fit-min="42" data-fit-max="92" data-fit-lines="2">${escapeHtml(titleText)}</h1>
-              <p class="slide-subtitle">${escapeHtml(subtitle)}</p>
-              <div class="hero-rule"></div>
-              <div class="hero-note">面向中文内容排版优化，减少大写英文海报式冲突，保留科技感和课程节奏。</div>
-            </div>
-            <div class="cover-side">
-              <div class="cover-side-label">课程导览</div>
-              <div class="cover-list">
-                ${previewItems}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="slide-footer">
-        <span>md-to-html-slides</span>
-        <span>${String(1).padStart(2, '0')} / ${String(totalSlides).padStart(2, '0')}</span>
-      </div>
-    </section>
-  `;
-
-  const contentSlides = deck.slides.map((slide, index) => {
-    const count = index + 2;
-    const renderedBlocks = slide.blocks.map(renderBlock).join('\n');
-    return `
-      <section class="slide" data-title="${escapeHtml(slide.title)}" id="${slugify(slide.title)}">
-        <div class="page-no">${String(count).padStart(2, '0')}</div>
-        <div class="slide-shell content-shell">
-          <div class="content-panel reveal">
-            <div class="content-panel-inner">
-              <div class="content-kicker">Chapter ${String(count).padStart(2, '0')}</div>
-              <h2 class="slide-heading" data-fit-text data-fit-min="30" data-fit-max="58" data-fit-lines="2">${escapeHtml(slide.title)}</h2>
-              <div class="slide-body">
-                ${renderedBlocks}
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="slide-footer">
-          <span>${escapeHtml(slide.title)}</span>
-          <span>${String(count).padStart(2, '0')} / ${String(totalSlides).padStart(2, '0')}</span>
-        </div>
-      </section>
-    `;
-  }).join('\n');
-
-  return `<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>${escapeHtml(titleText)}</title>
+  <title>Aurora Launch</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+SC:wght@400;500;700;800&family=Noto+Serif+SC:wght@600;700;900&display=swap" rel="stylesheet" />
@@ -895,8 +676,285 @@ export const renderDarkCardDeck = (deck, options) => {
   <div class="progress-bar"><div class="progress-bar-fill" id="progressFill"></div></div>
   <div class="nav-dots" id="navDots"></div>
   <main id="slidesRoot">
-    ${titleSlide}
-    ${contentSlides}
+    
+    <section class="slide title-slide" data-title="Aurora Launch">
+      <div class="page-no">01</div>
+      <div class="slide-shell hero-shell">
+        <aside class="meta-panel reveal">
+          <div class="meta-eyebrow">OpenClaw Deck</div>
+          <div class="meta-stack">
+            <span class="meta-label">Theme</span>
+            <span class="meta-value">dark-card</span>
+          </div>
+          <div class="meta-stack">
+            <span class="meta-label">Slides</span>
+            <span class="meta-value">7</span>
+          </div>
+          <div class="meta-stack">
+            <span class="meta-label">Mode</span>
+            <span class="meta-value">Single-file HTML</span>
+          </div>
+        </aside>
+        <div class="hero-panel reveal">
+          <div class="hero-grid">
+            <div class="hero-main">
+              <div class="hero-mark">课程封面</div>
+              <h1 class="slide-title" data-fit-text data-fit-min="42" data-fit-max="92" data-fit-lines="2">Aurora Launch</h1>
+              <p class="slide-subtitle">把企业知识和业务流程直接变成可执行产品能力。</p>
+              <div class="hero-rule"></div>
+              <div class="hero-note">面向中文内容排版优化，减少大写英文海报式冲突，保留科技感和课程节奏。</div>
+            </div>
+            <div class="cover-side">
+              <div class="cover-side-label">课程导览</div>
+              <div class="cover-list">
+                
+      <div class="cover-item">
+        <span class="cover-item-index">02</span>
+        <span class="cover-item-title">市场正在被慢交付拖住</span>
+      </div>
+    
+      <div class="cover-item">
+        <span class="cover-item-index">03</span>
+        <span class="cover-item-title">Aurora 重新定义企业工作流</span>
+      </div>
+    
+      <div class="cover-item">
+        <span class="cover-item-index">04</span>
+        <span class="cover-item-title">旧方式 vs Aurora</span>
+      </div>
+    
+      <div class="cover-item">
+        <span class="cover-item-index">05</span>
+        <span class="cover-item-title">三个指标说明它已经跑起来</span>
+      </div>
+    
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="slide-footer">
+        <span>md-to-html-slides</span>
+        <span>01 / 07</span>
+      </div>
+    </section>
+  
+    
+      <section class="slide" data-title="市场正在被慢交付拖住" id="市场正在被慢交付拖住">
+        <div class="page-no">02</div>
+        <div class="slide-shell content-shell">
+          <div class="content-panel reveal">
+            <div class="content-panel-inner">
+              <div class="content-kicker">Chapter 02</div>
+              <h2 class="slide-heading" data-fit-text data-fit-min="30" data-fit-max="58" data-fit-lines="2">市场正在被慢交付拖住</h2>
+              <div class="slide-body">
+                
+      <section class="slide-metrics reveal">
+        
+        <div class="metric-grid">
+          
+            <div class="metric-card">
+              <div class="metric-value">01</div>
+              <div class="metric-label">知识分散在文档、工单和 IM 里</div>
+            </div>
+          
+            <div class="metric-card">
+              <div class="metric-value">02</div>
+              <div class="metric-label">需求改一次，流程就要重复同步一次</div>
+            </div>
+          
+            <div class="metric-card">
+              <div class="metric-value">03</div>
+              <div class="metric-label">AI 试点很多，但真正上线很慢</div>
+            </div>
+          
+        </div>
+      </section>
+    
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="slide-footer">
+          <span>市场正在被慢交付拖住</span>
+          <span>02 / 07</span>
+        </div>
+      </section>
+    
+
+      <section class="slide" data-title="Aurora 重新定义企业工作流" id="aurora-重新定义企业工作流">
+        <div class="page-no">03</div>
+        <div class="slide-shell content-shell">
+          <div class="content-panel reveal">
+            <div class="content-panel-inner">
+              <div class="content-kicker">Chapter 03</div>
+              <h2 class="slide-heading" data-fit-text data-fit-min="30" data-fit-max="58" data-fit-lines="2">Aurora 重新定义企业工作流</h2>
+              <div class="slide-body">
+                <section class="slide-hero-block hero-grid hero-grid-system reveal">
+  <div class="hero-grid-main">
+    <div class="semantic-kicker">Launch Thesis</div>
+    <h3 class="hero-grid-title">Aurora 重新定义企业工作流</h3>
+    <div class="hero-proof-note">7 天内完成首个业务工作流上线</div>
+  </div>
+  <div class="hero-grid-side">
+    <ul class="semantic-chip-list"><li>把知识、权限、流程统一建模</li><li>让团队用自然语言编排执行链路</li><li>7 天内完成首个业务工作流上线</li></ul>
+    <div class="hero-stat-grid"><div class="hero-stat-box"><div class="hero-stat-value">3</div><div class="hero-stat-label">core points</div></div><div class="hero-stat-box"><div class="hero-stat-value">0</div><div class="hero-stat-label">support line</div></div></div>
+  </div>
+</section>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="slide-footer">
+          <span>Aurora 重新定义企业工作流</span>
+          <span>03 / 07</span>
+        </div>
+      </section>
+    
+
+      <section class="slide" data-title="旧方式 vs Aurora" id="旧方式-vs-aurora">
+        <div class="page-no">04</div>
+        <div class="slide-shell content-shell">
+          <div class="content-panel reveal">
+            <div class="content-panel-inner">
+              <div class="content-kicker">Chapter 04</div>
+              <h2 class="slide-heading" data-fit-text data-fit-min="30" data-fit-max="58" data-fit-lines="2">旧方式 vs Aurora</h2>
+              <div class="slide-body">
+                
+      <section class="slide-compare two-col-system reveal">
+        <div class="compare-card-shell">
+          <div class="compare-label">旧方式</div>
+          
+          <ul class="compare-points"><li>旧方式依赖人工整理和交接</li><li>项目一多，响应速度明显下降</li></ul>
+        </div>
+        <div class="compare-card-shell accent">
+          <div class="compare-label">Aurora</div>
+          
+          <ul class="compare-points"><li>Aurora 把知识、流程和模型统一编排</li><li>需求变化后仍能快速迭代上线</li></ul>
+        </div>
+      </section>
+    
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="slide-footer">
+          <span>旧方式 vs Aurora</span>
+          <span>04 / 07</span>
+        </div>
+      </section>
+    
+
+      <section class="slide" data-title="三个指标说明它已经跑起来" id="三个指标说明它已经跑起来">
+        <div class="page-no">05</div>
+        <div class="slide-shell content-shell">
+          <div class="content-panel reveal">
+            <div class="content-panel-inner">
+              <div class="content-kicker">Chapter 05</div>
+              <h2 class="slide-heading" data-fit-text data-fit-min="30" data-fit-max="58" data-fit-lines="2">三个指标说明它已经跑起来</h2>
+              <div class="slide-body">
+                
+      <section class="slide-metrics reveal">
+        
+        <div class="metric-grid">
+          
+            <div class="metric-card">
+              <div class="metric-value">3x</div>
+              <div class="metric-label">项目上线速度提升</div>
+            </div>
+          
+            <div class="metric-card">
+              <div class="metric-value">82%</div>
+              <div class="metric-label">首周功能启用率</div>
+            </div>
+          
+            <div class="metric-card">
+              <div class="metric-value">45%</div>
+              <div class="metric-label">运维工单下降</div>
+            </div>
+          
+        </div>
+      </section>
+    
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="slide-footer">
+          <span>三个指标说明它已经跑起来</span>
+          <span>05 / 07</span>
+        </div>
+      </section>
+    
+
+      <section class="slide" data-title="下一阶段怎么扩张" id="下一阶段怎么扩张">
+        <div class="page-no">06</div>
+        <div class="slide-shell content-shell">
+          <div class="content-panel reveal">
+            <div class="content-panel-inner">
+              <div class="content-kicker">Chapter 06</div>
+              <h2 class="slide-heading" data-fit-text data-fit-min="30" data-fit-max="58" data-fit-lines="2">下一阶段怎么扩张</h2>
+              <div class="slide-body">
+                
+      <section class="slide-process reveal">
+        
+        <ol class="process-list">
+          
+            <li>
+              <span class="process-index">01</span>
+              <span class="process-copy">先做行业样板客户</span>
+            </li>
+          
+            <li>
+              <span class="process-index">02</span>
+              <span class="process-copy">再开放标准化模板市场</span>
+            </li>
+          
+            <li>
+              <span class="process-index">03</span>
+              <span class="process-copy">最后形成合作伙伴生态</span>
+            </li>
+          
+        </ol>
+      </section>
+    
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="slide-footer">
+          <span>下一阶段怎么扩张</span>
+          <span>06 / 07</span>
+        </div>
+      </section>
+    
+
+      <section class="slide" data-title="现在是启动试点的窗口期" id="现在是启动试点的窗口期">
+        <div class="page-no">07</div>
+        <div class="slide-shell content-shell">
+          <div class="content-panel reveal">
+            <div class="content-panel-inner">
+              <div class="content-kicker">Chapter 07</div>
+              <h2 class="slide-heading" data-fit-text data-fit-min="30" data-fit-max="58" data-fit-lines="2">现在是启动试点的窗口期</h2>
+              <div class="slide-body">
+                
+      <section class="slide-cta reveal">
+        <p class="slide-paragraph">现在是启动试点的窗口期</p>
+        <div class="cta-pill-row">
+          <span class="cta-pill">开放联合发布与试点合作</span><span class="cta-pill">支持行业场景共创</span><span class="cta-pill">Q2 启动首批样板客户</span>
+        </div>
+      </section>
+    
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="slide-footer">
+          <span>现在是启动试点的窗口期</span>
+          <span>07 / 07</span>
+        </div>
+      </section>
+    
   </main>
   <script>
     (() => {
@@ -1036,5 +1094,4 @@ export const renderDarkCardDeck = (deck, options) => {
     })();
   </script>
 </body>
-</html>`;
-};
+</html>

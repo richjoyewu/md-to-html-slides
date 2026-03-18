@@ -63,13 +63,20 @@ const renderBlock = (block) => {
   }
 
   if (block.type === 'compare') {
-    return [
-      '<section class="slide-compare reveal">',
-      `  <div class="compare-column"><div class="compare-label">${escapeHtml(block.left.label)}</div><ul class="compare-points">${renderItems(block.left.items)}</ul></div>`,
-      '  <div class="compare-vs">VS</div>',
-      `  <div class="compare-column accent"><div class="compare-label">${escapeHtml(block.right.label)}</div><ul class="compare-points">${renderItems(block.right.items)}</ul></div>`,
-      '</section>'
-    ].join('\n');
+    return `
+      <section class="slide-compare two-col-system reveal">
+        <div class="compare-card-shell">
+          <div class="compare-label">${escapeHtml(block.left.label)}</div>
+          ${block.left.caption ? `<p class="compare-caption">${escapeHtml(block.left.caption)}</p>` : ''}
+          <ul class="compare-points">${renderItems(block.left.items)}</ul>
+        </div>
+        <div class="compare-card-shell accent">
+          <div class="compare-label">${escapeHtml(block.right.label)}</div>
+          ${block.right.caption ? `<p class="compare-caption">${escapeHtml(block.right.caption)}</p>` : ''}
+          <ul class="compare-points">${renderItems(block.right.items)}</ul>
+        </div>
+      </section>
+    `;
   }
 
   if (block.type === 'metrics') {
@@ -650,12 +657,12 @@ export const renderEditorialLightDeck = (deck, options) => {
 
     .slide-compare {
       display: grid;
-      grid-template-columns: minmax(0, 1fr) 64px minmax(0, 1fr);
+      grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 14px;
       align-items: stretch;
     }
 
-    .compare-column {
+    .compare-card-shell {
       border: 1px solid rgba(23, 21, 20, 0.1);
       background: rgba(255,255,255,0.42);
       padding: 1rem;
@@ -663,7 +670,7 @@ export const renderEditorialLightDeck = (deck, options) => {
       gap: 0.9rem;
     }
 
-    .compare-column.accent {
+    .compare-card-shell.accent {
       background: rgba(201, 107, 77, 0.08);
     }
 
@@ -678,12 +685,10 @@ export const renderEditorialLightDeck = (deck, options) => {
       line-height: 1.6;
     }
 
-    .compare-vs {
-      display: grid;
-      place-items: center;
-      color: var(--accent);
-      font-family: var(--font-mono);
-      letter-spacing: 0.12em;
+    .compare-caption {
+      color: var(--muted);
+      font-size: 0.92rem;
+      line-height: 1.5;
     }
 
     .metric-grid {

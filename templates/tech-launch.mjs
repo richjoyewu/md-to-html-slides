@@ -135,6 +135,7 @@ const renderCompareSurface = (slide) => {
       </div>
       <div class="compare-panel">
         <div class="panel-label"><span class="panel-icon">${renderGlyph('split')}</span>${escapeHtml(leftLabel)}</div>
+        ${compareBlock?.left?.caption ? `<p class="compare-panel-caption">${escapeHtml(compareBlock.left.caption)}</p>` : ''}
         <ul class="compare-list">
           ${leftItems.map((item) => `<li>${escapeHtml(item)}</li>`).join('')}
         </ul>
@@ -142,6 +143,7 @@ const renderCompareSurface = (slide) => {
       <div class="compare-divider">${renderGlyph('arrow')}</div>
       <div class="compare-panel accent">
         <div class="panel-label"><span class="panel-icon">${renderGlyph('orbit')}</span>${escapeHtml(rightLabel)}</div>
+        ${compareBlock?.right?.caption ? `<p class="compare-panel-caption">${escapeHtml(compareBlock.right.caption)}</p>` : ''}
         <ul class="compare-list">
           ${rightItems.map((item) => `<li>${escapeHtml(item)}</li>`).join('')}
         </ul>
@@ -925,6 +927,12 @@ export const renderTechLaunchDeck = (deck, options = {}) => {
     .compare-panel.accent {
       background: linear-gradient(180deg, rgba(11, 24, 42, 0.96), rgba(9, 18, 34, 0.84));
       border-color: rgba(113, 244, 255, 0.22);
+    }
+
+    .compare-panel-caption {
+      color: var(--text-3);
+      font-size: 0.92rem;
+      line-height: 1.5;
     }
 
     .panel-label {
