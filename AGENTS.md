@@ -13,6 +13,9 @@
 - `docs/internal-product-principles.zh-CN.md`: canonical product definition, main flow, and scope guardrails.
 - `docs/next-technical-strategy.zh-CN.md`: current implementation priorities and next-stage direction.
 - `docs/engineering-spec.md`: current Markdown, CLI, and provider contracts.
+- `docs/freeform-html-art-mode-decision.zh-CN.md`: mode-splitting decision record for stable system mode versus freeform art mode.
+- `docs/system-mode-vs-art-mode-boundary.zh-CN.md`: boundary definition for default system mode, future art mode, and task prioritisation.
+- `docs/demo-openclaw-design-breakdown.zh-CN.md`: design asset breakdown of the hand-crafted demo baseline and what should enter System Mode.
 
 ## Common Commands
 

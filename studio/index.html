@@ -15,13 +15,9 @@
       <div class="brand">
         <span class="brand-mark">✦</span>
         <div class="brand-copy">
-          <strong>AI Slides</strong>
-          <span>输入内容，确认大纲，导出 HTML</span>
+          <strong>md-to-html-slides</strong>
+          <span>Markdown 输入，LLM 整理，输出单文件 HTML</span>
         </div>
-      </div>
-      <div class="topbar-actions">
-        <button id="copyHtmlBtn" class="top-btn" disabled>复制 HTML</button>
-        <button id="openDeckBtn" class="top-btn primary" disabled>新窗口打开</button>
       </div>
     </header>
 
@@ -38,19 +34,81 @@
               <div>
                 <span class="eyebrow">Input</span>
                 <h2>输入内容</h2>
-                <p class="input-lead">贴入课程文稿、讲稿或 Markdown，系统先生成每页大纲。</p>
-              </div>
-              <div class="profile-field">
-                <label for="profileSelect">Deck Profile</label>
-                <select id="profileSelect" class="profile-select"></select>
-                <p id="profileHint" class="profile-hint"></p>
+                <p class="input-lead">贴入 Markdown 或文稿，系统先规划每页结构，再生成 HTML 演示稿。</p>
               </div>
             </div>
+            <input id="sourceFileInput" class="source-file-input" type="file" accept=".md,.markdown,.txt,text/markdown,text/plain" />
+            <div class="composer-tools">
+              <div class="composer-links">
+                <button id="pickFileBtn" class="text-btn" type="button">导入 .md</button>
+                <button id="useSampleBtn" class="text-btn" type="button">示例</button>
+                <button id="clearInputBtn" class="text-btn" type="button">清空</button>
+              </div>
+              <span id="sourceFileMeta" class="source-file-meta">未导入文件</span>
+            </div>
             <textarea id="markdownInput" class="markdown-input" spellcheck="false" placeholder="贴入课程文稿、讲稿或 Markdown 内容..."></textarea>
+            <details class="advanced-panel">
+              <summary class="advanced-summary">生成偏好与导入设置</summary>
+              <div class="advanced-grid">
+                <div class="profile-field advanced-profile">
+                  <label for="profileSelect">Deck Profile</label>
+                  <select id="profileSelect" class="profile-select"></select>
+                  <p id="profileHint" class="profile-hint"></p>
+                </div>
+                <section class="brief-card brief-card-embedded">
+                  <div class="brief-head">
+                    <span class="eyebrow">Preference</span>
+                    <h3>生成偏好</h3>
+                    <p>这些设置会影响拆页方式、讲述语气和主题建议。</p>
+                  </div>
+                  <div class="brief-fields">
+                    <label class="brief-field">
+                      <span>受众</span>
+                      <input id="audienceInput" type="text" placeholder="例如：投资人、内部团队、客户" />
+                    </label>
+                    <label class="brief-field">
+                      <span>目标</span>
+                      <input id="goalInput" type="text" placeholder="例如：让观众快速理解产品价值和差异化" />
+                    </label>
+                    <label class="brief-field">
+                      <span>页数</span>
+                      <input id="slideCountInput" type="text" inputmode="numeric" placeholder="例如：8 页" />
+                    </label>
+                  </div>
+                  <div class="brief-preferences">
+                    <div class="brief-pref-group">
+                      <span>文字密度</span>
+                      <div id="densityToggle" class="choice-row">
+                        <button type="button" class="choice-chip active" data-choice-group="density" data-choice-value="balanced">平衡</button>
+                        <button type="button" class="choice-chip" data-choice-group="density" data-choice-value="concise">简洁</button>
+                        <button type="button" class="choice-chip" data-choice-group="density" data-choice-value="detailed">详细</button>
+                      </div>
+                    </div>
+                    <div class="brief-pref-group">
+                      <span>改写策略</span>
+                      <div id="rewriteToggle" class="choice-row">
+                        <button type="button" class="choice-chip active" data-choice-group="rewrite" data-choice-value="rewrite">演讲重构</button>
+                        <button type="button" class="choice-chip" data-choice-group="rewrite" data-choice-value="preserve">忠实整理</button>
+                      </div>
+                    </div>
+                  </div>
+                </section>
+              </div>
+            </details>
             <div class="editor-actions compact inline-tools">
               <button id="planMarkdownBtn" class="editor-btn primary">生成每页大纲</button>
             </div>
             <div id="plannerStatus" class="planner-status text-only">等待输入 Markdown</div>
+            <section class="process-card">
+              <div class="process-head">
+                <div>
+                  <span class="eyebrow">Workflow</span>
+                  <h3>当前进度</h3>
+                </div>
+                <span id="processBadge" class="preview-pill process-pill">等待输入</span>
+              </div>
+              <div id="processSteps" class="process-steps"></div>
+            </section>
           </section>
 
           <section class="panel outline-panel minimal-outline">
@@ -59,9 +117,12 @@
               <h2>确认每页内容</h2>
               <p>默认显示核心要点，展开查看完整内容。</p>
             </div>
+            <div id="outlineToolbar" class="outline-toolbar outline-toolbar-empty"></div>
+            <div id="outlineSummary" class="outline-summary outline-summary-empty"></div>
             <div id="outlinePanel" class="outline-list outline-list-empty"></div>
             <div class="outline-actions">
-              <button id="confirmOutlineBtn" class="editor-btn primary" disabled>确认大纲并进入选择模板并导出</button>
+              <button id="addSlideBtn" class="editor-btn" disabled>新增一页</button>
+              <button id="confirmOutlineBtn" class="editor-btn primary" disabled>确认大纲并进入 HTML 预览</button>
             </div>
           </section>
         </div>
@@ -73,11 +134,12 @@
             <div class="preview-head preview-head-actions">
               <div>
                 <span class="eyebrow">Preview</span>
-                <h2 id="previewTitle">选择模板并导出</h2>
+                <h2 id="previewTitle">选择主题并导出 HTML</h2>
+                <p id="previewSubtitle" class="preview-subtitle">先确认大纲，再进入 HTML 预览。</p>
               </div>
               <div class="preview-meta preview-meta-actions">
                 <button id="backToPlanBtn" class="editor-btn">返回修改大纲</button>
-                <span id="slideCountPill" class="preview-pill">0 slides</span>
+                <span id="slideCountPill" class="preview-pill">0 页</span>
               </div>
             </div>
             <div class="preview-workbench">
@@ -86,18 +148,22 @@
               </div>
 
               <aside class="preview-sidebar">
-                <section class="theme-dock theme-dock-sidebar">
+                <section class="export-card">
                   <div class="dock-head dock-head-stack">
-                    <span class="eyebrow">Themes</span>
-                    <span class="dock-meta">主题放到右侧，预览区始终优先。</span>
+                    <span class="eyebrow">Output</span>
+                    <span id="previewSummary" class="dock-meta">先确认大纲，再选择主题并导出 HTML。</span>
                   </div>
-                  <div id="themeGrid" class="theme-grid theme-grid-sidebar"></div>
+                  <div id="themeHighlight" class="theme-highlight theme-highlight-empty"></div>
+                  <div class="export-actions">
+                    <button id="copyHtmlBtn" class="top-btn" disabled>复制 HTML</button>
+                    <button id="openDeckBtn" class="top-btn primary" disabled>新窗口打开</button>
+                  </div>
                 </section>
 
                 <section class="compare-panel">
                   <div class="dock-head dock-head-stack">
-                    <span class="eyebrow">Templates</span>
-                    <span class="dock-meta">小尺寸缩略图只负责切换，不再占据主视口。</span>
+                    <span class="eyebrow">Themes</span>
+                    <span class="dock-meta">先选一个合适的主题，再决定是否导出。</span>
                   </div>
                   <div id="compareGrid" class="compare-grid compare-grid-sidebar"></div>
                 </section>

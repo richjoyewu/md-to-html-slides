@@ -104,6 +104,7 @@ md-to-html-slides themes
 - Accept one Markdown file at a time.
 - Produce one self-contained HTML file.
 - Keep renderer behavior deterministic.
+- Normalize direct Markdown builds into the same semantic render-deck contract used by expanded slide content before handing off to themes.
 - Fail clearly when input is missing or invalid.
 
 ### Current Non-Goals

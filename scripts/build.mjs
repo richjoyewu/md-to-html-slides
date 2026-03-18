@@ -3,7 +3,7 @@
 import { access, mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
-import { normalizeRenderDeck } from '../shared/core.js';
+import { markdownDeckToRenderDeck } from '../shared/core.js';
 import { parseMarkdownDeck } from '../shared/markdown.js';
 import { getTheme, THEMES } from '../templates/index.mjs';
 
@@ -230,7 +230,7 @@ const main = async () => {
     const sourceDir = path.dirname(inputPath);
 
     const markdown = await readFile(inputPath, 'utf8');
-    const parsedDeck = normalizeRenderDeck(parseMarkdownDeck(markdown));
+    const parsedDeck = parseMarkdownDeck(markdown);
 
     if (options.command === 'validate') {
       const assets = await validateDeckAssets(parsedDeck, sourceDir);
@@ -245,7 +245,7 @@ const main = async () => {
     const outputPath = options.command === 'preview'
       ? getPreviewOutputPath(inputPath, options.theme)
       : path.resolve(process.cwd(), options.output);
-    const preparedDeck = normalizeRenderDeck(await prepareDeck(parsedDeck, sourceDir));
+    const preparedDeck = markdownDeckToRenderDeck(await prepareDeck(parsedDeck, sourceDir));
     const renderDeck = getRenderer(options.theme);
     const html = renderDeck(preparedDeck, options);
 

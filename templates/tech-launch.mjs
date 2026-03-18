@@ -33,6 +33,7 @@ const renderGlyph = (kind) => {
 };
 
 const getBlocksByType = (slide, type) => slide.blocks.filter((block) => block.type === type);
+const getSemanticBlock = (slide, type) => slide.blocks.find((block) => block.type === type) || null;
 const getParagraphs = (slide) => getBlocksByType(slide, 'paragraph').map((block) => block.content);
 const getListItems = (slide) => getBlocksByType(slide, 'list').flatMap((block) => block.items);
 
@@ -69,14 +70,27 @@ const renderDefaultSurface = (slide) => {
 };
 
 const renderHeroSurface = (slide) => {
-  const bullets = getListItems(slide).slice(0, 3);
-  const lead = getParagraphs(slide)[0] || '';
+  const heroBlock = getSemanticBlock(slide, 'hero');
+  const bullets = heroBlock?.points?.slice(0, 3) || getListItems(slide).slice(0, 3);
+  const lead = heroBlock?.body || getParagraphs(slide)[0] || '';
+  const headline = heroBlock?.headline || slide.title;
+  const eyebrow = heroBlock?.eyebrow || 'Launch Thesis';
+  const proof = heroBlock?.proof || bullets[bullets.length - 1] || '';
+  const stats = heroBlock?.stats?.slice(0, 3) || [];
   return `
     <div class="hero-surface reveal">
       <div class="hero-copy">
-        <div class="surface-kicker">Launch Thesis</div>
-        <h2 class="hero-heading" data-fit-text data-fit-min="34" data-fit-max="72" data-fit-lines="3">${escapeHtml(slide.title)}</h2>
+        <div class="surface-kicker">${escapeHtml(eyebrow)}</div>
+        <h2 class="hero-heading" data-fit-text data-fit-min="34" data-fit-max="72" data-fit-lines="3">${escapeHtml(headline)}</h2>
         ${lead ? `<p class="hero-body">${escapeHtml(lead)}</p>` : ''}
+        ${proof ? `<div class="hero-proof"><span class="hero-proof-icon">${renderGlyph('graph')}</span><span>${escapeHtml(proof)}</span></div>` : ''}
+        ${stats.length ? `<div class="hero-stat-strip">${stats.map((item) => `<div class="hero-stat-chip"><span class="hero-stat-chip-value">${escapeHtml(item.value)}</span><span class="hero-stat-chip-label">${escapeHtml(item.label)}</span></div>`).join('')}</div>` : ''}
+      </div>
+      <div class="hero-ambient">
+        <div class="hero-orbit orbit-a"></div>
+        <div class="hero-orbit orbit-b"></div>
+        <div class="hero-orbit orbit-c"></div>
+        <div class="hero-axis"></div>
       </div>
       <div class="hero-chip-grid">
         ${bullets.map((item) => `
@@ -91,6 +105,11 @@ const renderHeroSurface = (slide) => {
 };
 
 const parseCompareLabels = (slide) => {
+  const compareBlock = getSemanticBlock(slide, 'compare');
+  if (compareBlock) {
+    return [compareBlock.left?.label || '旧方式', compareBlock.right?.label || '新方式'];
+  }
+
   const lead = getParagraphs(slide)[0] || '';
   if (lead.includes('|')) {
     const parts = lead.split('|').map((part) => compactText(part)).filter(Boolean);
@@ -100,13 +119,20 @@ const parseCompareLabels = (slide) => {
 };
 
 const renderCompareSurface = (slide) => {
+  const compareBlock = getSemanticBlock(slide, 'compare');
   const items = getListItems(slide);
   const midpoint = Math.max(2, Math.ceil(items.length / 2));
-  const leftItems = items.slice(0, midpoint);
-  const rightItems = items.slice(midpoint);
+  const leftItems = compareBlock?.left?.items?.length ? compareBlock.left.items : items.slice(0, midpoint);
+  const rightItems = compareBlock?.right?.items?.length ? compareBlock.right.items : items.slice(midpoint);
   const [leftLabel, rightLabel] = parseCompareLabels(slide);
+  const eyebrow = compareBlock?.eyebrow || 'Signal Shift';
+  const summary = compareBlock?.summary || slide.title;
   return `
     <div class="compare-surface reveal">
+      <div class="compare-summary">
+        <div class="surface-kicker">${escapeHtml(eyebrow)}</div>
+        <div class="compare-summary-text">${escapeHtml(summary)}</div>
+      </div>
       <div class="compare-panel">
         <div class="panel-label"><span class="panel-icon">${renderGlyph('split')}</span>${escapeHtml(leftLabel)}</div>
         <ul class="compare-list">
@@ -138,11 +164,20 @@ const parseMetricItem = (item, index) => {
 };
 
 const renderMetricsSurface = (slide) => {
-  const lead = getParagraphs(slide)[0] || '';
-  const metrics = getListItems(slide).slice(0, 4).map(parseMetricItem);
+  const metricsBlock = getSemanticBlock(slide, 'metrics');
+  const lead = metricsBlock?.intro || getParagraphs(slide)[0] || '';
+  const metrics = metricsBlock?.items?.length
+    ? metricsBlock.items.slice(0, 4)
+    : getListItems(slide).slice(0, 4).map(parseMetricItem);
+  const eyebrow = metricsBlock?.eyebrow || 'Proof Points';
+  const proof = metricsBlock?.proof || slide.title;
   const metricIcons = ['graph', 'target', 'orbit', 'spark'];
   return `
     <div class="metrics-surface reveal">
+      <div class="metrics-meta">
+        <div class="surface-kicker">${escapeHtml(eyebrow)}</div>
+        ${proof ? `<div class="metrics-proof">${escapeHtml(proof)}</div>` : ''}
+      </div>
       ${lead ? `<p class="metrics-body">${escapeHtml(lead)}</p>` : ''}
       <div class="metrics-grid">
         ${metrics.map((metric, index) => `
@@ -150,6 +185,9 @@ const renderMetricsSurface = (slide) => {
             <div class="metric-icon">${renderGlyph(metricIcons[index % metricIcons.length])}</div>
             <div class="metric-value">${escapeHtml(metric.value)}</div>
             <div class="metric-label">${escapeHtml(metric.label)}</div>
+            <div class="metric-spark">
+              <span></span><span></span><span></span><span></span><span></span>
+            </div>
           </div>
         `).join('')}
       </div>
@@ -158,11 +196,14 @@ const renderMetricsSurface = (slide) => {
 };
 
 const renderProcessSurface = (slide) => {
-  const steps = getListItems(slide).slice(0, 5);
-  const lead = getParagraphs(slide)[0] || '';
+  const processBlock = getSemanticBlock(slide, 'process');
+  const steps = processBlock?.steps?.length ? processBlock.steps.slice(0, 5) : getListItems(slide).slice(0, 5).map((item) => ({ label: item }));
+  const lead = processBlock?.intro || getParagraphs(slide)[0] || '';
+  const eyebrow = processBlock?.eyebrow || 'Execution Path';
   const stepIcons = ['orbit', 'target', 'graph', 'spark', 'launch'];
   return `
     <div class="process-surface reveal">
+      <div class="surface-kicker">${escapeHtml(eyebrow)}</div>
       ${lead ? `<p class="process-body">${escapeHtml(lead)}</p>` : ''}
       <div class="process-line"></div>
       <div class="process-grid">
@@ -172,7 +213,8 @@ const renderProcessSurface = (slide) => {
               <div class="process-step">0${index + 1}</div>
               <div class="process-icon">${renderGlyph(stepIcons[index % stepIcons.length])}</div>
             </div>
-            <div class="process-copy">${escapeHtml(item)}</div>
+            <div class="process-copy">${escapeHtml(item.label || item)}</div>
+            ${item.detail ? `<div class="process-detail">${escapeHtml(item.detail)}</div>` : ''}
           </div>
         `).join('')}
       </div>
@@ -181,10 +223,13 @@ const renderProcessSurface = (slide) => {
 };
 
 const renderSummarySurface = (slide) => {
-  const lead = getParagraphs(slide)[0] || '';
-  const bullets = getListItems(slide).slice(0, 3);
+  const summaryBlock = getSemanticBlock(slide, 'summary');
+  const lead = summaryBlock?.intro || getParagraphs(slide)[0] || '';
+  const bullets = summaryBlock?.items?.length ? summaryBlock.items.slice(0, 3) : getListItems(slide).slice(0, 3);
+  const eyebrow = summaryBlock?.eyebrow || 'Key Takeaways';
   return `
     <div class="summary-surface reveal">
+      <div class="surface-kicker">${escapeHtml(eyebrow)}</div>
       ${lead ? `<p class="summary-body">${escapeHtml(lead)}</p>` : ''}
       <div class="summary-grid">
         ${bullets.map((item) => `
@@ -199,15 +244,19 @@ const renderSummarySurface = (slide) => {
 };
 
 const renderCtaSurface = (slide) => {
-  const lead = getParagraphs(slide)[0] || '';
-  const actions = getListItems(slide).slice(0, 3);
+  const ctaBlock = getSemanticBlock(slide, 'cta');
+  const lead = ctaBlock?.message || getParagraphs(slide)[0] || '';
+  const actions = ctaBlock?.actions?.length ? ctaBlock.actions.slice(0, 3) : getListItems(slide).slice(0, 3);
+  const eyebrow = ctaBlock?.eyebrow || 'Call To Action';
+  const proof = ctaBlock?.proof || '';
   return `
     <div class="cta-surface reveal">
       <div class="cta-rings"></div>
       <div class="cta-core">
-        <div class="surface-kicker">Call To Action</div>
+        <div class="surface-kicker">${escapeHtml(eyebrow)}</div>
         <h2 class="cta-heading" data-fit-text data-fit-min="34" data-fit-max="68" data-fit-lines="3">${escapeHtml(slide.title)}</h2>
         ${lead ? `<p class="cta-body">${escapeHtml(lead)}</p>` : ''}
+        ${proof ? `<div class="cta-proof">${escapeHtml(proof)}</div>` : ''}
         <div class="cta-actions">
           ${actions.map((item) => `<span class="cta-pill"><span class="cta-pill-icon">${renderGlyph('launch')}</span><span>${escapeHtml(item)}</span></span>`).join('')}
         </div>
@@ -673,8 +722,14 @@ export const renderTechLaunchDeck = (deck, options = {}) => {
     .slide-frame {
       padding: clamp(1.2rem, 2.8vw, 1.9rem);
       display: grid;
-      grid-template-rows: auto 1fr;
       gap: 1.2rem;
+      align-content: start;
+      min-height: 100%;
+    }
+
+    .variant-hero .slide-frame,
+    .variant-cta .slide-frame {
+      grid-template-rows: auto 1fr;
     }
 
     .frame-head {
@@ -704,6 +759,12 @@ export const renderTechLaunchDeck = (deck, options = {}) => {
       max-width: 12ch;
     }
 
+    .variant-compare .surface-title,
+    .variant-metrics .surface-title,
+    .variant-process .surface-title {
+      max-width: 18ch;
+    }
+
     .hero-surface,
     .compare-surface,
     .metrics-surface,
@@ -717,9 +778,9 @@ export const renderTechLaunchDeck = (deck, options = {}) => {
 
     .hero-surface {
       display: grid;
-      grid-template-columns: minmax(0, 1.15fr) minmax(320px, 0.85fr);
+      grid-template-columns: minmax(0, 1.05fr) minmax(220px, 0.55fr) minmax(320px, 0.8fr);
       gap: clamp(1rem, 2.4vw, 1.8rem);
-      align-items: end;
+      align-items: center;
     }
 
     .hero-copy {
@@ -731,6 +792,97 @@ export const renderTechLaunchDeck = (deck, options = {}) => {
     .hero-chip-grid {
       display: grid;
       gap: 14px;
+    }
+
+    .hero-ambient {
+      position: relative;
+      min-height: 360px;
+      display: grid;
+      place-items: center;
+      opacity: 0.82;
+    }
+
+    .hero-orbit {
+      position: absolute;
+      border-radius: 999px;
+      border: 1px solid rgba(113,244,255,0.12);
+    }
+
+    .orbit-a {
+      width: 220px;
+      height: 220px;
+    }
+
+    .orbit-b {
+      width: 300px;
+      height: 300px;
+      border-color: rgba(127,134,255,0.14);
+    }
+
+    .orbit-c {
+      width: 140px;
+      height: 140px;
+      border-color: rgba(134,255,196,0.18);
+    }
+
+    .hero-axis {
+      width: 1px;
+      height: 260px;
+      background: linear-gradient(180deg, rgba(113,244,255,0), rgba(113,244,255,0.45), rgba(127,134,255,0));
+    }
+
+    .hero-proof,
+    .metrics-proof,
+    .cta-proof,
+    .compare-summary-text {
+      color: var(--text-2);
+      line-height: 1.55;
+      font-size: 0.98rem;
+    }
+
+    .hero-proof {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      width: fit-content;
+      padding: 0.7rem 0.9rem;
+      border-radius: 999px;
+      border: 1px solid rgba(113,244,255,0.18);
+      background: rgba(8, 16, 30, 0.64);
+    }
+
+    .hero-proof-icon {
+      width: 18px;
+      height: 18px;
+      color: var(--accent);
+    }
+
+    .hero-stat-strip {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .hero-stat-chip {
+      display: grid;
+      gap: 0.2rem;
+      min-width: 120px;
+      padding: 0.7rem 0.8rem;
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: rgba(8, 16, 30, 0.5);
+    }
+
+    .hero-stat-chip-value {
+      color: var(--accent);
+      font-family: var(--font-mono);
+      font-size: 0.95rem;
+    }
+
+    .hero-stat-chip-label {
+      color: var(--text-3);
+      font-size: 0.82rem;
+      line-height: 1.4;
     }
 
     .hero-chip {
@@ -749,9 +901,16 @@ export const renderTechLaunchDeck = (deck, options = {}) => {
 
     .compare-surface {
       display: grid;
-      grid-template-columns: minmax(0, 1fr) 72px minmax(0, 1fr);
+      grid-template-columns: minmax(220px, 0.42fr) minmax(0, 1fr) 72px minmax(0, 1fr);
       gap: 16px;
-      align-items: stretch;
+      align-items: start;
+    }
+
+    .compare-summary {
+      display: grid;
+      align-content: start;
+      gap: 0.8rem;
+      padding-top: 0.25rem;
     }
 
     .compare-panel {
@@ -827,6 +986,14 @@ export const renderTechLaunchDeck = (deck, options = {}) => {
       gap: 1rem;
     }
 
+    .metrics-meta {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
     .metrics-grid,
     .summary-grid {
       display: grid;
@@ -853,6 +1020,26 @@ export const renderTechLaunchDeck = (deck, options = {}) => {
       gap: 0.5rem;
       min-height: 180px;
       align-content: end;
+    }
+
+    .metric-card:nth-child(1) .metric-value,
+    .metric-card:nth-child(1) .metric-icon {
+      color: var(--accent);
+    }
+
+    .metric-card:nth-child(2) .metric-value,
+    .metric-card:nth-child(2) .metric-icon {
+      color: var(--accent-3);
+    }
+
+    .metric-card:nth-child(3) .metric-value,
+    .metric-card:nth-child(3) .metric-icon {
+      color: var(--accent-2);
+    }
+
+    .metric-card:nth-child(4) .metric-value,
+    .metric-card:nth-child(4) .metric-icon {
+      color: var(--warning);
     }
 
     .metric-icon,
@@ -885,6 +1072,39 @@ export const renderTechLaunchDeck = (deck, options = {}) => {
       color: var(--text-2);
       line-height: 1.55;
       font-size: 1rem;
+    }
+
+    .metric-spark {
+      display: flex;
+      align-items: end;
+      gap: 6px;
+      height: 28px;
+      margin-top: 0.4rem;
+    }
+
+    .metric-spark span {
+      flex: 1;
+      border-radius: 999px;
+      background: linear-gradient(180deg, rgba(113,244,255,0.92), rgba(113,244,255,0.12));
+      opacity: 0.72;
+    }
+
+    .metric-spark span:nth-child(1) { height: 28%; }
+    .metric-spark span:nth-child(2) { height: 44%; }
+    .metric-spark span:nth-child(3) { height: 62%; }
+    .metric-spark span:nth-child(4) { height: 78%; }
+    .metric-spark span:nth-child(5) { height: 92%; }
+
+    .metric-card:nth-child(2) .metric-spark span {
+      background: linear-gradient(180deg, rgba(134,255,196,0.92), rgba(134,255,196,0.12));
+    }
+
+    .metric-card:nth-child(3) .metric-spark span {
+      background: linear-gradient(180deg, rgba(127,134,255,0.92), rgba(127,134,255,0.12));
+    }
+
+    .metric-card:nth-child(4) .metric-spark span {
+      background: linear-gradient(180deg, rgba(255,178,106,0.92), rgba(255,178,106,0.12));
     }
 
     .process-surface {
@@ -929,6 +1149,12 @@ export const renderTechLaunchDeck = (deck, options = {}) => {
       color: var(--text-1);
       font-size: 1rem;
       line-height: 1.6;
+    }
+
+    .process-detail {
+      color: var(--text-3);
+      font-size: 0.92rem;
+      line-height: 1.55;
     }
 
     .summary-grid {

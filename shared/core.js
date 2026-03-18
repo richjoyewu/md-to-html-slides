@@ -38,6 +38,9 @@ const dedupeList = (items) => {
   return output;
 };
 
+const normalizeTextList = (items, max = 8) =>
+  Array.isArray(items) ? dedupeList(items.map((item) => compactText(String(item || '')))).slice(0, max) : [];
+
 export const normalizePlanContext = (value) => {
   const source = value && typeof value === 'object' ? value : {};
   const answers = source.answers && typeof source.answers === 'object' ? source.answers : {};
@@ -232,14 +235,241 @@ const normalizeRenderBlock = (block) => {
     return content ? { type: 'code', language: compactText(block.language || ''), content } : null;
   }
 
+  if (block.type === 'hero') {
+    const headline = compactText(block.headline || block.title || '');
+    const points = normalizeTextList(block.points, 4);
+    const body = compactText(block.body || block.content || '');
+    const stats = Array.isArray(block.stats)
+      ? block.stats
+          .map((item) => ({
+            value: compactText(item?.value || ''),
+            label: compactText(item?.label || '')
+          }))
+          .filter((item) => item.value || item.label)
+          .slice(0, 3)
+      : [];
+    if (!headline && !points.length && !body) return null;
+    return {
+      type: 'hero',
+      eyebrow: compactText(block.eyebrow || ''),
+      headline: headline || body || '核心主张',
+      body,
+      points,
+      proof: compactText(block.proof || ''),
+      stats,
+      layout: 'hero-grid'
+    };
+  }
+
+  if (block.type === 'compare') {
+    const leftLabel = compactText(block.left?.label || block.left_label || '旧方式');
+    const rightLabel = compactText(block.right?.label || block.right_label || '新方式');
+    const leftItems = normalizeTextList(block.left?.items || block.left_items, 4);
+    const rightItems = normalizeTextList(block.right?.items || block.right_items, 4);
+    const body = compactText(block.body || '');
+    if (!leftItems.length && !rightItems.length) return null;
+    return {
+      type: 'compare',
+      eyebrow: compactText(block.eyebrow || ''),
+      body,
+      summary: compactText(block.summary || ''),
+      left: { label: leftLabel || '旧方式', items: leftItems },
+      right: { label: rightLabel || '新方式', items: rightItems }
+    };
+  }
+
+  if (block.type === 'metrics') {
+    const items = Array.isArray(block.items)
+      ? block.items.map((item) => ({
+          value: compactText(item?.value || ''),
+          label: compactText(item?.label || ''),
+          note: compactText(item?.note || '')
+        })).filter((item) => item.value || item.label).slice(0, 4)
+      : [];
+    if (!items.length) return null;
+    return {
+      type: 'metrics',
+      eyebrow: compactText(block.eyebrow || ''),
+      intro: compactText(block.intro || ''),
+      proof: compactText(block.proof || ''),
+      items
+    };
+  }
+
+  if (block.type === 'process') {
+    const steps = Array.isArray(block.steps)
+      ? block.steps.map((item) => ({
+          label: compactText(item?.label || item?.title || ''),
+          detail: compactText(item?.detail || '')
+        })).filter((item) => item.label).slice(0, 6)
+      : [];
+    if (!steps.length) return null;
+    return {
+      type: 'process',
+      eyebrow: compactText(block.eyebrow || ''),
+      intro: compactText(block.intro || ''),
+      steps
+    };
+  }
+
+  if (block.type === 'summary') {
+    const items = normalizeTextList(block.items, 4);
+    if (!items.length && !compactText(block.intro || '')) return null;
+    return {
+      type: 'summary',
+      eyebrow: compactText(block.eyebrow || ''),
+      intro: compactText(block.intro || ''),
+      items
+    };
+  }
+
+  if (block.type === 'cta') {
+    const actions = normalizeTextList(block.actions, 4);
+    const message = compactText(block.message || block.body || '');
+    if (!message && !actions.length) return null;
+    return {
+      type: 'cta',
+      eyebrow: compactText(block.eyebrow || ''),
+      message: message || '下一步行动',
+      actions,
+      proof: compactText(block.proof || '')
+    };
+  }
+
   return null;
 };
 
 const hasNumericLead = (value = '') => /^[0-9][0-9a-zA-Z.%+/xX-]{0,12}(\s|[:：|])/.test(compactText(value));
 
+const parseCompareLabels = (text = '', title = '') => {
+  const source = compactText(text) || compactText(title);
+  if (source.includes('|')) {
+    const parts = source.split('|').map((part) => compactText(part)).filter(Boolean);
+    if (parts.length >= 2) return parts.slice(0, 2);
+  }
+  const vsMatch = source.match(/^(.+?)\s+vs\.?\s+(.+)$/i);
+  if (vsMatch) return [compactText(vsMatch[1]), compactText(vsMatch[2])];
+  return ['旧方式', '新方式'];
+};
+
+const parseMetricItem = (value, index) => {
+  const text = compactText(value);
+  const separated = text.match(/^([^:：|]{1,16})[:：|]\s*(.+)$/);
+  if (separated && /[\d%+xX]/.test(separated[1])) {
+    return { value: separated[1], label: separated[2], note: '' };
+  }
+  const leading = text.match(/^([0-9][0-9a-zA-Z.%+/xX-]{0,11})\s+(.+)$/);
+  if (leading) {
+    return { value: leading[1], label: leading[2], note: '' };
+  }
+  return { value: `0${index + 1}`, label: text, note: '' };
+};
+
+const collectParagraphs = (blocks = []) =>
+  blocks.filter((block) => block?.type === 'paragraph').map((block) => compactText(block.content)).filter(Boolean);
+
+const collectListItems = (blocks = []) =>
+  blocks
+    .filter((block) => block?.type === 'list')
+    .flatMap((block) => (Array.isArray(block.items) ? block.items : []).map((item) => compactText(item)))
+    .filter(Boolean);
+
+const collectNonTextBlocks = (blocks = []) =>
+  blocks.filter((block) => block?.type === 'image' || block?.type === 'code');
+
+const buildHeroBlockFromBlocks = (title, blocks) => {
+  const paragraphs = collectParagraphs(blocks);
+  const listItems = collectListItems(blocks);
+  return {
+    type: 'hero',
+    eyebrow: 'Launch Thesis',
+    headline: compactTitle(title),
+    body: paragraphs[0] || '',
+    points: listItems.slice(0, 3),
+    proof: listItems[2] || listItems[1] || paragraphs[1] || '',
+    stats: [
+      { value: `${Math.max(3, listItems.length)}`, label: 'core points' },
+      { value: paragraphs[0] ? '1' : '0', label: 'support line' }
+    ],
+    layout: 'hero-grid'
+  };
+};
+
+const buildCompareBlockFromBlocks = (title, blocks) => {
+  const paragraphs = collectParagraphs(blocks);
+  const items = collectListItems(blocks);
+  const [leftLabel, rightLabel] = parseCompareLabels(paragraphs[0], title);
+  const midpoint = Math.max(2, Math.ceil(items.length / 2));
+  return {
+    type: 'compare',
+    eyebrow: 'Signal Shift',
+    body: paragraphs.find((entry) => !entry.includes('|')) || '',
+    summary: compactTitle(title),
+    left: {
+      label: leftLabel,
+      items: items.slice(0, midpoint)
+    },
+    right: {
+      label: rightLabel,
+      items: items.slice(midpoint)
+    }
+  };
+};
+
+const buildMetricsBlockFromBlocks = (title, blocks) => {
+  const paragraphs = collectParagraphs(blocks);
+  const items = collectListItems(blocks).slice(0, 4).map(parseMetricItem);
+  return {
+    type: 'metrics',
+    eyebrow: 'Proof Points',
+    intro: paragraphs[0] || '',
+    proof: compactTitle(title),
+    items
+  };
+};
+
+const buildProcessBlockFromBlocks = (blocks) => {
+  const paragraphs = collectParagraphs(blocks);
+  const items = collectListItems(blocks);
+  return {
+    type: 'process',
+    eyebrow: 'Execution Path',
+    intro: paragraphs[0] || '',
+    steps: items.slice(0, 5).map((item) => ({ label: item }))
+  };
+};
+
+const buildSummaryBlockFromBlocks = (blocks) => {
+  const paragraphs = collectParagraphs(blocks);
+  const items = collectListItems(blocks);
+  return {
+    type: 'summary',
+    eyebrow: 'Key Takeaways',
+    intro: paragraphs[0] || '',
+    items: items.slice(0, 4)
+  };
+};
+
+const buildCtaBlockFromBlocks = (title, blocks) => {
+  const paragraphs = collectParagraphs(blocks);
+  const items = collectListItems(blocks);
+  return {
+    type: 'cta',
+    eyebrow: 'Call To Action',
+    message: paragraphs[0] || compactTitle(title),
+    actions: items.slice(0, 4),
+    proof: compactTitle(title)
+  };
+};
+
 const inferRenderVariant = (item, blocks) => {
   const explicitVariant = String(item.variant || '').trim();
   if (ALLOWED_VARIANTS.has(explicitVariant)) return explicitVariant;
+
+  const semanticBlock = blocks.find((block) =>
+    ['hero', 'compare', 'metrics', 'process', 'summary', 'cta'].includes(block.type)
+  );
+  if (semanticBlock && ALLOWED_VARIANTS.has(semanticBlock.type)) return semanticBlock.type;
 
   const title = compactText(item.title || '');
   const paragraphs = blocks
@@ -248,14 +478,15 @@ const inferRenderVariant = (item, blocks) => {
   const listItems = blocks
     .filter((block) => block.type === 'list')
     .flatMap((block) => block.items.map((entry) => compactText(entry)));
-  const surface = `${title} ${paragraphs.join(' ')} ${listItems.join(' ')}`.toLowerCase();
+  const semanticSurface = `${title} ${paragraphs.join(' ')}`.toLowerCase();
+  const metricSurface = `${semanticSurface} ${listItems.join(' ')}`.toLowerCase();
 
   if (/总结|结论|回顾|recap|summary/.test(title)) return 'summary';
-  if (/对比|区别|vs| versus |传统|旧方式|新方式/.test(surface)) return 'compare';
-  if (/路线图|阶段|扩张|推进|实施|落地|步骤|流程|path|roadmap/.test(surface)) return 'process';
-  if (/合作|试点|加入|预约|联系|启动|下一步|窗口期|立即|现在/.test(surface)) return 'cta';
+  if (/对比|vs| versus |传统|旧方式|新方式/.test(semanticSurface)) return 'compare';
+  if (listItems.length >= 2 && /路线图|阶段|扩张|推进|实施|落地|步骤|流程|path|roadmap/.test(semanticSurface)) return 'process';
+  if (/合作|试点|加入|预约|联系|启动|下一步|窗口期|立即|现在/.test(semanticSurface)) return 'cta';
   if (
-    /指标|数据|增长|效率|收入|用户|客户|转化|速度|上线|工单|留存|traction|metric/.test(surface)
+    /指标|数据|增长|效率|收入|用户|客户|转化|速度|上线|工单|留存|traction|metric/.test(metricSurface)
     || (listItems.length >= 2 && listItems.filter(hasNumericLead).length >= Math.min(3, listItems.length))
   ) {
     return 'metrics';
@@ -290,8 +521,97 @@ export const normalizeRenderDeck = (deck) => {
   };
 };
 
+export const markdownDeckToRenderDeck = (deck) => {
+  const source = deck && typeof deck === 'object' ? deck : {};
+
+  return normalizeRenderDeck({
+    title: source.title || source.deck_title || 'Untitled Deck',
+    intro: source.intro || '',
+    slides: Array.isArray(source.slides)
+      ? source.slides.map((slide) => {
+          const item = slide && typeof slide === 'object' ? slide : {};
+          const normalizedBlocks = Array.isArray(item.blocks)
+            ? item.blocks.map(normalizeRenderBlock).filter(Boolean)
+            : [];
+          const variant = inferRenderVariant(item, normalizedBlocks);
+          const carryBlocks = collectNonTextBlocks(normalizedBlocks);
+          const fallbackSlide = {
+            title: item.title,
+            variant: 'default',
+            blocks: normalizedBlocks
+          };
+
+          if (variant === 'hero') {
+            const semanticBlock = normalizeRenderBlock(buildHeroBlockFromBlocks(item.title, normalizedBlocks));
+            return {
+              title: item.title,
+              variant: semanticBlock ? variant : 'default',
+              blocks: semanticBlock ? [semanticBlock, ...carryBlocks] : fallbackSlide.blocks
+            };
+          }
+
+          if (variant === 'compare') {
+            const semanticBlock = normalizeRenderBlock(buildCompareBlockFromBlocks(item.title, normalizedBlocks));
+            return {
+              title: item.title,
+              variant: semanticBlock ? variant : 'default',
+              blocks: semanticBlock ? [semanticBlock, ...carryBlocks] : fallbackSlide.blocks
+            };
+          }
+
+          if (variant === 'metrics') {
+            const semanticBlock = normalizeRenderBlock(buildMetricsBlockFromBlocks(item.title, normalizedBlocks));
+            return {
+              title: item.title,
+              variant: semanticBlock ? variant : 'default',
+              blocks: semanticBlock ? [semanticBlock, ...carryBlocks] : fallbackSlide.blocks
+            };
+          }
+
+          if (variant === 'process') {
+            const semanticBlock = normalizeRenderBlock(buildProcessBlockFromBlocks(normalizedBlocks));
+            return {
+              title: item.title,
+              variant: semanticBlock ? variant : 'default',
+              blocks: semanticBlock ? [semanticBlock, ...carryBlocks] : fallbackSlide.blocks
+            };
+          }
+
+          if (variant === 'summary') {
+            const semanticBlock = normalizeRenderBlock(buildSummaryBlockFromBlocks(normalizedBlocks));
+            return {
+              title: item.title,
+              variant: semanticBlock ? variant : 'default',
+              blocks: semanticBlock ? [semanticBlock, ...carryBlocks] : fallbackSlide.blocks
+            };
+          }
+
+          if (variant === 'cta') {
+            const semanticBlock = normalizeRenderBlock(buildCtaBlockFromBlocks(item.title, normalizedBlocks));
+            return {
+              title: item.title,
+              variant: semanticBlock ? variant : 'default',
+              blocks: semanticBlock ? [semanticBlock, ...carryBlocks] : fallbackSlide.blocks
+            };
+          }
+
+          return fallbackSlide;
+        })
+      : []
+  });
+};
+
 export const expandedToRenderDeck = (expanded) => {
   const normalized = normalizeExpanded(expanded);
+  const eyebrowFor = (format) => {
+    if (format === 'hero') return 'Launch Thesis';
+    if (format === 'compare') return 'Signal Shift';
+    if (format === 'metrics') return 'Proof Points';
+    if (format === 'process') return 'Execution Path';
+    if (format === 'summary') return 'Key Takeaways';
+    if (format === 'cta') return 'Call To Action';
+    return '';
+  };
   const toVariant = (format) => {
     if (format === 'hero' || format === 'compare' || format === 'metrics' || format === 'process' || format === 'summary' || format === 'cta') {
       return format;
@@ -304,11 +624,80 @@ export const expandedToRenderDeck = (expanded) => {
     slides: normalized.slides.map((slide) => ({
       title: slide.title,
       variant: toVariant(slide.format),
-      blocks: [
-        ...(slide.body ? [{ type: 'paragraph', content: slide.body }] : []),
-        ...(slide.bullets.length ? [{ type: 'list', items: slide.bullets }] : []),
-        ...(!slide.body && !slide.bullets.length ? [{ type: 'paragraph', content: slide.title }] : [])
-      ]
+      blocks: (() => {
+        if (slide.format === 'hero') {
+          return [{
+            type: 'hero',
+            eyebrow: eyebrowFor(slide.format),
+            headline: slide.title,
+            body: slide.body,
+            points: slide.bullets.slice(0, 3),
+            proof: slide.bullets[2] || '',
+            stats: [
+              { value: `${slide.bullets.slice(0, 3).length}`, label: 'core signals' },
+              { value: slide.body ? '1' : '0', label: 'proof lines' }
+            ],
+            layout: 'hero-grid'
+          }];
+        }
+
+        if (slide.format === 'compare') {
+          const [leftLabel, rightLabel] = parseCompareLabels(slide.body, slide.title);
+          const midpoint = Math.max(2, Math.ceil(slide.bullets.length / 2));
+          return [{
+            type: 'compare',
+            eyebrow: eyebrowFor(slide.format),
+            body: slide.body,
+            summary: slide.title,
+            left: { label: leftLabel, items: slide.bullets.slice(0, midpoint) },
+            right: { label: rightLabel, items: slide.bullets.slice(midpoint) }
+          }];
+        }
+
+        if (slide.format === 'metrics') {
+          return [{
+            type: 'metrics',
+            eyebrow: eyebrowFor(slide.format),
+            intro: slide.body,
+            proof: slide.title,
+            items: slide.bullets.slice(0, 4).map(parseMetricItem)
+          }];
+        }
+
+        if (slide.format === 'process') {
+          return [{
+            type: 'process',
+            eyebrow: eyebrowFor(slide.format),
+            intro: slide.body,
+            steps: slide.bullets.slice(0, 5).map((item) => ({ label: item }))
+          }];
+        }
+
+        if (slide.format === 'summary') {
+          return [{
+            type: 'summary',
+            eyebrow: eyebrowFor(slide.format),
+            intro: slide.body,
+            items: slide.bullets.slice(0, 4)
+          }];
+        }
+
+        if (slide.format === 'cta') {
+          return [{
+            type: 'cta',
+            eyebrow: eyebrowFor(slide.format),
+            message: slide.body || slide.title,
+            actions: slide.bullets.slice(0, 4),
+            proof: slide.title
+          }];
+        }
+
+        return [
+          ...(slide.body ? [{ type: 'paragraph', content: slide.body }] : []),
+          ...(slide.bullets.length ? [{ type: 'list', items: slide.bullets }] : []),
+          ...(!slide.body && !slide.bullets.length ? [{ type: 'paragraph', content: slide.title }] : [])
+        ];
+      })()
     }))
   });
 };

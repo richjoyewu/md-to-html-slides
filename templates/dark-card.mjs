@@ -15,6 +15,8 @@ const slugify = (value = '') => {
     .replace(/^-+|-+$/g, '') || 'slide';
 };
 
+const renderItems = (items = []) => items.map((item) => `<li>${escapeHtml(item)}</li>`).join('');
+
 const renderBlock = (block) => {
   if (block.type === 'paragraph') {
     return `<p class="slide-paragraph reveal">${escapeHtml(block.content)}</p>`;
@@ -41,6 +43,85 @@ const renderBlock = (block) => {
       `  <pre class="slide-code"><code>${escapeHtml(block.content)}</code></pre>`,
       '</div>'
     ].filter(Boolean).join('\n');
+  }
+
+  if (block.type === 'hero') {
+    return [
+      '<section class="slide-hero-block hero-grid hero-grid-system reveal">',
+      '  <div class="hero-grid-main">',
+      `    <div class="semantic-kicker">${escapeHtml(block.eyebrow || 'Core Thesis')}</div>`,
+      `    <h3 class="hero-grid-title">${escapeHtml(block.headline || '')}</h3>`,
+      block.body ? `    <p class="slide-paragraph">${escapeHtml(block.body)}</p>` : '',
+      block.proof ? `    <div class="hero-proof-note">${escapeHtml(block.proof)}</div>` : '',
+      '  </div>',
+      '  <div class="hero-grid-side">',
+      block.points?.length ? `    <ul class="semantic-chip-list">${renderItems(block.points)}</ul>` : '',
+      block.stats?.length ? `    <div class="hero-stat-grid">${block.stats.map((item) => `<div class="hero-stat-box"><div class="hero-stat-value">${escapeHtml(item.value)}</div><div class="hero-stat-label">${escapeHtml(item.label)}</div></div>`).join('')}</div>` : '',
+      '  </div>',
+      '</section>'
+    ].filter(Boolean).join('\n');
+  }
+
+  if (block.type === 'compare') {
+    return [
+      '<section class="slide-compare reveal">',
+      `  <div class="compare-column"><div class="compare-label">${escapeHtml(block.left.label)}</div><ul class="compare-points">${renderItems(block.left.items)}</ul></div>`,
+      '  <div class="compare-vs">VS</div>',
+      `  <div class="compare-column accent"><div class="compare-label">${escapeHtml(block.right.label)}</div><ul class="compare-points">${renderItems(block.right.items)}</ul></div>`,
+      '</section>'
+    ].join('\n');
+  }
+
+  if (block.type === 'metrics') {
+    return `
+      <section class="slide-metrics reveal">
+        ${block.intro ? `<p class="slide-paragraph">${escapeHtml(block.intro)}</p>` : ''}
+        <div class="metric-grid">
+          ${block.items.map((item) => `
+            <div class="metric-card">
+              <div class="metric-value">${escapeHtml(item.value)}</div>
+              <div class="metric-label">${escapeHtml(item.label)}</div>
+            </div>
+          `).join('')}
+        </div>
+      </section>
+    `;
+  }
+
+  if (block.type === 'process') {
+    return `
+      <section class="slide-process reveal">
+        ${block.intro ? `<p class="slide-paragraph">${escapeHtml(block.intro)}</p>` : ''}
+        <ol class="process-list">
+          ${block.steps.map((step, index) => `
+            <li>
+              <span class="process-index">${String(index + 1).padStart(2, '0')}</span>
+              <span class="process-copy">${escapeHtml(step.label)}</span>
+            </li>
+          `).join('')}
+        </ol>
+      </section>
+    `;
+  }
+
+  if (block.type === 'summary') {
+    return `
+      <section class="slide-summary reveal">
+        ${block.intro ? `<p class="slide-paragraph">${escapeHtml(block.intro)}</p>` : ''}
+        <ul class="slide-list">${renderItems(block.items)}</ul>
+      </section>
+    `;
+  }
+
+  if (block.type === 'cta') {
+    return `
+      <section class="slide-cta reveal">
+        <p class="slide-paragraph">${escapeHtml(block.message)}</p>
+        <div class="cta-pill-row">
+          ${block.actions.map((item) => `<span class="cta-pill">${escapeHtml(item)}</span>`).join('')}
+        </div>
+      </section>
+    `;
   }
 
   return '';
@@ -535,6 +616,180 @@ export const renderDarkCardDeck = (deck, options) => {
       font-family: var(--font-mono);
       font-size: clamp(0.76rem, 1vw, 0.92rem);
       line-height: 1.68;
+    }
+
+    .semantic-kicker,
+    .compare-label,
+    .process-index {
+      font-family: var(--font-mono);
+      font-size: var(--small-size);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--accent-soft);
+    }
+
+    .semantic-chip-list,
+    .compare-points,
+    .process-list {
+      list-style: none;
+    }
+
+    .semantic-chip-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 1rem;
+    }
+
+    .semantic-chip-list li,
+    .cta-pill {
+      padding: 0.55rem 0.8rem;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.04);
+      color: var(--text-1);
+      font-size: 0.95rem;
+    }
+
+    .slide-compare {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 64px minmax(0, 1fr);
+      gap: 14px;
+      align-items: stretch;
+    }
+
+    .compare-column {
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.03);
+      padding: 1rem;
+      display: grid;
+      gap: 0.9rem;
+    }
+
+    .compare-column.accent {
+      background: rgba(118,184,255,0.08);
+    }
+
+    .compare-points {
+      display: grid;
+      gap: 10px;
+    }
+
+    .compare-points li,
+    .process-list li {
+      color: var(--text-2);
+      line-height: 1.6;
+    }
+
+    .compare-vs {
+      display: grid;
+      place-items: center;
+      color: var(--accent);
+      font-family: var(--font-mono);
+      letter-spacing: 0.12em;
+    }
+
+    .metric-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 1rem;
+    }
+
+    .metric-card {
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.03);
+      padding: 1rem;
+      min-height: 150px;
+      display: grid;
+      align-content: end;
+      gap: 0.45rem;
+    }
+
+    .metric-value {
+      font-family: var(--font-serif);
+      font-size: clamp(2rem, 4vw, 3rem);
+      line-height: 0.95;
+      color: var(--accent-soft);
+    }
+
+    .metric-label {
+      color: var(--text-2);
+      line-height: 1.55;
+    }
+
+    .process-list {
+      display: grid;
+      gap: 12px;
+      margin-top: 1rem;
+    }
+
+    .process-list li {
+      display: grid;
+      grid-template-columns: 44px 1fr;
+      gap: 12px;
+      padding: 0.9rem 1rem;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.03);
+    }
+
+    .cta-pill-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 1rem;
+    }
+
+    .hero-grid-system {
+      display: grid;
+      grid-template-columns: minmax(0, 1.1fr) minmax(260px, 0.9fr);
+      gap: 16px;
+      align-items: stretch;
+    }
+
+    .hero-grid-main,
+    .hero-grid-side {
+      display: grid;
+      gap: 14px;
+      align-content: start;
+    }
+
+    .hero-grid-title {
+      font-family: var(--font-serif);
+      font-size: clamp(1.8rem, 3vw, 3rem);
+      line-height: 1;
+      letter-spacing: -0.03em;
+      color: var(--text-1);
+    }
+
+    .hero-proof-note,
+    .hero-stat-label {
+      color: var(--text-3);
+    }
+
+    .hero-proof-note {
+      font-size: 0.95rem;
+      line-height: 1.55;
+    }
+
+    .hero-stat-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .hero-stat-box {
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.03);
+      padding: 0.8rem;
+      display: grid;
+      gap: 0.35rem;
+    }
+
+    .hero-stat-value {
+      color: var(--accent-soft);
+      font-family: var(--font-mono);
+      font-size: 1rem;
     }
 
     .slide-footer {
