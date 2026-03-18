@@ -1,5 +1,7 @@
 # md-to-html-slides
 
+**Language:** English | [简体中文](./README.zh-CN.md)
+
 Turn written language into presentation-ready visual language, helping speakers communicate more clearly and more persuasively.
 
 ## Mission
@@ -144,6 +146,6 @@ node ./scripts/build.mjs themes
 
 ## Design Direction
 
+- [Docs Index](./docs/README.md)
 - [Design Principles](./docs/design-principles.md)
-- [Theme Families](./docs/theme-families.md)
-- [Presentation Modes](./docs/presentation-modes.md)
+- [Engineering Spec](./docs/engineering-spec.md)

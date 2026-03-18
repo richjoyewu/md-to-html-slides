@@ -39,6 +39,19 @@ The target is a deck that feels:
 - quiet enough to read
 - memorable enough to share
 
+## Current Design Scope
+
+The current product is still `deck`-first.
+
+That means design work should optimize for:
+
+- slide-by-slide speaking
+- strong title-to-content hierarchy
+- theme switching with clear personality
+- HTML output that feels web-native rather than PPT-like
+
+Future presentation modes may expand beyond decks, but current design decisions should first strengthen the default deck flow.
+
 ## Reference Directions
 
 This project intentionally combines two reference directions.
@@ -183,6 +196,35 @@ A theme must define:
 
 The goal is not to make one beautiful cover.
 The goal is to make the whole deck feel coherent.
+
+## Theme Direction
+
+The current theme system should stay intentionally small, with each theme occupying a clearly different role:
+
+- dark, high-contrast product or technical presentation
+- light, editorial teaching or explainer presentation
+- signal-driven product-story presentation
+
+Theme differentiation should come from:
+
+- composition
+- typography
+- contrast model
+- density rhythm
+
+Not from superficial accent swaps alone.
+
+## Presentation Shape
+
+The current default presentation shape is:
+
+- one slide at a time
+- clear page boundaries
+- keyboard or click/tap navigation
+- summary or wrap-up near the end
+
+Design work should not simulate unrelated presentation modes through CSS hacks.
+If a future mode needs a different shape, it should be introduced as a separate rendering model rather than forced through deck styling.
 
 ## Visual Rules
 

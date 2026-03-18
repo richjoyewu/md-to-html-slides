@@ -10,13 +10,9 @@
 
 - `README.md`: current product overview, local usage, and public-facing positioning.
 - `docs/design-principles.md`: canonical visual direction and anti-generic design rules.
-- `docs/theme-families.md`: target theme families and their intended use cases.
-- `docs/presentation-modes.md`: target presentation surfaces and the distinction between mode, theme, and template.
-- `docs/agent-orchestration-spec.md`: canonical product flow and agent module boundaries.
+- `docs/internal-product-principles.zh-CN.md`: canonical product definition, main flow, and scope guardrails.
 - `docs/next-technical-strategy.zh-CN.md`: current implementation priorities and next-stage direction.
-- `docs/llm-provider-spec.md`: target provider abstraction and environment contract.
-- `docs/cli-spec.md`: intended CLI scope and command behavior.
-- `docs/markdown-spec.md`: supported Markdown input shape and expectations.
+- `docs/engineering-spec.md`: current Markdown, CLI, and provider contracts.
 
 ## Common Commands
 
@@ -35,7 +31,7 @@
 
 ## Edit Boundaries
 
-- Treat `docs/agent-orchestration-spec.md`, `docs/next-technical-strategy.zh-CN.md`, and `docs/llm-provider-spec.md` as the architectural source of truth before changing flow, module boundaries, or provider wiring.
+- Treat `docs/internal-product-principles.zh-CN.md`, `docs/next-technical-strategy.zh-CN.md`, and `docs/engineering-spec.md` as the architectural source of truth before changing flow, module boundaries, or provider wiring.
 - Keep the deterministic renderer separate from agent reasoning. Do not move content-planning logic into templates or rendering code.
 - Do not introduce provider-specific request logic outside the provider layer.
 - Avoid duplicating parsing, normalization, and schema-mapping logic across CLI, server, and studio code. Prefer shared contracts and shared helpers.

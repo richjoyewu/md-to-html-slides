@@ -1,6 +1,6 @@
 # md-to-html-slides
 
-[English](./README.md) | 中文
+**语言:** [English](./README.md) | 简体中文
 
 把文字语言变成适合演讲的视觉语言，帮助演讲者更清晰、更有说服力地表达。
 
@@ -189,7 +189,7 @@ LLM_BASE_URL=https://api.moonshot.cn/v1
 
 ### 自定义 Markdown 格式
 
-查看 `docs/markdown-spec.md` 了解支持的 Markdown 语法和最佳实践。
+查看 `docs/engineering-spec.md` 了解当前支持的 Markdown、CLI 与 Provider 规范。
 
 ### 创建自定义主题
 
@@ -201,13 +201,11 @@ LLM_BASE_URL=https://api.moonshot.cn/v1
 
 ## 📚 详细文档
 
+- [文档索引](./docs/README.md)
 - [设计原则](./docs/design-principles.md)
-- [主题家族定义](./docs/theme-families.md)
-- [展示模式](./docs/presentation-modes.md)
-- [Agent 系统架构](./docs/agent-orchestration-spec.md)
-- [Markdown 格式规范](./docs/markdown-spec.md)
-- [LLM Provider 规范](./docs/llm-provider-spec.md)
-- [幻灯片设计规范](./docs/slide-planning-spec.md)
+- [内部产品原则](./docs/internal-product-principles.zh-CN.md)
+- [下一阶段技术策略](./docs/next-technical-strategy.zh-CN.md)
+- [工程规范](./docs/engineering-spec.md)
 
 ---
 
