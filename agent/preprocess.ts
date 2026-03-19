@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import type { OutlineResult, PreprocessedMarkdown } from './types.js';
+import type { OutlineResult, PlanContext, PreprocessedMarkdown } from './types.js';
 import { extractMarkdownSections, inferDeckTitle } from '../shared/markdown.js';
 
 export const getCacheKey = (value: string): string =>
@@ -21,5 +21,5 @@ export const preprocessMarkdown = (markdown: string): PreprocessedMarkdown => {
   };
 };
 
-export const buildExpandCacheKey = (markdown: string, outline: OutlineResult): string =>
-  getCacheKey(JSON.stringify({ markdown, outline }));
+export const buildExpandCacheKey = (markdown: string, outline: OutlineResult, context?: PlanContext): string =>
+  getCacheKey(JSON.stringify({ markdown, outline, context: context || null }));

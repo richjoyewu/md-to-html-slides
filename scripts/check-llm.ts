@@ -432,7 +432,7 @@ const runCase = async (
       provider
     });
     const { expanded, mode: expandMode } = await withRetries('expand', () =>
-      requestExpand(provider, markdown, outline, {
+      requestExpand(provider, markdown, outline, undefined, {
         allowFallback: false,
         timeoutMs: EXPAND_TIMEOUT_MS,
         maxTokens: 900

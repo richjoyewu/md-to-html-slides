@@ -2,7 +2,7 @@ import { analyzeMarkdown } from './analysis.js';
 import { buildHeuristicExpanded } from './fallback.js';
 import { normalizeExpanded } from './normalize.js';
 import { buildExpandPrompt } from './prompt-builder.js';
-import type { ExpandedResult, ExpandedSlide, LlmJsonProvider, OutlineResult } from './types.js';
+import type { ExpandedResult, ExpandedSlide, LlmJsonProvider, OutlineResult, PlanContext } from './types.js';
 
 interface ExpandRequestOptions {
   allowFallback?: boolean;
@@ -99,13 +99,14 @@ export const requestExpand = async (
   provider: LlmJsonProvider,
   markdown: string,
   outline: OutlineResult,
+  context?: PlanContext,
   options: ExpandRequestOptions = {}
 ): Promise<{ expanded: ExpandedResult; mode: 'llm' | 'fallback' }> => {
   const analysis = analyzeMarkdown(markdown);
 
   try {
     const payload = await provider.callJson({
-      prompt: buildExpandPrompt({ markdown, outline, analysis }),
+      prompt: buildExpandPrompt({ markdown, outline, analysis, context }),
       timeoutMs: options.timeoutMs ?? 12000,
       maxTokens: options.maxTokens ?? 900
     });

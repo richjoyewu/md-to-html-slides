@@ -249,6 +249,7 @@ const server = createServer(async (request, response) => {
       const body = await readJsonBody(request);
       const markdown = String(body?.markdown || '').trim();
       const outline = normalizeOutline(body?.outline) as OutlineResult;
+      const context = normalizePlanContext(body?.context) as PlanContext;
       if (!markdown) {
         sendSseEvent(response, 'error', { error: 'Markdown is required' });
         response.end();
@@ -261,7 +262,7 @@ const server = createServer(async (request, response) => {
       }
 
       sendSseEvent(response, 'status', { stage: 'expanding', message: '正在补全每页展示内容...' });
-      const expandKey = buildExpandCacheKey(markdown, outline);
+      const expandKey = buildExpandCacheKey(markdown, outline, context);
       const cached = expandCache.get(expandKey);
       if (cached) {
         expandCache.delete(expandKey);
@@ -274,7 +275,7 @@ const server = createServer(async (request, response) => {
       }
 
       sendSseEvent(response, 'status', { stage: 'structuring', message: '正在压缩要点并组织页面...' });
-      const { expanded, mode } = await requestExpand(llmProvider, markdown, outline);
+      const { expanded, mode } = await requestExpand(llmProvider, markdown, outline, context);
       setExpandCache(expandKey, { payload: expanded });
       console.error('[expand-ok]', `mode=${mode}`, `ms=${Date.now() - startedAt}`);
       if (mode === 'fallback') {
@@ -298,6 +299,7 @@ const server = createServer(async (request, response) => {
       const body = await readJsonBody(request);
       const markdown = String(body?.markdown || '').trim();
       const outline = normalizeOutline(body?.outline) as OutlineResult;
+      const context = normalizePlanContext(body?.context) as PlanContext;
       if (!markdown) {
         sendJson(response, 400, { error: 'Markdown is required' });
         return;
@@ -307,7 +309,7 @@ const server = createServer(async (request, response) => {
         return;
       }
 
-      const expandKey = buildExpandCacheKey(markdown, outline);
+      const expandKey = buildExpandCacheKey(markdown, outline, context);
       const cached = expandCache.get(expandKey);
       if (cached) {
         expandCache.delete(expandKey);
@@ -317,7 +319,7 @@ const server = createServer(async (request, response) => {
         return;
       }
 
-      const { expanded, mode } = await requestExpand(llmProvider, markdown, outline);
+      const { expanded, mode } = await requestExpand(llmProvider, markdown, outline, context);
       setExpandCache(expandKey, { payload: expanded });
       console.error('[expand-ok]', `mode=${mode}`, `ms=${Date.now() - startedAt}`);
       sendJson(response, 200, { ...expanded, mode });

@@ -72,17 +72,20 @@ export const buildPlanPrompt = (markdown: string, context?: PlanContext): string
 export const buildExpandPrompt = ({
   markdown,
   outline,
-  analysis
+  analysis,
+  context
 }: {
   markdown: string;
   outline: OutlineResult;
   analysis: MarkdownAnalysis;
+  context?: PlanContext;
 }): string => {
   const source = preprocessMarkdown(markdown);
   const intentHint = outline.meta?.content_intent || 'general presentation';
   const audienceHint = outline.meta?.audience_guess || '未指定受众';
   const rewriteHint = analysis.rewrite_strategy;
   const profile = getDeckProfile(outline.meta?.profile);
+  const answers = context?.answers || {};
 
   return [
     '你是一个高质量中文演示文稿 Expander。',
@@ -131,6 +134,9 @@ export const buildExpandPrompt = ({
     '',
     '当前改写策略：',
     rewriteHint,
+    '',
+    '用户补充信息：',
+    JSON.stringify(answers, null, 2),
     '',
     '可参考的 profile 示例成稿：',
     JSON.stringify(profile.expanded_example, null, 2),
