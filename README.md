@@ -30,13 +30,13 @@ Current public boundary:
 
 ![Dark Card preview](./assets/previews/dark-card-preview.svg)
 
-Sample output: `examples/01-agent.html`
+Sample output path after running example commands: `.tmp/examples/01-agent.html`
 
 ### Editorial Light
 
 ![Editorial Light preview](./assets/previews/editorial-light-preview.svg)
 
-Sample output: `examples/01-agent-editorial.html`
+Sample output path after running example commands: `.tmp/examples/01-agent-editorial.html`
 
 ## Canonical Interface
 
@@ -46,6 +46,16 @@ The project is now moving toward a `CLI-first` model:
 - `Studio` is a thin local shell for clarification, outline editing, and HTML preview
 - `agent` modules stay focused on planning, rewriting, and fallback
 - `shared` modules keep the semantic contracts and render-deck normalization stable
+- `skill` is now the preferred abstraction for reusable expression strategy
+- `profile` remains as a compatibility alias during migration
+- CLI clarification supports both interactive and non-interactive execution
+
+The canonical artifact chain is now:
+
+- `outline.json`
+- `expanded.json`
+- `render-deck.json`
+- `HTML`
 
 ## Studio Demo
 
@@ -62,7 +72,7 @@ Then open:
 What it includes:
 
 - left-side markdown editor
-- deck profile selector
+- skill selector
 - live theme switching
 - right-side iframe preview
 - copy-html and open-in-new-window actions
@@ -74,7 +84,7 @@ What it includes:
 - Current primary mode: `deck`
 - Future modes: `roadmap`, `briefing`, `storyflow`
 - Themes: `dark-card`, `tech-launch`, `signal-blue`, `editorial-light`
-- Profiles: `general`, `pitch-tech-launch`
+- Skills: `general`, `pitch-tech-launch`
 - Focus: design quality, responsive layout, and simple publishing
 - Non-goal for now: full online editor, full PPT replacement, complex runtime dependencies
 
@@ -87,10 +97,10 @@ md-to-html-slides/
 ├─ LICENSE
 ├─ .gitignore
 ├─ docs/
-├─ examples/
 ├─ templates/
 ├─ scripts/
-└─ slides-src/
+├─ fixtures/
+└─ studio/
 ```
 
 ## Roadmap
@@ -116,48 +126,74 @@ md-to-html-slides/
 
 ## Included Seed Files
 
-- `slides-src/openclaw/01-agent.md`: sample input content
-- `slides-src/pitch/01-launch.md`: sample product launch pitch
-- `examples/demo-openclaw.html`: earlier visual demo
-- `examples/01-agent.html`: generated deck using `dark-card`
-- `examples/01-launch-tech.html`: generated deck using `tech-launch`
-- `scripts/build.mjs`: first working CLI prototype
+- `fixtures/course/clean/openclaw-intro.md`: sample course-style input
+- `fixtures/pitch/clean/product-pitch.md`: sample pitch-style input
+- `.tmp/examples/01-agent.html`: generated deck using `dark-card`
+- `.tmp/examples/01-launch-tech.html`: generated deck using `tech-launch`
+- `scripts/build.mjs`: bootstrap wrapper for the canonical CLI
 
 ## Status
 
 Early-stage open source project. The current focus is to make one Markdown file reliably generate one strong speaker-friendly HTML presentation, with `deck` as the current default mode.
 
-## First Working Commands
+## NPM Scripts
+
+### Core Commands
 
 ```bash
-npm run themes
-npm run validate:example
-npm run plan:example
-npm run expand:example
-npm run build:example
-npm run build:example:editorial
-npm run build:example:launch
-npm run preview:example
+npm run core:themes
+npm run core:skills
 npm run studio
-npm run check
-npm run check:llm
-npm run check:llm:ab
 ```
 
-Or run the CLI directly:
+### Test Commands
+
+```bash
+npm run test
+npm run test:fallback
+npm run test:render-deck
+npm run test:cli
+npm run test:llm
+npm run test:llm:ab
+```
+
+### Example Commands
+
+```bash
+npm run example:validate
+npm run example:plan
+npm run example:expand
+npm run example:render-deck
+npm run example:render
+npm run example:build
+npm run example:build:editorial
+npm run example:build:launch
+npm run example:preview
+```
+
+Or run the canonical CLI directly:
 
 ```bash
 node ./scripts/build.mjs themes
-node ./scripts/build.mjs validate ./slides-src/openclaw/01-agent.md
+node ./scripts/build.mjs validate ./fixtures/course/clean/openclaw-intro.md
 node ./scripts/build.mjs skills
-node ./scripts/build.mjs plan ./slides-src/openclaw/01-agent.md --profile general
-node ./scripts/build.mjs expand ./slides-src/openclaw/01-agent.md --profile general
-node ./scripts/build.mjs render ./tmp/expanded.json -o ./examples/custom.html --theme signal-blue
-node ./scripts/build.mjs build ./slides-src/openclaw/01-agent.md -o ./examples/01-agent.html --profile general
-node ./scripts/build.mjs build ./slides-src/openclaw/01-agent.md -o ./examples/01-agent-editorial.html --theme editorial-light --profile general
-node ./scripts/build.mjs build ./slides-src/pitch/01-launch.md -o ./examples/01-launch-tech.html --profile pitch-tech-launch
-node ./scripts/build.mjs preview ./slides-src/openclaw/01-agent.md --profile general
+node ./scripts/build.mjs plan ./fixtures/course/clean/openclaw-intro.md --skill general
+node ./scripts/build.mjs expand ./fixtures/course/clean/openclaw-intro.md --skill general
+node ./scripts/build.mjs render-deck ./tmp/expanded.json -o ./tmp/render-deck.json
+node ./scripts/build.mjs render ./tmp/render-deck.json -o ./.tmp/examples/custom.html --theme signal-blue
+node ./scripts/build.mjs build ./fixtures/course/clean/openclaw-intro.md -o ./.tmp/examples/01-agent.html --skill general
+node ./scripts/build.mjs build ./fixtures/course/clean/openclaw-intro.md -o ./.tmp/examples/01-agent-editorial.html --theme editorial-light --skill general
+node ./scripts/build.mjs build ./fixtures/pitch/clean/product-pitch.md -o ./.tmp/examples/01-launch-tech.html --skill pitch-tech-launch
+node ./scripts/build.mjs preview ./fixtures/course/clean/openclaw-intro.md --skill general
+node ./scripts/build.mjs build ./fixtures/pitch/clean/product-pitch.md -o ./.tmp/examples/01-launch-tech.html --skill pitch-tech-launch --interactive
+node ./scripts/build.mjs plan ./fixtures/pitch/clean/product-pitch.md --skill pitch-tech-launch --no-interactive
 ```
+
+Artifact responsibilities:
+
+- `outline.json`: page order, focus, and intent
+- `expanded.json`: on-screen wording and semantic blocks
+- `render-deck.json`: deterministic renderer input
 
 ## Design Direction
 

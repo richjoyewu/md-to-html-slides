@@ -3,11 +3,12 @@
 import { access, mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
-import { normalizeOutline, normalizePlanContext } from '../shared/core.js';
-import { DECK_PROFILES } from '../shared/deck-profiles.js';
+import { createInterface } from 'node:readline/promises';
+import { normalizeOutline, normalizePlanContext, validateRenderDeck } from '../shared/core.js';
+import { registerSkill, SKILLS } from '../shared/skills.js';
 import { parseMarkdownDeck } from '../shared/markdown.js';
 import { createCorePipeline, loadDotEnv, resolveProviderRuntime } from '../agent/pipeline.js';
-import type { OutlineResult, PlanContext } from '../agent/types.js';
+import type { ClarificationResult, OutlineResult, PlanContext } from '../agent/types.js';
 
 const MIME_TYPES = new Map([
   ['.png', 'image/png'],
@@ -33,22 +34,28 @@ const loadThemesModule = async (): Promise<ThemeModule> =>
 const usage = (): string => {
   return [
     'Usage:',
-    '  md-to-html-slides plan <input.md> [--profile <name>] [--answer <key=value>] [-o <outline.json>]',
-    '  md-to-html-slides expand <input.md> [--profile <name>] [--answer <key=value>] [--outline <outline.json>] [-o <expanded.json>]',
-    '  md-to-html-slides build <input.md> -o <output.html> [--theme <name>] [--title <text>] [--profile <name>] [--answer <key=value>] [--outline <outline.json>]',
-    '  md-to-html-slides preview <input.md> [--theme <name>] [--title <text>] [--profile <name>] [--answer <key=value>] [--outline <outline.json>]',
-    '  md-to-html-slides render <expanded.json> -o <output.html> [--theme <name>] [--title <text>]',
+    '  md-to-html-slides plan <input.md> [--skill <name>] [--skill-file <skill.json>] [--profile <name> compatibility alias] [--answer <key=value>] [-o <outline.json>]',
+    '  md-to-html-slides expand <input.md> [--skill <name>] [--skill-file <skill.json>] [--profile <name> compatibility alias] [--answer <key=value>] [--outline <outline.json>] [-o <expanded.json>]',
+    '  md-to-html-slides render-deck <expanded.json> [--title <text>] [-o <render-deck.json>]',
+    '  md-to-html-slides build <input.md> -o <output.html> [--theme <name>] [--title <text>] [--skill <name>] [--skill-file <skill.json>] [--profile <name> compatibility alias] [--answer <key=value>] [--outline <outline.json>]',
+    '  md-to-html-slides preview <input.md> [--theme <name>] [--title <text>] [--skill <name>] [--skill-file <skill.json>] [--profile <name> compatibility alias] [--answer <key=value>] [--outline <outline.json>]',
+    '  md-to-html-slides render <render-deck.json|expanded.json> -o <output.html> [--theme <name>] [--title <text>]',
+    '  md-to-html-slides ... [--interactive|--no-interactive]',
     '  md-to-html-slides skills',
     '  md-to-html-slides validate <input.md>',
+    '  md-to-html-slides validate-render-deck <render-deck.json>',
     '  md-to-html-slides themes',
     '',
     'Examples:',
-    '  md-to-html-slides plan ./slides-src/pitch/01-launch.md --profile pitch-tech-launch',
-    '  md-to-html-slides build ./slides-src/pitch/01-launch.md -o ./examples/01-launch-tech.html --profile pitch-tech-launch',
-    '  md-to-html-slides build ./slides-src/pitch/01-launch.md -o ./examples/01-launch-tech.html --answer audience=投资人 --answer goal=解释融资亮点',
-    '  md-to-html-slides render ./tmp/expanded.json -o ./examples/custom.html --theme signal-blue',
-    '  md-to-html-slides preview ./slides-src/openclaw/01-agent.md --profile general',
-    '  md-to-html-slides validate ./slides-src/openclaw/01-agent.md',
+    '  md-to-html-slides plan ./fixtures/pitch/clean/product-pitch.md --skill pitch-tech-launch',
+    '  md-to-html-slides plan ./fixtures/pitch/clean/product-pitch.md --skill-file ./skills/founder-pitch.json',
+    '  md-to-html-slides render-deck ./tmp/expanded.json -o ./tmp/render-deck.json',
+    '  md-to-html-slides build ./fixtures/pitch/clean/product-pitch.md -o ./.tmp/examples/01-launch-tech.html --skill pitch-tech-launch',
+    '  md-to-html-slides build ./fixtures/pitch/clean/product-pitch.md -o ./.tmp/examples/01-launch-tech.html --answer audience=投资人 --answer goal=解释融资亮点',
+    '  md-to-html-slides render ./tmp/render-deck.json -o ./.tmp/examples/custom.html --theme signal-blue',
+    '  md-to-html-slides preview ./fixtures/course/clean/openclaw-intro.md --skill general',
+    '  md-to-html-slides validate ./fixtures/course/clean/openclaw-intro.md',
+    '  md-to-html-slides validate-render-deck ./tmp/render-deck.json',
     '  md-to-html-slides skills',
     '  md-to-html-slides themes'
   ].join('\n');
@@ -56,12 +63,15 @@ const usage = (): string => {
 
 interface ParsedArgs {
   answers: Record<string, string>;
-  command: 'build' | 'expand' | 'help' | 'plan' | 'preview' | 'render' | 'skills' | 'themes' | 'validate';
+  command: 'build' | 'expand' | 'help' | 'plan' | 'preview' | 'render' | 'render-deck' | 'skills' | 'themes' | 'validate' | 'validate-render-deck';
   input?: string;
+  interactiveMode?: 'auto' | 'force' | 'off';
   jsonOutput?: string;
   outlinePath?: string;
   output?: string;
   profile?: string;
+  skill?: string;
+  skillFile?: string;
   title?: string;
   theme?: string;
 }
@@ -99,10 +109,13 @@ const parseArgs = (argv: string[]): ParsedArgs => {
     answers: {},
     command: command as ParsedArgs['command'],
     input,
+    interactiveMode: 'auto',
     jsonOutput: '',
     outlinePath: '',
     output: '',
     profile: '',
+    skill: '',
+    skillFile: '',
     theme: '',
     title: ''
   };
@@ -137,6 +150,16 @@ const parseArgs = (argv: string[]): ParsedArgs => {
       continue;
     }
 
+    if (token === '--skill') {
+      parsed.skill = args.shift() || '';
+      continue;
+    }
+
+    if (token === '--skill-file') {
+      parsed.skillFile = args.shift() || '';
+      continue;
+    }
+
     if (token === '--outline') {
       parsed.outlinePath = args.shift() || '';
       continue;
@@ -146,6 +169,16 @@ const parseArgs = (argv: string[]): ParsedArgs => {
       const raw = args.shift() || '';
       const [key, value] = parseAnswerToken(raw);
       parsed.answers[key] = value;
+      continue;
+    }
+
+    if (token === '--interactive') {
+      parsed.interactiveMode = 'force';
+      continue;
+    }
+
+    if (token === '--no-interactive') {
+      parsed.interactiveMode = 'off';
       continue;
     }
 
@@ -200,6 +233,17 @@ const readOutlineFile = async (outlinePath: string): Promise<OutlineResult> => {
   return normalizeOutline(JSON.parse(raw)) as OutlineResult;
 };
 
+const loadSkillFile = async (skillFilePath: string): Promise<string> => {
+  const resolved = path.resolve(process.cwd(), skillFilePath);
+  if (path.extname(resolved).toLowerCase() !== '.json') {
+    throw new Error('First-version --skill-file only supports .json files');
+  }
+
+  const raw = JSON.parse(await readFile(resolved, 'utf8'));
+  const registered = registerSkill(raw);
+  return registered.id;
+};
+
 const writeJson = async (outputPath: string | undefined, payload: unknown): Promise<void> => {
   const serialized = JSON.stringify(payload, null, 2);
   if (!outputPath) {
@@ -216,6 +260,69 @@ const printClarificationForBuild = (payload: unknown): void => {
   process.stderr.write(`${JSON.stringify(payload, null, 2)}\n`);
 };
 
+const isInteractiveTerminal = (): boolean => Boolean(process.stdin.isTTY && process.stdout.isTTY);
+
+const shouldUseInteractiveClarification = (command: ParsedArgs['command'], mode: ParsedArgs['interactiveMode']): boolean => {
+  if (mode === 'force') return true;
+  if (mode === 'off') return false;
+  if (!isInteractiveTerminal()) return false;
+  return command === 'build' || command === 'preview';
+};
+
+const askClarificationQuestions = async (
+  clarification: ClarificationResult,
+  answers: Record<string, string>
+): Promise<Record<string, string>> => {
+  const nextAnswers = { ...answers };
+  const rl = createInterface({
+    input: process.stdin,
+    output: process.stderr
+  });
+
+  try {
+    process.stderr.write(`${clarification.message || '需要补充 1 到 2 个关键信息。'}\n`);
+    for (const question of clarification.questions) {
+      const existing = String(nextAnswers[question.id] || '').trim();
+      if (existing) continue;
+
+      const label = question.label || question.id;
+      const placeholder = question.placeholder ? ` (${question.placeholder})` : '';
+      let answer = '';
+      while (!answer.trim()) {
+        answer = await rl.question(`${label}${placeholder}\n> `);
+      }
+      nextAnswers[question.id] = answer.trim();
+    }
+  } finally {
+    rl.close();
+  }
+
+  return nextAnswers;
+};
+
+const runPlanWithClarification = async (
+  pipeline: ReturnType<typeof createCorePipeline>,
+  markdown: string,
+  command: ParsedArgs['command'],
+  context: PlanContext,
+  interactiveMode: ParsedArgs['interactiveMode']
+) => {
+  let activeContext = normalizePlanContext(context) as PlanContext;
+  let result = await pipeline.plan(markdown, activeContext);
+  if (result.kind !== 'clarification') return { context: activeContext, result };
+  if (!shouldUseInteractiveClarification(command, interactiveMode)) {
+    return { context: activeContext, result };
+  }
+
+  const nextAnswers = await askClarificationQuestions(result.payload, activeContext.answers || {});
+  activeContext = normalizePlanContext({
+    ...activeContext,
+    answers: nextAnswers
+  }) as PlanContext;
+  result = await pipeline.plan(markdown, activeContext);
+  return { context: activeContext, result };
+};
+
 const main = async (): Promise<void> => {
   loadDotEnv(process.cwd());
 
@@ -227,6 +334,10 @@ const main = async (): Promise<void> => {
 
   const runtime = resolveProviderRuntime(process.env);
   const pipeline = createCorePipeline({ provider: runtime.provider });
+
+  if (args.skillFile) {
+    args.skill = await loadSkillFile(args.skillFile);
+  }
 
   if (args.command === 'themes') {
     const { THEMES } = await loadThemesModule();
@@ -244,31 +355,45 @@ const main = async (): Promise<void> => {
     process.stdout.write(
       [
         'Available skills:',
-        ...DECK_PROFILES.map((profile) => `- ${profile.name}: ${profile.description}`)
+        ...SKILLS.map((skill) => `- ${skill.id}: ${skill.description} (default theme: ${skill.default_theme})`)
       ].join('\n') + '\n'
     );
     return;
   }
 
   const inputPath = path.resolve(process.cwd(), args.input || '');
-  const context = normalizePlanContext({
+  let context = normalizePlanContext({
+    skill: args.skill,
     profile: args.profile,
     answers: args.answers
   }) as PlanContext;
 
   if (args.command === 'render') {
     const raw = JSON.parse(await readFile(inputPath, 'utf8'));
-    const rendered = await pipeline.render(raw, {
+    const renderDeck = pipeline.toRenderDeck(raw, {
+      title: args.title
+    });
+    const rendered = await pipeline.render(renderDeck.deck, {
       theme: args.theme,
       title: args.title
     });
     const outputPath = path.resolve(process.cwd(), args.output || '');
     await mkdir(path.dirname(outputPath), { recursive: true });
     await writeFile(outputPath, rendered.html, 'utf8');
+    process.stdout.write(`Source: ${renderDeck.deck.meta.source}\n`);
     process.stdout.write(`Theme:  ${rendered.theme.name}\n`);
     process.stdout.write(`Slides: ${rendered.deck.slides.length + 1}\n`);
     process.stdout.write(`Output: ${path.relative(process.cwd(), outputPath)}\n`);
     process.stdout.write('Done.\n');
+    return;
+  }
+
+  if (args.command === 'render-deck') {
+    const raw = JSON.parse(await readFile(inputPath, 'utf8'));
+    const renderDeck = pipeline.toRenderDeck(raw, {
+      title: args.title
+    });
+    await writeJson(args.jsonOutput, renderDeck.deck);
     return;
   }
 
@@ -284,8 +409,20 @@ const main = async (): Promise<void> => {
     return;
   }
 
+  if (args.command === 'validate-render-deck') {
+    const raw = JSON.parse(markdown);
+    const deck = validateRenderDeck(raw);
+    process.stdout.write(`Title:   ${deck.title}\n`);
+    process.stdout.write(`Slides:  ${deck.slides.length}\n`);
+    process.stdout.write(`Skill:   ${deck.meta.skill || 'n/a'}\n`);
+    process.stdout.write(`Status:  valid\n`);
+    return;
+  }
+
   if (args.command === 'plan') {
-    const result = await pipeline.plan(markdown, context);
+    const planned = await runPlanWithClarification(pipeline, markdown, args.command, context, args.interactiveMode);
+    context = planned.context;
+    const result = planned.result;
     if (result.kind === 'clarification') {
       await writeJson(args.jsonOutput, { ...result.payload, mode: result.mode, source: result.source });
       return;
@@ -297,13 +434,14 @@ const main = async (): Promise<void> => {
   if (args.command === 'expand') {
     const outline = args.outlinePath ? await readOutlineFile(args.outlinePath) : null;
     if (!outline) {
-      const planned = await pipeline.plan(markdown, context);
-      if (planned.kind === 'clarification') {
-        await writeJson(args.jsonOutput, { ...planned.payload, mode: planned.mode, source: planned.source });
+      const planned = await runPlanWithClarification(pipeline, markdown, args.command, context, args.interactiveMode);
+      context = planned.context;
+      if (planned.result.kind === 'clarification') {
+        await writeJson(args.jsonOutput, { ...planned.result.payload, mode: planned.result.mode, source: planned.result.source });
         process.exitCode = 2;
         return;
       }
-      const expanded = await pipeline.expand(markdown, planned.payload, context);
+      const expanded = await pipeline.expand(markdown, planned.result.payload, context);
       await writeJson(args.jsonOutput, { ...expanded.payload, mode: expanded.mode });
       return;
     }
@@ -314,11 +452,27 @@ const main = async (): Promise<void> => {
   }
 
   const outline = args.outlinePath ? await readOutlineFile(args.outlinePath) : null;
-  const built = await pipeline.build(markdown, {
-    context,
-    outline,
-    theme: args.theme
-  });
+  let built;
+  if (outline) {
+    built = await pipeline.build(markdown, {
+      context,
+      outline,
+      theme: args.theme
+    });
+  } else {
+    const planned = await runPlanWithClarification(pipeline, markdown, args.command, context, args.interactiveMode);
+    context = planned.context;
+    if (planned.result.kind === 'clarification') {
+      printClarificationForBuild({ ...planned.result.payload, mode: planned.result.mode, source: planned.result.source });
+      process.exitCode = 2;
+      return;
+    }
+    built = await pipeline.build(markdown, {
+      context,
+      outline: planned.result.payload,
+      theme: args.theme
+    });
+  }
 
   if (built.kind === 'clarification') {
     printClarificationForBuild({ ...built.payload, mode: built.mode, source: built.source });

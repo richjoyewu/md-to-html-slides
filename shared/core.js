@@ -1,4 +1,4 @@
-import { getDeckProfile, normalizeDeckProfileName } from './deck-profiles.js';
+import { getSkill, normalizeSkillName } from './skills.js';
 
 const ALLOWED_INTENTS = new Set(['define', 'explain', 'compare', 'example', 'process', 'summary', 'cta']);
 const ALLOWED_FORMATS = new Set(['hero', 'title-bullets', 'title-body', 'compare', 'metrics', 'process', 'summary', 'cta']);
@@ -6,6 +6,13 @@ const ALLOWED_VARIANTS = new Set(['default', 'hero', 'compare', 'metrics', 'proc
 
 const compactText = (value = '') => String(value || '').replace(/\s+/g, ' ').trim();
 const normalizeSurfaceText = (value = '') => compactText(value).replace(/^[，、；;:\-]+/g, '').trim();
+const compactIdentifier = (value = '') =>
+  compactText(value)
+    .toLowerCase()
+    .replace(/\s+/g, '-')
+    .replace(/[^a-z0-9\u4e00-\u9fa5-]/g, '')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '');
 const compactTitle = (value = '') =>
   compactText(value)
     .replace(/^[0-9０-９]+[.、\-:]\s*/, '')
@@ -41,11 +48,18 @@ const dedupeList = (items) => {
 const normalizeTextList = (items, max = 8) =>
   Array.isArray(items) ? dedupeList(items.map((item) => compactText(String(item || '')))).slice(0, max) : [];
 
+const preserveNamedValue = (value) => {
+  const normalized = String(value || '').trim().toLowerCase();
+  return normalized || undefined;
+};
+
 export const normalizePlanContext = (value) => {
   const source = value && typeof value === 'object' ? value : {};
   const answers = source.answers && typeof source.answers === 'object' ? source.answers : {};
+  const normalizedSkill = normalizeSkillName(source.skill || source.profile);
   return {
-    profile: normalizeDeckProfileName(source.profile),
+    profile: normalizedSkill,
+    skill: normalizedSkill,
     answers: Object.fromEntries(
       Object.entries(answers)
         .map(([key, raw]) => [key, String(raw || '').trim()])
@@ -76,11 +90,12 @@ export const normalizeClarification = (payload) => ({
 });
 
 const normalizePlanMeta = (source) => {
-  const profile = getDeckProfile(source?.profile || source?.deck_profile);
+  const skill = getSkill(source?.skill || source?.profile || source?.deck_profile);
   const confidence = Number(source?.planning_confidence ?? source?.confidence ?? 0.72);
   return {
-    profile: profile.name,
-    default_theme: compactMetaText(source?.default_theme || profile.default_theme, 32, profile.default_theme),
+    profile: skill.name,
+    skill: skill.name,
+    default_theme: compactMetaText(source?.default_theme || skill.default_theme, 32, skill.default_theme),
     content_intent: compactMetaText(source?.content_intent, 48, 'general presentation'),
     audience_guess: compactMetaText(source?.audience_guess, 48, '未指定受众'),
     deck_goal: compactMetaText(source?.deck_goal, 72, '帮助受众快速理解核心内容'),
@@ -102,7 +117,8 @@ const normalizePlanMeta = (source) => {
 };
 
 const normalizeExpandMeta = (source) => ({
-  profile: normalizeDeckProfileName(source?.profile),
+  profile: preserveNamedValue(source?.skill || source?.profile),
+  skill: preserveNamedValue(source?.skill || source?.profile),
   rewrite_quality: score(source?.rewrite_quality, 0.68),
   tone: String(source?.tone || 'presentation').trim() === 'mixed' ? 'mixed' : 'presentation',
   review_issues: Array.isArray(source?.review_issues)
@@ -173,37 +189,71 @@ export const normalizeExpanded = (payload) => {
       const bullets = Array.isArray(item.bullets)
         ? dedupeList(item.bullets.map((entry) => compactBullet(String(entry || '')))).slice(0, 6)
         : [];
+      const explicitBlocks = Array.isArray(item.blocks)
+        ? item.blocks.map(normalizeRenderBlock).filter(Boolean)
+        : [];
       let format = String(item.format || 'title-bullets').trim() || 'title-bullets';
       if (!ALLOWED_FORMATS.has(format)) format = bullets.length ? 'title-bullets' : 'title-body';
       if (!bullets.length && item.body) {
         format = format === 'summary' || format === 'cta' ? format : 'title-body';
       }
       if (format === 'title-bullets' && bullets.length < 2 && item.body) format = 'title-body';
-      return {
+      const normalizedSlide = {
         index: Number(item.index || index + 1),
         title: compactTitle(String(item.title || '').trim()),
         format,
         bullets,
         body: compactBody(String(item.body || ''))
       };
-    })
-    .map((slide) => {
-      if (slide.format === 'title-bullets' && !slide.bullets.length && slide.body) {
-        return { ...slide, format: 'title-body' };
+
+      if (normalizedSlide.format === 'title-bullets' && !normalizedSlide.bullets.length && normalizedSlide.body) {
+        normalizedSlide.format = 'title-body';
       }
-      if ((slide.format === 'title-body' || slide.format === 'summary') && !slide.body && slide.bullets.length) {
-        return {
-          ...slide,
-          body: slide.bullets.slice(0, 2).join('；'),
-          bullets: slide.format === 'summary' ? slide.bullets.slice(0, 3) : []
-        };
+      if ((normalizedSlide.format === 'title-body' || normalizedSlide.format === 'summary') && !normalizedSlide.body && normalizedSlide.bullets.length) {
+        normalizedSlide.body = normalizedSlide.bullets.slice(0, 2).join('；');
+        if (normalizedSlide.format !== 'summary') normalizedSlide.bullets = [];
       }
-      return slide;
+
+      return {
+        ...normalizedSlide,
+        blocks: explicitBlocks.length ? explicitBlocks : buildExpandedBlocks(normalizedSlide)
+      };
     })
-    .filter((slide) => slide.title && (slide.bullets.length || slide.body));
+    .filter((slide) => slide.title && (slide.blocks.length || slide.bullets.length || slide.body));
 
   if (!slides.length) throw new Error('Expanded slides are empty');
   return { deck_title: deckTitle, meta, slides: slides.slice(0, 16) };
+};
+
+const normalizeRenderDeckMeta = (source, slideCount) => {
+  const profileName = source?.meta?.skill || source?.meta?.profile || source?.skill || source?.profile;
+  const normalizedSkill = preserveNamedValue(profileName);
+  const rawSource = compactText(source?.meta?.source || source?.source || '');
+  const sourceType = rawSource === 'expanded' || rawSource === 'markdown' || rawSource === 'manual'
+    ? rawSource
+    : 'manual';
+
+  return {
+    contract_version: 'render-deck@1',
+    source: sourceType,
+    skill: normalizedSkill,
+    profile: normalizedSkill,
+    default_theme: compactText(source?.meta?.default_theme || source?.default_theme || ''),
+    slide_count: slideCount
+  };
+};
+
+const ensureUniqueSlideIds = (slides = []) => {
+  const seen = new Map();
+  return slides.map((slide, index) => {
+    const baseId = compactIdentifier(slide.id || slide.title || '') || `slide-${index + 1}`;
+    const count = (seen.get(baseId) || 0) + 1;
+    seen.set(baseId, count);
+    return {
+      ...slide,
+      id: count === 1 ? baseId : `${baseId}-${count}`
+    };
+  });
 };
 
 const normalizeRenderBlock = (block) => {
@@ -469,6 +519,82 @@ const buildCtaBlockFromBlocks = (title, blocks) => {
   };
 };
 
+const buildExpandedBlocks = (slide) => {
+  if (slide.format === 'hero') {
+    return [{
+      type: 'hero',
+      eyebrow: 'Launch Thesis',
+      headline: slide.title,
+      body: slide.body,
+      points: slide.bullets.slice(0, 3),
+      proof: slide.bullets[2] || '',
+      stats: [
+        { value: `${slide.bullets.slice(0, 3).length}`, label: 'core signals' },
+        { value: slide.body ? '1' : '0', label: 'proof lines' }
+      ],
+      layout: 'hero-grid'
+    }].map(normalizeRenderBlock).filter(Boolean);
+  }
+
+  if (slide.format === 'compare') {
+    const [leftLabel, rightLabel] = parseCompareLabels(slide.body, slide.title);
+    const midpoint = Math.max(2, Math.ceil(slide.bullets.length / 2));
+    return [{
+      type: 'compare',
+      eyebrow: 'Signal Shift',
+      body: slide.body,
+      summary: slide.title,
+      left: { label: leftLabel, items: slide.bullets.slice(0, midpoint) },
+      right: { label: rightLabel, items: slide.bullets.slice(midpoint) },
+      layout: 'two-col'
+    }].map(normalizeRenderBlock).filter(Boolean);
+  }
+
+  if (slide.format === 'metrics') {
+    return [{
+      type: 'metrics',
+      eyebrow: 'Proof Points',
+      intro: slide.body,
+      proof: slide.title,
+      items: slide.bullets.slice(0, 4).map(parseMetricItem)
+    }].map(normalizeRenderBlock).filter(Boolean);
+  }
+
+  if (slide.format === 'process') {
+    return [{
+      type: 'process',
+      eyebrow: 'Execution Path',
+      intro: slide.body,
+      steps: slide.bullets.slice(0, 5).map((item) => ({ label: item }))
+    }].map(normalizeRenderBlock).filter(Boolean);
+  }
+
+  if (slide.format === 'summary') {
+    return [{
+      type: 'summary',
+      eyebrow: 'Key Takeaways',
+      intro: slide.body,
+      items: slide.bullets.slice(0, 4)
+    }].map(normalizeRenderBlock).filter(Boolean);
+  }
+
+  if (slide.format === 'cta') {
+    return [{
+      type: 'cta',
+      eyebrow: 'Call To Action',
+      message: slide.body || slide.title,
+      actions: slide.bullets.slice(0, 4),
+      proof: slide.title
+    }].map(normalizeRenderBlock).filter(Boolean);
+  }
+
+  return [
+    ...(slide.body ? [{ type: 'paragraph', content: slide.body }] : []),
+    ...(slide.bullets.length ? [{ type: 'list', items: slide.bullets }] : []),
+    ...(!slide.body && !slide.bullets.length ? [{ type: 'paragraph', content: slide.title }] : [])
+  ].map(normalizeRenderBlock).filter(Boolean);
+};
+
 const looksHeroSlide = (title, paragraphs, listItems) => {
   const titleText = compactText(title).toLowerCase();
   const paragraphSurface = paragraphs.join(' ').toLowerCase();
@@ -542,28 +668,58 @@ const inferRenderVariant = (item, blocks) => {
 
 export const normalizeRenderDeck = (deck) => {
   const source = deck && typeof deck === 'object' ? deck : {};
-  const slides = Array.isArray(source.slides)
+  const rawSlides = Array.isArray(source.slides)
     ? source.slides
-        .map((slide) => {
+        .map((slide, index) => {
           const item = slide && typeof slide === 'object' ? slide : {};
           const blocks = Array.isArray(item.blocks)
             ? item.blocks.map(normalizeRenderBlock).filter(Boolean)
             : [];
           const variant = inferRenderVariant(item, blocks);
           return {
+            id: compactIdentifier(String(item.id || item.title || '')) || `slide-${index + 1}`,
             title: compactTitle(String(item.title || '').trim()),
             variant,
+            source_format: compactText(item.source_format || item.format || ''),
             blocks
           };
         })
         .filter((slide) => slide.title && slide.blocks.length)
     : [];
+  const slides = ensureUniqueSlideIds(rawSlides);
 
   return {
     title: compactText(source.title || source.deck_title || source.deckTitle || 'Untitled Deck') || 'Untitled Deck',
     intro: compactText(source.intro || ''),
+    meta: normalizeRenderDeckMeta(source, slides.length),
     slides
   };
+};
+
+export const validateRenderDeck = (deck) => {
+  const normalized = normalizeRenderDeck(deck);
+  if (normalized.meta.contract_version !== 'render-deck@1') {
+    throw new Error('Render deck contract version is invalid');
+  }
+  if (normalized.meta.slide_count !== normalized.slides.length) {
+    throw new Error('Render deck slide_count does not match slides length');
+  }
+
+  const ids = new Set();
+  for (const slide of normalized.slides) {
+    if (!slide.id) throw new Error('Render deck slide is missing id');
+    if (ids.has(slide.id)) throw new Error(`Duplicate render deck slide id: ${slide.id}`);
+    ids.add(slide.id);
+
+    if (!slide.variant || !ALLOWED_VARIANTS.has(slide.variant)) {
+      throw new Error(`Invalid render deck variant for slide ${slide.id}`);
+    }
+    if (!Array.isArray(slide.blocks) || !slide.blocks.length) {
+      throw new Error(`Render deck slide ${slide.id} has no blocks`);
+    }
+  }
+
+  return normalized;
 };
 
 export const markdownDeckToRenderDeck = (deck) => {
@@ -572,6 +728,9 @@ export const markdownDeckToRenderDeck = (deck) => {
   return normalizeRenderDeck({
     title: source.title || source.deck_title || 'Untitled Deck',
     intro: source.intro || '',
+    meta: {
+      source: 'markdown'
+    },
     slides: Array.isArray(source.slides)
       ? source.slides.map((slide) => {
           const item = slide && typeof slide === 'object' ? slide : {};
@@ -648,15 +807,6 @@ export const markdownDeckToRenderDeck = (deck) => {
 
 export const expandedToRenderDeck = (expanded) => {
   const normalized = normalizeExpanded(expanded);
-  const eyebrowFor = (format) => {
-    if (format === 'hero') return 'Launch Thesis';
-    if (format === 'compare') return 'Signal Shift';
-    if (format === 'metrics') return 'Proof Points';
-    if (format === 'process') return 'Execution Path';
-    if (format === 'summary') return 'Key Takeaways';
-    if (format === 'cta') return 'Call To Action';
-    return '';
-  };
   const toVariant = (format) => {
     if (format === 'hero' || format === 'compare' || format === 'metrics' || format === 'process' || format === 'summary' || format === 'cta') {
       return format;
@@ -666,84 +816,18 @@ export const expandedToRenderDeck = (expanded) => {
   return normalizeRenderDeck({
     title: normalized.deck_title,
     intro: 'Generated from confirmed outline',
+    meta: {
+      source: 'expanded',
+      profile: normalized.meta?.profile,
+      skill: normalized.meta?.skill,
+      default_theme: normalized.meta?.skill ? getSkill(normalized.meta.skill).default_theme : (normalized.meta?.profile ? getSkill(normalized.meta.profile).default_theme : '')
+    },
     slides: normalized.slides.map((slide) => ({
+      id: compactIdentifier(slide.title) || `slide-${slide.index}`,
       title: slide.title,
       variant: toVariant(slide.format),
-      blocks: (() => {
-        if (slide.format === 'hero') {
-          return [{
-            type: 'hero',
-            eyebrow: eyebrowFor(slide.format),
-            headline: slide.title,
-            body: slide.body,
-            points: slide.bullets.slice(0, 3),
-            proof: slide.bullets[2] || '',
-            stats: [
-              { value: `${slide.bullets.slice(0, 3).length}`, label: 'core signals' },
-              { value: slide.body ? '1' : '0', label: 'proof lines' }
-            ],
-            layout: 'hero-grid'
-          }];
-        }
-
-        if (slide.format === 'compare') {
-          const [leftLabel, rightLabel] = parseCompareLabels(slide.body, slide.title);
-          const midpoint = Math.max(2, Math.ceil(slide.bullets.length / 2));
-          return [{
-            type: 'compare',
-            eyebrow: eyebrowFor(slide.format),
-            body: slide.body,
-            summary: slide.title,
-            left: { label: leftLabel, items: slide.bullets.slice(0, midpoint) },
-            right: { label: rightLabel, items: slide.bullets.slice(midpoint) },
-            layout: 'two-col'
-          }];
-        }
-
-        if (slide.format === 'metrics') {
-          return [{
-            type: 'metrics',
-            eyebrow: eyebrowFor(slide.format),
-            intro: slide.body,
-            proof: slide.title,
-            items: slide.bullets.slice(0, 4).map(parseMetricItem)
-          }];
-        }
-
-        if (slide.format === 'process') {
-          return [{
-            type: 'process',
-            eyebrow: eyebrowFor(slide.format),
-            intro: slide.body,
-            steps: slide.bullets.slice(0, 5).map((item) => ({ label: item }))
-          }];
-        }
-
-        if (slide.format === 'summary') {
-          return [{
-            type: 'summary',
-            eyebrow: eyebrowFor(slide.format),
-            intro: slide.body,
-            items: slide.bullets.slice(0, 4)
-          }];
-        }
-
-        if (slide.format === 'cta') {
-          return [{
-            type: 'cta',
-            eyebrow: eyebrowFor(slide.format),
-            message: slide.body || slide.title,
-            actions: slide.bullets.slice(0, 4),
-            proof: slide.title
-          }];
-        }
-
-        return [
-          ...(slide.body ? [{ type: 'paragraph', content: slide.body }] : []),
-          ...(slide.bullets.length ? [{ type: 'list', items: slide.bullets }] : []),
-          ...(!slide.body && !slide.bullets.length ? [{ type: 'paragraph', content: slide.title }] : [])
-        ];
-      })()
+      source_format: slide.format,
+      blocks: slide.blocks
     }))
   });
 };

@@ -6,7 +6,10 @@ export type InputShape = 'slide_like' | 'document_like' | 'notes_like';
 export type DensityLevel = 'low' | 'medium' | 'high';
 export type RoughnessLevel = 'clean' | 'rough' | 'very_rough';
 export type RewriteStrategy = 'preserve' | 'light_rewrite' | 'aggressive_rewrite';
-export type DeckProfileName = 'general' | 'pitch-tech-launch';
+export type BuiltinSkillName = 'general' | 'pitch-tech-launch';
+export type SkillName = BuiltinSkillName | (string & {});
+// Legacy compatibility alias. New product-facing code should prefer SkillName.
+export type DeckProfileName = SkillName;
 export type ExpandFormat =
   | 'hero'
   | 'title-bullets'
@@ -62,7 +65,9 @@ export interface ClarificationQuestion {
 
 export interface PlanContext {
   answers?: Record<string, string>;
+  // Compatibility alias for legacy callers.
   profile?: DeckProfileName;
+  skill?: SkillName;
 }
 
 export interface OutlineSlide {
@@ -82,7 +87,9 @@ export interface OutlineResult {
 }
 
 export interface PlanMeta {
-  profile: DeckProfileName;
+  skill: SkillName;
+  // Compatibility alias for legacy consumers.
+  profile?: DeckProfileName;
   default_theme: string;
   content_intent: string;
   audience_guess: string;
@@ -105,6 +112,8 @@ export interface ExpandedSlide {
 }
 
 export interface ExpandMeta {
+  skill?: SkillName;
+  // Compatibility alias for legacy consumers.
   profile?: DeckProfileName;
   rewrite_quality: number;
   tone: 'presentation' | 'mixed';

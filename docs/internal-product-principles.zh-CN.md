@@ -56,7 +56,7 @@
 
 当前项目最需要守住的主链路是：
 
-`Markdown -> Plan -> Clarification -> Outline Confirmation -> Expand -> HTML`
+`Markdown -> Plan -> Clarification -> Outline Confirmation -> Expand -> RenderDeck -> HTML`
 
 这里的关键不是 HTML 渲染，而是把文稿逻辑转成展示逻辑。
 
@@ -66,7 +66,8 @@
 2. 规划每一页讲什么
 3. 在不确定时用最少的问题补足信息
 4. 把确认后的大纲改写成适合上屏的表达
-5. 用确定性的渲染层输出结果
+5. 把扩展结果冻结成 renderer 可直接消费的确定性结构
+6. 用确定性的渲染层输出结果
 
 这条链路应该始终优先于外围能力和附属功能。
 
@@ -117,6 +118,7 @@ agentic 不应该意味着：
 - LLM 负责 planning 和 rewriting
 - 渲染层必须保持确定性
 - 输出结构必须有清晰 schema
+- `RenderDeck` 应作为正式系统 artifact，而不是隐式内部对象
 
 ## 原则三：只有在确实影响 planning 结果时，才向用户提问
 
@@ -204,6 +206,7 @@ MVP 的主链路应该始终是：
   - timeout
   - request lifecycle
   - state machine
+  - render-deck normalization
   - HTML 渲染
   - preview orchestration
 
@@ -224,6 +227,8 @@ MVP 的主链路应该始终是：
   - 只在确实影响 planning 质量时提问
 - `Expander`
   - 负责把大纲改写成上屏表达
+- `RenderDeck`
+  - 负责把 expanded 结果冻结成 renderer 消费的确定性结构
 - `Polisher`
   - 负责有限度的结构纠偏
 - `Renderer`
@@ -269,7 +274,31 @@ MVP 的主链路应该始终是：
 - 保持界面低噪音
 - 删除不能提高决策质量的装饰性界面
 
-## 原则九：产品应该隐藏内部复杂度
+## 原则九：Studio 默认不暴露 artifact
+
+虽然系统内部主链已经包含：
+
+- `outline.json`
+- `expanded.json`
+- `render-deck.json`
+
+但 Studio 默认不应该把这些 artifact 作为主界面对象展示给用户。
+
+Studio 的默认职责应该仍然是：
+- 输入内容
+- 确认大纲
+- 预览 HTML
+- 导出 HTML
+
+这意味着：
+- 不要在主界面直接显示 raw JSON
+- 不要默认暴露 `mode`、`source`、`contract_version` 这类工程字段
+- 不要要求用户理解 `expanded` 和 `render-deck` 的区别
+
+artifact 应作为系统正式 contract 存在，并由 CLI 与内部链路优先承载。
+如果未来确实需要在 Studio 中暴露 artifact，也应放进 `Advanced / Dev Tools`，而不是主流程第一层。
+
+## 原则十：产品应该隐藏内部复杂度
 
 系统内部可以很复杂，例如：
 - analyzer
@@ -293,7 +322,7 @@ MVP 的主链路应该始终是：
 - 主界面不要暴露太多内部模块名
 - 除非未来战略明确，否则不要把产品做成“AI 工作流控制台”
 
-## 原则十：产品要增强人的判断，不是盲目替代人的判断
+## 原则十一：产品要增强人的判断，不是盲目替代人的判断
 
 这个产品不应该假设模型永远正确。
 
@@ -321,7 +350,7 @@ MVP 的主链路应该始终是：
 - 大纲确认必须先于 expand
 - 允许用户回退修改大纲
 
-## 原则十一：展示模式是产品决策，不是主题技巧
+## 原则十二：展示模式是产品决策，不是主题技巧
 
 系统后续应该明确区分：
 

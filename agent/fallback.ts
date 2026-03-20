@@ -1,7 +1,6 @@
 import { analyzeMarkdown } from './analysis.js';
 import { preprocessMarkdown } from './preprocess.js';
 import type {
-  DeckProfileName,
   ExpandedResult,
   ExpandedSlide,
   ExpandMeta,
@@ -12,8 +11,9 @@ import type {
   SlideIntent,
   SourceSection,
   PlanContext,
+  SkillName,
 } from './types.js';
-import { getDeckProfile } from '../shared/deck-profiles.js';
+import { getSkill } from '../shared/skills.js';
 
 function truncate(text: string, max: number): string {
   if (text.length <= max) return text;
@@ -175,9 +175,9 @@ function buildPlanMeta(
   analysis: MarkdownAnalysis,
   slideCount: number,
   slides: Array<{ title: string; points: string[] }>,
-  profileName: DeckProfileName,
+  skillName: SkillName,
 ): PlanMeta {
-  const profile = getDeckProfile(profileName);
+  const skill = getSkill(skillName);
   const structurallyThin = source.sections.length <= 1 && analysis.input_shape !== 'slide_like';
   const strongCoverage = slideCount >= Math.max(4, analysis.suggested_slide_count - 1);
   const confidence = structurallyThin
@@ -204,11 +204,12 @@ function buildPlanMeta(
   const deckTitle = source.deck_title || '当前主题';
 
   return {
-    profile: profile.name,
-    default_theme: profile.default_theme,
+    profile: skill.name,
+    skill: skill.name,
+    default_theme: skill.default_theme,
     planning_confidence: confidence,
     uncertainties: Array.from(new Set(uncertainties)).slice(0, 2),
-    content_intent: profile.name === 'pitch-tech-launch'
+    content_intent: skill.name === 'pitch-tech-launch'
       ? 'product_launch_pitch'
       : (analysis.input_shape === 'slide_like' ? 'structured_notes' : 'draft_to_slides'),
     audience_guess: structurallyThin ? 'needs_confirmation' : 'general_reader',
@@ -221,7 +222,7 @@ function buildPlanMeta(
 export function buildHeuristicOutline(markdown: string, context?: PlanContext): OutlineResult {
   const source = preprocessMarkdown(markdown);
   const analysis = analyzeMarkdown(markdown);
-  const profile = getDeckProfile(context?.profile);
+  const skill = getSkill(context?.skill || context?.profile);
   const regrouped = regroupSections(source, analysis);
 
   const slides: OutlineSlide[] = regrouped.map((section, index) => {
@@ -239,7 +240,7 @@ export function buildHeuristicOutline(markdown: string, context?: PlanContext): 
   return {
     deck_title: source.deck_title || 'Untitled Deck',
     slides,
-    meta: buildPlanMeta(source, analysis, slides.length, regrouped, profile.name),
+    meta: buildPlanMeta(source, analysis, slides.length, regrouped, skill.name),
   };
 }
 
@@ -277,6 +278,7 @@ function buildSlideBody(slide: OutlineSlide): string {
 function buildExpandMeta(outline: OutlineResult): ExpandMeta {
   return {
     profile: outline.meta?.profile,
+    skill: outline.meta?.skill || outline.meta?.profile,
     rewrite_quality: 0.62,
     tone: 'mixed',
     review_issues: outline.meta?.planning_confidence < 0.6 ? ['fallback_used'] : [],
@@ -286,11 +288,11 @@ function buildExpandMeta(outline: OutlineResult): ExpandMeta {
 
 export function buildHeuristicExpanded(markdown: string, outline: OutlineResult): ExpandedResult {
   void markdown;
-  const profile = getDeckProfile(outline.meta?.profile);
+  const skill = getSkill(outline.meta?.skill || outline.meta?.profile);
   const slides: ExpandedSlide[] = outline.slides.map((slide) => ({
     index: slide.index,
     title: slide.title,
-    format: profile.name === 'pitch-tech-launch'
+    format: skill.name === 'pitch-tech-launch'
       ? coercePitchFormat(slide, slide.index - 1, outline.slides.length)
       : coerceFormat(slide),
     bullets: (slide.detail_points ?? slide.preview_points ?? []).slice(0, 4).map((item) => compactClause(item)).filter(Boolean),

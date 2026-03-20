@@ -85,6 +85,8 @@ const polishExpanded = (expanded: ExpandedResult): ExpandedResult => {
   return {
     ...expanded,
     meta: {
+      profile: expanded.meta?.profile,
+      skill: expanded.meta?.skill || expanded.meta?.profile,
       rewrite_quality: Math.max(expanded.meta?.rewrite_quality || 0.72, 0.78),
       tone: expanded.meta?.tone || 'presentation',
       review_issues: [...reviewIssues],
@@ -103,6 +105,8 @@ export const requestExpand = async (
   options: ExpandRequestOptions = {}
 ): Promise<{ expanded: ExpandedResult; mode: 'llm' | 'fallback' }> => {
   const analysis = analyzeMarkdown(markdown);
+  const finalizeExpanded = (payload: unknown): ExpandedResult =>
+    normalizeExpanded(polishExpanded(normalizeExpanded(payload)));
 
   try {
     const payload = await provider.callJson({
@@ -110,12 +114,12 @@ export const requestExpand = async (
       timeoutMs: options.timeoutMs ?? 12000,
       maxTokens: options.maxTokens ?? 900
     });
-    return { expanded: polishExpanded(normalizeExpanded(payload)), mode: 'llm' };
+    return { expanded: finalizeExpanded(payload), mode: 'llm' };
   } catch (error) {
     if (options.allowFallback === false) {
       throw error;
     }
     console.error('[expand-fallback]', (error as Error)?.message || error);
-    return { expanded: polishExpanded(buildHeuristicExpanded(markdown, outline)), mode: 'fallback' };
+    return { expanded: finalizeExpanded(buildHeuristicExpanded(markdown, outline)), mode: 'fallback' };
   }
 };

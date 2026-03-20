@@ -100,7 +100,7 @@
 #### System Mode 输入
 
 - Markdown
-- profile
+- skill
 - 可选 clarification answers
 
 不要求：

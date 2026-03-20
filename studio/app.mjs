@@ -1,5 +1,5 @@
 import { expandedToRenderDeck, normalizeClarification, normalizeExpanded, normalizeOutline, outlineToApiPayload } from '../shared/core.js';
-import { DECK_PROFILES, getDeckProfile } from '../shared/deck-profiles.js';
+import { SKILLS, getSkill } from '../shared/skills.js';
 import { THEMES } from '../templates/index.mjs';
 
 const SAMPLE_MARKDOWN = `# Aurora Launch
@@ -41,8 +41,8 @@ const sourceDropzone = document.getElementById('sourceDropzone');
 const sourceFileInput = document.getElementById('sourceFileInput');
 const sourceFileMeta = document.getElementById('sourceFileMeta');
 const pickFileBtn = document.getElementById('pickFileBtn');
-const profileSelect = document.getElementById('profileSelect');
-const profileHint = document.getElementById('profileHint');
+const skillSelect = document.getElementById('profileSelect');
+const skillHint = document.getElementById('profileHint');
 const audienceInput = document.getElementById('audienceInput');
 const goalInput = document.getElementById('goalInput');
 const slideCountInput = document.getElementById('slideCountInput');
@@ -77,8 +77,8 @@ const backToPlanBtn = document.getElementById('backToPlanBtn');
 const processBadge = document.getElementById('processBadge');
 const processSteps = document.getElementById('processSteps');
 
-let activeProfile = getDeckProfile('pitch-tech-launch');
-let activeTheme = THEMES.find((theme) => theme.name === activeProfile.default_theme) || THEMES[0];
+let activeSkill = getSkill('pitch-tech-launch');
+let activeTheme = THEMES.find((theme) => theme.name === activeSkill.default_theme) || THEMES[0];
 let currentHtml = '';
 let outlinePlan = null;
 let expandedDeck = null;
@@ -210,7 +210,7 @@ const collectPlannerAnswers = () => ({
 });
 
 const applySampleBrief = () => {
-  const sample = SAMPLE_BRIEF[activeProfile.name] || SAMPLE_BRIEF.general;
+  const sample = SAMPLE_BRIEF[activeSkill.name] || SAMPLE_BRIEF.general;
   if (audienceInput) audienceInput.value = sample.audience;
   if (goalInput) goalInput.value = sample.goal;
   if (slideCountInput) slideCountInput.value = sample.slide_count;
@@ -464,7 +464,7 @@ const renderOutlineSummary = (plan = outlinePlan) => {
     return;
   }
 
-  const profile = getDeckProfile(plan.meta?.profile);
+  const skill = getSkill(plan.meta?.skill || plan.meta?.profile);
   const recommendedTheme = getThemeLabel(plan.meta?.default_theme);
   outlineSummary.classList.remove('outline-summary-empty');
   outlineSummary.innerHTML = `
@@ -479,7 +479,7 @@ const renderOutlineSummary = (plan = outlinePlan) => {
       </article>
       <article class="outline-metric">
         <span>场景</span>
-        <strong>${escapeHtml(profile.studio_label)}</strong>
+        <strong>${escapeHtml(skill.studio_label)}</strong>
       </article>
       <article class="outline-metric">
         <span>推荐主题</span>
@@ -550,7 +550,7 @@ const renderThemeHighlight = () => {
     return;
   }
 
-  const profile = getDeckProfile(expandedDeck.meta?.profile || outlinePlan?.meta?.profile || activeProfile.name);
+  const skill = getSkill(expandedDeck.meta?.skill || expandedDeck.meta?.profile || outlinePlan?.meta?.skill || outlinePlan?.meta?.profile || activeSkill.name);
   const recommended = outlinePlan?.meta?.default_theme === activeTheme.name;
   previewSummary.textContent = `已生成 ${expandedDeck.slides.length} 页内容，选择主题后可直接导出 HTML。`;
   themeHighlight.classList.remove('theme-highlight-empty');
@@ -567,7 +567,7 @@ const renderThemeHighlight = () => {
       <div class="theme-highlight-meta">
         <div>
           <span>适用场景</span>
-          <strong>${escapeHtml(profile.studio_label)}</strong>
+          <strong>${escapeHtml(skill.studio_label)}</strong>
         </div>
         <div>
           <span>输出格式</span>
@@ -578,18 +578,18 @@ const renderThemeHighlight = () => {
   `;
 };
 
-const renderProfileSelect = () => {
-  if (!profileSelect) return;
-  profileSelect.innerHTML = DECK_PROFILES.map((profile) => `
-    <option value="${escapeHtml(profile.name)}">${escapeHtml(profile.studio_label)}</option>
+const renderSkillSelect = () => {
+  if (!skillSelect) return;
+  skillSelect.innerHTML = SKILLS.map((skill) => `
+    <option value="${escapeHtml(skill.name)}">${escapeHtml(skill.studio_label)}</option>
   `).join('');
-  profileSelect.value = activeProfile.name;
-  if (profileHint) profileHint.textContent = activeProfile.studio_description;
+  skillSelect.value = activeSkill.name;
+  if (skillHint) skillHint.textContent = activeSkill.studio_description;
 };
 
-const syncProfileTheme = () => {
-  const profileTheme = THEMES.find((theme) => theme.name === activeProfile.default_theme);
-  if (profileTheme) activeTheme = profileTheme;
+const syncSkillTheme = () => {
+  const skillTheme = THEMES.find((theme) => theme.name === activeSkill.default_theme);
+  if (skillTheme) activeTheme = skillTheme;
 };
 
 const syncTaskState = (nextState) => {
@@ -952,7 +952,7 @@ const requestPlan = async () => {
     const response = await fetch('/api/plan-stream', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ markdown, context: { answers: collectPlannerAnswers(), profile: activeProfile.name } })
+      body: JSON.stringify({ markdown, context: { answers: collectPlannerAnswers(), skill: activeSkill.name } })
     });
 
     if (!response.ok) {
@@ -1028,7 +1028,7 @@ const requestExpand = async () => {
       body: JSON.stringify({
         markdown,
         outline: outlineToApiPayload(sanitizeOutlinePlan(outlinePlan)),
-        context: { answers: collectPlannerAnswers(), profile: activeProfile.name }
+        context: { answers: collectPlannerAnswers(), skill: activeSkill.name }
       })
     });
 
@@ -1068,14 +1068,14 @@ const requestExpand = async () => {
   }
 };
 
-profileSelect?.addEventListener('change', () => {
-  activeProfile = getDeckProfile(profileSelect.value);
-  syncProfileTheme();
+skillSelect?.addEventListener('change', () => {
+  activeSkill = getSkill(skillSelect.value);
+  syncSkillTheme();
   applySampleBrief();
-  renderProfileSelect();
+  renderSkillSelect();
   renderThemeGrid();
-  handlePlanningInputChange(`当前 profile：${activeProfile.studio_label}。请重新生成每页大纲。`);
-  setPlannerStatus(`当前 profile：${activeProfile.studio_label}。输入内容后生成每页大纲。`);
+  handlePlanningInputChange(`当前 skill：${activeSkill.studio_label}。请重新生成每页大纲。`);
+  setPlannerStatus(`当前 skill：${activeSkill.studio_label}。输入内容后生成每页大纲。`);
 });
 
 planMarkdownBtn.addEventListener('click', requestPlan);
@@ -1186,12 +1186,12 @@ openDeckBtn.addEventListener('click', () => {
 markdownInput.value = SAMPLE_MARKDOWN;
 applySampleBrief();
 updateSourceFileMeta();
-renderProfileSelect();
+renderSkillSelect();
 renderThemeGrid();
 renderOutlineToolbar(null);
 renderOutlineList(outlinePanel, null, '先生成并确认每页大纲');
 renderOutlineSummary(null);
 setPreviewLocked();
-setPlannerStatus(`当前 profile：${activeProfile.studio_label}。输入内容后生成每页大纲。`);
+setPlannerStatus(`当前 skill：${activeSkill.studio_label}。输入内容后生成每页大纲。`);
 syncTaskState(TASK_STATE.IDLE);
 setStep('plan');

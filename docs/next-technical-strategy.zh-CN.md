@@ -4,7 +4,7 @@
 
 当前系统已经完成了 `P0` 主链路：
 
-- `Markdown -> Plan -> Clarification -> Outline Confirmation -> Expand -> HTML`
+- `Markdown -> Plan -> Clarification -> Outline Confirmation -> Expand -> RenderDeck -> HTML`
 - 具备：
   - `cache`
   - `fallback`
@@ -100,6 +100,7 @@ User Markdown
      -> else: Outline
   -> Polisher / Reviewer
   -> Expand Mode (LLM)
+  -> RenderDeck
   -> Renderer
   -> HTML Preview / Export
 ```
@@ -146,7 +147,15 @@ User Markdown
   - `detail_points`
   - expanded slide content
 
-6. `Renderer`
+6. `RenderDeck`
+- 把 expanded 结果冻结为 renderer 最终消费的确定性结构
+- 输出：
+  - `title`
+  - `intro`
+  - `meta`
+  - `slides[*].id / variant / blocks`
+
+7. `Renderer`
 - deterministic
 - 只负责 HTML，不负责内容判断
 
@@ -172,6 +181,7 @@ User Markdown
 - shared contract 收口
 - provider 抽象稳定
 - CLI / Studio / server 共享同一套 normalize 和 helper
+- `RenderDeck` contract 固定化并持续校验
 - regression 与 eval 持续可跑
 
 不优先做：

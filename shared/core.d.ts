@@ -1,4 +1,4 @@
-import type { ClarificationResult, DeckProfileName, ExpandedResult, OutlineResult, PlanContext } from '../agent/types.js';
+import type { ClarificationResult, ExpandedResult, OutlineResult, PlanContext, SkillName } from '../agent/types.js';
 
 export interface RenderParagraphBlock {
   type: 'paragraph';
@@ -107,19 +107,34 @@ export type RenderBlock =
   | RenderCtaBlock;
 
 export interface RenderSlide {
+  id: string;
   title: string;
   variant: 'default' | 'hero' | 'compare' | 'metrics' | 'process' | 'summary' | 'cta';
+  source_format?: string;
   blocks: RenderBlock[];
+}
+
+export interface RenderDeckMeta {
+  contract_version: 'render-deck@1';
+  source: 'expanded' | 'markdown' | 'manual';
+  skill?: SkillName;
+  // Compatibility alias for legacy consumers.
+  profile?: SkillName;
+  default_theme?: string;
+  slide_count: number;
 }
 
 export interface RenderDeck {
   title: string;
   intro: string;
+  meta: RenderDeckMeta;
   slides: RenderSlide[];
 }
 
 export interface NormalizedPlanContext extends PlanContext {
-  profile: DeckProfileName;
+  skill: SkillName;
+  // Compatibility alias for legacy callers.
+  profile: SkillName;
 }
 
 export function normalizePlanContext(value: unknown): NormalizedPlanContext;
@@ -128,5 +143,6 @@ export function normalizeOutline(payload: unknown): OutlineResult;
 export function outlineToApiPayload(outline: unknown): OutlineResult;
 export function normalizeExpanded(payload: unknown): ExpandedResult;
 export function normalizeRenderDeck(deck: unknown): RenderDeck;
+export function validateRenderDeck(deck: unknown): RenderDeck;
 export function markdownDeckToRenderDeck(deck: unknown): RenderDeck;
 export function expandedToRenderDeck(expanded: unknown): RenderDeck;

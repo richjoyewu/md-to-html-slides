@@ -2,7 +2,7 @@
 
 ## 文档目的
 
-这份文档把 [demo-openclaw.html](/Users/joye/Desktop/md-to-html-slides/examples/demo-openclaw.html) 作为一个设计基准样板来拆解。
+这份文档把 `demo-openclaw.html` 这一历史设计样板作为一个设计基准来拆解。
 
 目的不是复刻这个 demo 的每一行代码。
 

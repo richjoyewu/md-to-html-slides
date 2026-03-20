@@ -16,7 +16,7 @@ import type {
   OutlineResult,
   PlanContext
 } from './types.js';
-import { expandedToRenderDeck, normalizeOutline, normalizePlanContext } from '../shared/core.js';
+import { expandedToRenderDeck, normalizeExpanded, normalizeOutline, normalizePlanContext, normalizeRenderDeck } from '../shared/core.js';
 import type { RenderDeck } from '../shared/core.js';
 
 interface CacheEntry<T> {
@@ -80,6 +80,11 @@ export interface RenderExecutionResult {
   theme: ThemeDefinition;
 }
 
+export interface RenderDeckExecutionResult {
+  kind: 'render_deck';
+  deck: RenderDeck;
+}
+
 export type BuildExecutionResult =
   | {
       kind: 'clarification';
@@ -101,6 +106,16 @@ const EXPAND_CACHE_LIMIT = 50;
 
 const loadThemesModule = async (): Promise<ThemeModule> =>
   import(new URL('../../templates/index.mjs', import.meta.url).href) as Promise<ThemeModule>;
+
+const looksLikeRenderDeck = (input: unknown): boolean => {
+  const source = input && typeof input === 'object' ? input as { slides?: unknown[] } : {};
+  if (!Array.isArray(source.slides) || !source.slides.length) return false;
+
+  return source.slides.every((slide) => {
+    const item = slide && typeof slide === 'object' ? slide as Record<string, unknown> : {};
+    return Array.isArray(item.blocks) && !('format' in item) && !('bullets' in item) && !('body' in item);
+  });
+};
 
 const remember = <T>(cache: Map<string, CacheEntry<T>>, limit: number, key: string, payload: T): void => {
   if (cache.has(key)) cache.delete(key);
@@ -250,6 +265,7 @@ export const createCorePipeline = (options: CorePipelineOptions = {}) => {
       mode = 'fallback';
     }
 
+    expanded = normalizeExpanded(expanded);
     remember(expandCache, expandCacheLimit, expandKey, expanded);
     return { kind: 'expanded', payload: expanded, mode };
   };
@@ -289,8 +305,8 @@ export const createCorePipeline = (options: CorePipelineOptions = {}) => {
 
   const render = async (expandedInput: ExpandedResult | unknown, options: RenderOptions = {}): Promise<RenderExecutionResult> => {
     const { getTheme, THEMES } = await loadThemesModule();
-    const deck = expandedToRenderDeck(expandedInput);
-    if (options.title?.trim()) deck.title = options.title.trim();
+    const renderDeck = toRenderDeck(expandedInput, options);
+    const deck = renderDeck.deck;
 
     const requestedTheme = options.theme?.trim();
     const themeName = requestedTheme || 'dark-card';
@@ -308,10 +324,20 @@ export const createCorePipeline = (options: CorePipelineOptions = {}) => {
     };
   };
 
+  const toRenderDeck = (input: ExpandedResult | RenderDeck | unknown, options: RenderOptions = {}): RenderDeckExecutionResult => {
+    const deck = looksLikeRenderDeck(input) ? normalizeRenderDeck(input) : expandedToRenderDeck(input);
+    if (options.title?.trim()) deck.title = options.title.trim();
+    return {
+      kind: 'render_deck',
+      deck
+    };
+  };
+
   return {
     build,
     expand,
     plan,
-    render
+    render,
+    toRenderDeck
   };
 };

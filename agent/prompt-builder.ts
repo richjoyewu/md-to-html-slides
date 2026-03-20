@@ -1,20 +1,20 @@
 import { analyzeMarkdown } from './analysis.js';
 import { preprocessMarkdown } from './preprocess.js';
 import type { MarkdownAnalysis, OutlineResult, PlanContext } from './types.js';
-import { getDeckProfile } from '../shared/deck-profiles.js';
+import { getSkill } from '../shared/skills.js';
 
 // Planner prompt：系统只提供结构事实和最少边界，内容意图、取舍和拆页决策交给 LLM。
 export const buildPlanPrompt = (markdown: string, context?: PlanContext): string => {
   const source = preprocessMarkdown(markdown);
   const analysis = analyzeMarkdown(markdown);
   const answers = context?.answers || {};
-  const profile = getDeckProfile(context?.profile);
+  const skill = getSkill(context?.skill || context?.profile);
 
   return [
     '你是一个高质量中文演示文稿 Planner。',
     '你的任务是理解输入内容，并把它规划成可确认的页面大纲。',
     '只输出 JSON。',
-    '格式: {"deck_title":"...","profile":"...","default_theme":"...","content_intent":"...","audience_guess":"...","deck_goal":"...","core_message":"...","omitted_topics":["..."],"planning_confidence":0.0,"uncertainties":["..."],"slides":[{"index":1,"title":"...","summary":"...","preview_points":["..."],"detail_points":["..."],"intent":"..."}] }',
+    '格式: {"deck_title":"...","skill":"...","profile":"...","default_theme":"...","content_intent":"...","audience_guess":"...","deck_goal":"...","core_message":"...","omitted_topics":["..."],"planning_confidence":0.0,"uncertainties":["..."],"slides":[{"index":1,"title":"...","summary":"...","preview_points":["..."],"detail_points":["..."],"intent":"..."}] }',
     '',
     '你必须先完成这四个内部步骤，再输出 JSON：',
     '1. 判断这份内容最终想让受众理解什么，并写成 deck_goal。',
@@ -25,8 +25,9 @@ export const buildPlanPrompt = (markdown: string, context?: PlanContext): string
     '核心要求：',
     '- deck_goal 必须是面向受众的结果目标，而不是泛泛的“介绍主题”或重复标题。',
     '- core_message 必须是一句可以单独成立的核心结论，不能只是 deck_title 的改写。',
-    `- profile 固定返回 ${profile.name}。`,
-    `- default_theme 固定返回 ${profile.default_theme}。`,
+    `- skill 固定返回 ${skill.name}。`,
+    `- profile 作为兼容字段时与 skill 保持相同值。`,
+    `- default_theme 固定返回 ${skill.default_theme}。`,
     '- omitted_topics 记录被主动舍弃、合并或后置的次要主题；如果没有明确舍弃项，返回空数组。',
     '- 先理解内容主线，再决定页结构，不要机械沿用原文顺序。',
     '- 允许舍弃细节，只保留适合上屏的核心内容。',
@@ -45,17 +46,17 @@ export const buildPlanPrompt = (markdown: string, context?: PlanContext): string
     '- 如果内容有明显收束价值，最后一页优先做 summary。',
     '- 如果无法明确判断哪些内容应被省略，也要在 uncertainties 中承认这一点，而不是假装确定。',
     '',
-    '当前 deck profile：',
+    '当前 skill：',
     JSON.stringify({
-      name: profile.name,
-      description: profile.description,
-      default_theme: profile.default_theme,
-      planner_rules: profile.planner_rules,
-      format_guidance: profile.format_guidance
+      name: skill.name,
+      description: skill.description,
+      default_theme: skill.default_theme,
+      planner_rules: skill.planner_rules,
+      format_guidance: skill.format_guidance
     }, null, 2),
     '',
-    '可参考的 profile 示例大纲：',
-    JSON.stringify(profile.outline_example, null, 2),
+    '可参考的 skill 示例大纲：',
+    JSON.stringify(skill.outline_example, null, 2),
     '',
     '用户补充信息：',
     JSON.stringify(answers, null, 2),
@@ -84,18 +85,20 @@ export const buildExpandPrompt = ({
   const intentHint = outline.meta?.content_intent || 'general presentation';
   const audienceHint = outline.meta?.audience_guess || '未指定受众';
   const rewriteHint = analysis.rewrite_strategy;
-  const profile = getDeckProfile(outline.meta?.profile);
+  const skill = getSkill(outline.meta?.skill || outline.meta?.profile);
   const answers = context?.answers || {};
 
   return [
     '你是一个高质量中文演示文稿 Expander。',
     '你的任务不是补更多字，而是把已确认大纲改写成能直接上屏的页面内容。',
     '只输出 JSON。',
-    '格式: {"deck_title":"...","meta":{"profile":"...","rewrite_quality":0.0,"tone":"presentation","review_issues":["..."],"actions_taken":["..."]},"slides":[{"index":1,"title":"...","format":"hero","bullets":["..."],"body":"..."}] }',
+    '格式: {"deck_title":"...","meta":{"skill":"...","profile":"...","rewrite_quality":0.0,"tone":"presentation","review_issues":["..."],"actions_taken":["..."]},"slides":[{"index":1,"title":"...","format":"hero","bullets":["..."],"body":"...","blocks":[{"type":"hero"}]}] }',
     '',
     '硬性要求：',
-    '- meta.profile 固定返回当前 profile 名称。',
+    '- meta.skill 固定返回当前 skill 名称。',
+    '- meta.profile 作为兼容字段时与 skill 保持相同值。',
     '- format 只能使用 hero, title-bullets, title-body, compare, metrics, process, summary, cta。',
+    '- 优先输出 blocks 数组来表达页面语义结构；普通文本页可省略 blocks，由系统回退到 paragraph/list。',
     '- 大多数常规解释页使用 title-bullets。',
     '- bullets 必须是可直接上屏的短句，优先 8 到 18 个字，不得复述原始长句。',
     '- bullets 之间必须平行，避免一条是结论、一条是过程、一条是备注。',
@@ -108,22 +111,28 @@ export const buildExpandPrompt = ({
     '- 如果某页 detail_points 已经足够清楚，就围绕它重写，不要回去拼贴原始文稿。',
     '- 如果原始内容里存在“比如、然后、后面、可能、顺便、也可以、差不多”这类草稿语气，要改成正式演示表达，但不要机械列词替换。',
     '- hero 页优先输出 2 到 3 条高密度主张，并保留一句短 body。',
+    '- hero 页如果输出 blocks，使用 {"type":"hero","headline":"...","body":"...","points":["..."]}。',
     '- compare 页优先输出 4 条 bullet，按 左列前两条 + 右列后两条 的顺序组织；body 用“左标签 | 右标签”的形式。',
+    '- compare 页如果输出 blocks，使用 {"type":"compare","left":{"label":"...","items":["..."]},"right":{"label":"...","items":["..."]}}。',
     '- metrics 页优先输出 3 条 bullet，并把数字、倍率、百分比放在每条最前面。',
+    '- metrics 页如果输出 blocks，使用 {"type":"metrics","items":[{"value":"...","label":"...","note":"..."}]}。',
     '- process 页输出 3 到 5 条顺序清晰的步骤，避免泛泛的过渡词。',
+    '- process 页如果输出 blocks，使用 {"type":"process","steps":[{"label":"...","detail":"..."}]}。',
     '- summary 页优先输出 3 条收束性 bullet 或 1 段很短 body。',
+    '- summary 页如果输出 blocks，使用 {"type":"summary","items":["..."]}。',
     '- cta 页必须像收尾页，body 给一句主张，bullets 给合作方向或下一步动作。',
+    '- cta 页如果输出 blocks，使用 {"type":"cta","message":"...","actions":["..."]}。',
     '- 输出 meta.rewrite_quality，范围 0 到 1。',
     '- 如果输出仍然保留草稿痕迹或某页表达不够上屏，要把问题写进 meta.review_issues。',
     '- actions_taken 简要说明你做了哪些改写动作，例如“压缩长句”“改成结论式要点”“合并重复表达”。',
     '',
-    '当前 deck profile：',
+    '当前 skill：',
     JSON.stringify({
-      name: profile.name,
-      description: profile.description,
-      default_theme: profile.default_theme,
-      expansion_rules: profile.expansion_rules,
-      format_guidance: profile.format_guidance
+      name: skill.name,
+      description: skill.description,
+      default_theme: skill.default_theme,
+      expansion_rules: skill.expansion_rules,
+      format_guidance: skill.format_guidance
     }, null, 2),
     '',
     '当前内容意图：',
@@ -138,8 +147,8 @@ export const buildExpandPrompt = ({
     '用户补充信息：',
     JSON.stringify(answers, null, 2),
     '',
-    '可参考的 profile 示例成稿：',
-    JSON.stringify(profile.expanded_example, null, 2),
+    '可参考的 skill 示例成稿：',
+    JSON.stringify(skill.expanded_example, null, 2),
     '',
     '结构分析（仅供参考）：',
     JSON.stringify(analysis, null, 2),

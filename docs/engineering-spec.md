@@ -79,31 +79,37 @@ md-to-html-slides build <input.md> -o <output.html>
 #### `plan`
 
 ```bash
-md-to-html-slides plan <input.md> [--profile <name>] [--answer <key=value>] [-o <outline.json>]
+md-to-html-slides plan <input.md> [--skill <name>] [--profile <name> compatibility alias] [--answer <key=value>] [-o <outline.json>]
 ```
 
 #### `expand`
 
 ```bash
-md-to-html-slides expand <input.md> [--profile <name>] [--answer <key=value>] [--outline <outline.json>] [-o <expanded.json>]
+md-to-html-slides expand <input.md> [--skill <name>] [--profile <name> compatibility alias] [--answer <key=value>] [--outline <outline.json>] [-o <expanded.json>]
+```
+
+#### `render-deck`
+
+```bash
+md-to-html-slides render-deck <expanded.json> [--title <text>] [-o <render-deck.json>]
 ```
 
 #### `build`
 
 ```bash
-md-to-html-slides build <input.md> -o <output.html> [--theme <name>] [--title <text>] [--profile <name>] [--answer <key=value>] [--outline <outline.json>]
+md-to-html-slides build <input.md> -o <output.html> [--theme <name>] [--title <text>] [--skill <name>] [--profile <name> compatibility alias] [--answer <key=value>] [--outline <outline.json>]
 ```
 
 #### `preview`
 
 ```bash
-md-to-html-slides preview <input.md> [--theme <name>] [--title <text>] [--profile <name>] [--answer <key=value>] [--outline <outline.json>]
+md-to-html-slides preview <input.md> [--theme <name>] [--title <text>] [--skill <name>] [--profile <name> compatibility alias] [--answer <key=value>] [--outline <outline.json>]
 ```
 
 #### `render`
 
 ```bash
-md-to-html-slides render <expanded.json> -o <output.html> [--theme <name>] [--title <text>]
+md-to-html-slides render <render-deck.json|expanded.json> -o <output.html> [--theme <name>] [--title <text>]
 ```
 
 #### `skills`
@@ -127,12 +133,209 @@ md-to-html-slides themes
 ### Current CLI Principles
 
 - Accept one Markdown file at a time.
-- Expose the core pipeline stages: `plan -> expand -> render -> build`.
+- Expose the core pipeline stages: `plan -> expand -> render-deck -> render -> build`.
 - Produce one self-contained HTML file.
 - Keep renderer behavior deterministic.
 - Use the same core pipeline as Studio for planning and expansion.
 - Keep Studio as a thin shell over the canonical CLI/core contracts.
+- Support clarification in both interactive and non-interactive modes.
 - Fail clearly when input is missing or invalid.
+
+### Clarification Mode
+
+- `build` and `preview` default to interactive clarification when running in a TTY
+- `plan` and `expand` default to non-interactive clarification output
+- `--interactive` forces terminal Q&A
+- `--no-interactive` forces clarification to be returned as JSON/artifact instead of prompting
+
+## Expanded Contract
+
+### Goal
+
+Make expanded output closer to semantic presentation blocks instead of leaving visual structure inference to the renderer.
+
+### Direction
+
+- `outline.json` answers: what to say and in what order
+- `expanded.json` answers: what semantic surface each page should use
+- `render-deck.json` answers: what deterministic render structure the theme consumes
+
+### Current Rule
+
+- `ExpandedResult.slides[*]` may keep compatibility fields like `format`, `bullets`, and `body`
+- `ExpandedResult.slides[*].blocks` is now the preferred semantic surface field
+- renderer should consume `blocks` first and only fall back to compatibility fields when needed
+- semantic blocks should carry expressive visual meaning such as:
+  - `hero`
+  - `compare`
+  - `metrics`
+  - `process`
+  - `summary`
+  - `cta`
+
+### Practical Boundary
+
+- planner decides page order, focus, and intent
+- expander decides semantic blocks and on-screen wording
+- renderer decides deterministic HTML and theme styling
+
+## Render-Deck Contract
+
+### Goal
+
+Make `render-deck.json` a stable artifact that can be stored, passed to other agents, and rendered later without re-running planning or expansion.
+
+### Fixed Schema: `render-deck@1`
+
+`render-deck.json` is the canonical deterministic renderer input.
+
+Canonical top-level shape:
+
+```json
+{
+  "title": "Deck Title",
+  "intro": "Optional intro",
+  "meta": {
+    "contract_version": "render-deck@1",
+    "source": "expanded",
+    "skill": "general",
+    "default_theme": "dark-card",
+    "slide_count": 3
+  },
+  "slides": [
+    {
+      "id": "slide-1",
+      "title": "Current Flow Slows Delivery",
+      "variant": "hero",
+      "source_format": "hero",
+      "blocks": [
+        {
+          "type": "hero",
+          "headline": "Current Flow Slows Delivery",
+          "body": "Manual handoffs delay execution",
+          "points": ["Manual sync", "Slow delivery", "Low consistency"]
+        }
+      ]
+    }
+  ]
+}
+```
+
+### Top-Level Fields
+
+- `title`: required string. Final deck title consumed by the renderer.
+- `intro`: required string. May be empty.
+- `meta`: required object.
+- `slides`: required array of render slides.
+
+### `meta` Object
+
+- `contract_version`: required string literal. Current fixed value is `render-deck@1`.
+- `source`: required enum. Allowed values: `expanded`, `markdown`, `manual`.
+- `profile`: optional string. Compatibility alias for renderer-facing profile context.
+- `skill`: optional string. Preferred reusable expression strategy identifier.
+- `default_theme`: optional string. Recommended theme name for downstream rendering.
+- `slide_count`: required integer. Must match `slides.length`.
+
+### Render Slide Object
+
+Each slide in `slides[]` must contain:
+
+- `id`: required string. Stable slide identifier within the deck.
+- `title`: required string.
+- `variant`: required enum. Allowed values:
+  - `default`
+  - `hero`
+  - `compare`
+  - `metrics`
+  - `process`
+  - `summary`
+  - `cta`
+- `source_format`: optional string. Carries the upstream expanded-page format when available.
+- `blocks`: required array of render blocks. Must not be empty.
+
+### Render Block Union
+
+Allowed `blocks[*].type` values and required fields:
+
+- `paragraph`
+  - required: `content`
+- `list`
+  - required: `items`
+- `image`
+  - required: `inlinedSrc`
+  - optional: `alt`, `src`
+- `code`
+  - required: `content`
+  - optional: `language`
+- `hero`
+  - required: `headline`, `points`
+  - optional: `eyebrow`, `body`, `proof`, `stats`, `layout`
+- `compare`
+  - required: `left`, `right`
+  - optional: `eyebrow`, `body`, `summary`, `layout`
+- `metrics`
+  - required: `items`
+  - optional: `eyebrow`, `intro`, `proof`
+- `process`
+  - required: `steps`
+  - optional: `eyebrow`, `intro`
+- `summary`
+  - required: `items`
+  - optional: `eyebrow`, `intro`
+- `cta`
+  - required: `message`, `actions`
+  - optional: `eyebrow`, `proof`
+
+### Nested Object Rules
+
+- `compare.left` and `compare.right` must contain:
+  - `label`: required string
+  - `items`: required string array
+  - `caption`: optional string
+- `metrics.items[*]` must contain:
+  - `value`: required string
+  - `label`: required string
+  - `note`: optional string
+- `process.steps[*]` must contain:
+  - `label`: required string
+  - `detail`: optional string
+- `hero.stats[*]` must contain:
+  - `value`: required string
+  - `label`: required string
+
+### Consistency Rules
+
+- `meta.contract_version` must always be `render-deck@1`.
+- `meta.slide_count` must equal `slides.length`.
+- `slides[*].id` must be unique within a deck.
+- `slides[*].blocks` must already be renderer-ready; renderer should not need to infer page semantics from `title`, `bullets`, or `body`.
+- `render` may accept either `expanded.json` or `render-deck.json`, but `render-deck.json` is the preferred renderer input and the stable persisted artifact.
+
+### Contract Boundary
+
+- `outline.json` decides page order, focus, and intent.
+- `expanded.json` decides on-screen wording and semantic block intent.
+- `render-deck.json` freezes the deterministic structure the theme renderer consumes.
+
+## Skill Schema
+
+### Goal
+
+Formalize the current legacy profile concept as a reusable skill contract while keeping profile naming compatible during migration.
+
+### Current Rule
+
+- `skill` is the preferred concept
+- `profile` remains a compatibility alias for the same identifier
+- canonical built-in skills are defined in `shared/skills.js`
+- compatibility exports remain in `shared/deck-profiles.js`
+- a skill currently owns:
+  - planning rules
+  - expansion rules
+  - preferred semantic blocks
+  - recommended default theme
+  - quality focus
 
 ### Current Non-Goals
 
@@ -169,7 +372,7 @@ The rest of the system should only depend on normalized outputs.
 
 ### Environment Variables
 
-Primary profile:
+Primary provider config:
 
 - `LLM_PROVIDER`
 - `LLM_MODEL`
@@ -177,7 +380,7 @@ Primary profile:
 - `LLM_API_KEY`
 - `LLM_JSON_MODE`
 
-Candidate profile for A/B comparison:
+Candidate provider config for A/B comparison:
 
 - `LLM_CANDIDATE_PROVIDER`
 - `LLM_CANDIDATE_MODEL`
