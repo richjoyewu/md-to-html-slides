@@ -1,3 +1,5 @@
+import type { RenderBlock } from '../shared/core.js';
+
 // Planner / Expander / Renderer 之间共享的结构契约。
 export type SlideIntent = 'define' | 'explain' | 'compare' | 'example' | 'process' | 'summary' | 'cta';
 export type InputShape = 'slide_like' | 'document_like' | 'notes_like';
@@ -99,6 +101,7 @@ export interface ExpandedSlide {
   format: ExpandFormat;
   bullets: string[];
   body: string;
+  blocks?: RenderBlock[];
 }
 
 export interface ExpandMeta {
