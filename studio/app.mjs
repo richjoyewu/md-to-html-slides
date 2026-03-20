@@ -1025,7 +1025,11 @@ const requestExpand = async () => {
     const response = await fetch('/api/expand-stream', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ markdown, outline: outlineToApiPayload(sanitizeOutlinePlan(outlinePlan)) })
+      body: JSON.stringify({
+        markdown,
+        outline: outlineToApiPayload(sanitizeOutlinePlan(outlinePlan)),
+        context: { answers: collectPlannerAnswers(), profile: activeProfile.name }
+      })
     });
 
     if (!response.ok) {
