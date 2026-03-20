@@ -15,15 +15,117 @@ const slugify = (value = '') => {
     .replace(/^-+|-+$/g, '') || 'slide';
 };
 
+/* ── SVG icon library (inline, 24×24) ─────────────────────────── */
+
+const ICONS = {
+  translate: '<svg viewBox="0 0 24 24"><path d="M4 5h7M7.5 5v7M5 8.5c1 2 3 4.5 5.5 4.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M13 14l2.5-6L18 14M13.75 12.5h3.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  mic: '<svg viewBox="0 0 24 24"><rect x="9" y="2" width="6" height="12" rx="3" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M5 11a7 7 0 0014 0M12 18v3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>',
+  layers: '<svg viewBox="0 0 24 24"><path d="M12 4l8 4-8 4-8-4 8-4z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M4 12l8 4 8-4M4 16l8 4 8-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  eye: '<svg viewBox="0 0 24 24"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>',
+  puzzle: '<svg viewBox="0 0 24 24"><path d="M7 5h4a2 2 0 014 0h4v4a2 2 0 010 4v4H15a2 2 0 01-4 0H7v-4a2 2 0 010-4V5z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>',
+  zap: '<svg viewBox="0 0 24 24"><path d="M13 2L4 14h8l-1 8 9-12h-8l1-8z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>',
+  target: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="12" cy="12" r="1.2" fill="currentColor"/></svg>',
+  users: '<svg viewBox="0 0 24 24"><circle cx="9" cy="7" r="3" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M3 20c0-3 3-5.5 6-5.5s6 2.5 6 5.5" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="17" cy="8" r="2.5" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M17 13.5c2 0 4 1.5 4 4" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>',
+  rocket: '<svg viewBox="0 0 24 24"><path d="M12 2C8 6 6 10 6 14l6 6c4 0 8-2 12-6C20 10 16 6 12 2z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><circle cx="12" cy="12" r="2" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M6 14l-3 3M18 14l3 3" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>',
+  compass: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M16 8l-5.5 2.5L8 16l5.5-2.5z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>',
+  bulb: '<svg viewBox="0 0 24 24"><path d="M9 18h6M10 21h4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M9 14c-1.5-1.3-2.5-3.2-2.5-5.3C6.5 5.5 9 3 12 3s5.5 2.5 5.5 5.7c0 2.1-1 4-2.5 5.3v1H9v-1z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>',
+  chart: '<svg viewBox="0 0 24 24"><path d="M4 19V10M9 19V6M14 19v-8M19 19V4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
+  globe: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.5"/><ellipse cx="12" cy="12" rx="4" ry="9" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M3 12h18M4.5 7.5h15M4.5 16.5h15" fill="none" stroke="currentColor" stroke-width="1.2"/></svg>',
+  book: '<svg viewBox="0 0 24 24"><path d="M4 4h5c2 0 3 1 3 2v14c0-1-1-2-3-2H4V4z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M20 4h-5c-2 0-3 1-3 2v14c0-1 1-2 3-2h5V4z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>',
+  sparkle: '<svg viewBox="0 0 24 24"><path d="M12 2l2 5.5L19.5 9l-5.5 2L12 16.5 10 11 4.5 9l5.5-1.5L12 2z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M17 14l1 2.5 2.5 1-2.5 1L17 21l-1-2.5L13.5 17.5 16 16.5 17 14z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>',
+  trending: '<svg viewBox="0 0 24 24"><path d="M4 17l5-5 3 2 7-7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M15 7h4v4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  grid: '<svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>',
+  check: '<svg viewBox="0 0 24 24"><path d="M4 7l2 2 4-4M4 17l2 2 4-4M14 6h6M14 12h6M14 18h6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+};
+
+const KEYWORD_ICON_MAP = [
+  // More specific patterns first — order matters (first match wins)
+  { re: /核心价值|关键/, icon: 'sparkle' },
+  { re: /受众|客户|三类|audience/, icon: 'users' },
+  { re: /验证|希望|一起|validate|together/, icon: 'check' },
+  { re: /未来|长期|边界|vision/, icon: 'compass' },
+  { re: /当前|第一步|起点|current|start/, icon: 'rocket' },
+  { re: /为什么|时机|值得|why|when/, icon: 'trending' },
+  { re: /场景|服务|scenario|serve/, icon: 'grid' },
+  { re: /产品|目标|product|goal/, icon: 'target' },
+  { re: /工具|生成|tool|system/, icon: 'puzzle' },
+  { re: /演讲|speech|speak|present/, icon: 'mic' },
+  { re: /翻译|转译|translat/, icon: 'translate' },
+  { re: /简单|清晰|高效|simple|clear/, icon: 'zap' },
+  { re: /全球|市场|global|market/, icon: 'globe' },
+  { re: /数据|指标|增长|data|metric/, icon: 'chart' },
+  { re: /视觉|展示|visual|display/, icon: 'eye' },
+  { re: /结构|体系|structure|layer/, icon: 'layers' },
+  { re: /内容|文档|文本|content|document/, icon: 'book' },
+  { re: /想法|灵感|idea|inspire/, icon: 'bulb' },
+  { re: /表达|语言|express/, icon: 'translate' },
+];
+
+const pickIcon = (title = '', index = 0) => {
+  const lower = title.toLowerCase();
+  for (const entry of KEYWORD_ICON_MAP) {
+    if (entry.re.test(lower)) return ICONS[entry.icon];
+  }
+  const fallbacks = ['layers', 'compass', 'sparkle', 'grid', 'zap', 'globe'];
+  return ICONS[fallbacks[index % fallbacks.length]];
+};
+
+/**
+ * Pick a bullet-level icon. Uses a rotating set of visually distinct small icons
+ * to ensure variety within a slide. The slide title's first-match icon is excluded
+ * from the rotation to avoid redundancy with the page-level content-icon.
+ */
+const BULLET_ICON_SETS = [
+  ['zap', 'target', 'compass', 'bulb', 'rocket', 'globe'],
+  ['sparkle', 'layers', 'eye', 'chart', 'book', 'grid'],
+  ['mic', 'puzzle', 'trending', 'users', 'translate', 'check'],
+];
+
+const pickBulletIcon = (slideTitle = '', bulletIndex = 0) => {
+  // Pick a set based on a hash of the slide title for consistency
+  const titleHash = slideTitle.split('').reduce((s, c) => s + c.charCodeAt(0), 0);
+  const set = BULLET_ICON_SETS[titleHash % BULLET_ICON_SETS.length];
+  return ICONS[set[bulletIndex % set.length]];
+};
+
+/* ── Highlight key phrase in title ──────────────────────────────── */
+
+const HIGHLIGHT_PHRASES = [
+  /不是[^，,。]+[，,]而是[^，,。]+/,
+  /["""「][^"""」]+["""」]/,
+  /表达转译/, /视觉语言/, /演讲/, /核心价值/,
+  /PPT/, /HTML/, /deck/i,
+];
+
+const highlightTitle = (title) => {
+  const escaped = escapeHtml(title);
+  for (const re of HIGHLIGHT_PHRASES) {
+    const match = title.match(re);
+    if (match) {
+      const escapedMatch = escapeHtml(match[0]);
+      return escaped.replace(escapedMatch, `<em class="hl">${escapedMatch}</em>`);
+    }
+  }
+  return escaped;
+};
+
+/* ── Render blocks ──────────────────────────────────────────────── */
+
 const renderItems = (items = []) => items.map((item) => `<li>${escapeHtml(item)}</li>`).join('');
 
-const renderBlock = (block) => {
+const renderBlock = (block, slideTitle = '') => {
   if (block.type === 'paragraph') {
     return `<p class="slide-paragraph reveal">${escapeHtml(block.content)}</p>`;
   }
 
   if (block.type === 'list') {
-    const items = block.items.map((item) => `<li>${escapeHtml(item)}</li>`).join('');
+    const items = block.items.map((item, i) => {
+      const icon = pickBulletIcon(slideTitle, i);
+      return `<li class="point-card">
+        <span class="point-icon">${icon}</span>
+        <span class="point-text">${escapeHtml(item)}</span>
+      </li>`;
+    }).join('');
     return `<ul class="slide-list reveal">${items}</ul>`;
   }
 
@@ -45,21 +147,18 @@ const renderBlock = (block) => {
     ].filter(Boolean).join('\n');
   }
 
+  /* hero — only render points, skip headline (outer title covers it), skip repeated proof & fake stats */
   if (block.type === 'hero') {
-    return [
-      '<section class="slide-hero-block hero-grid hero-grid-system reveal">',
-      '  <div class="hero-grid-main">',
-      `    <div class="semantic-kicker">${escapeHtml(block.eyebrow || 'Core Thesis')}</div>`,
-      `    <h3 class="hero-grid-title">${escapeHtml(block.headline || '')}</h3>`,
-      block.body ? `    <p class="slide-paragraph">${escapeHtml(block.body)}</p>` : '',
-      block.proof ? `    <div class="hero-proof-note">${escapeHtml(block.proof)}</div>` : '',
-      '  </div>',
-      '  <div class="hero-grid-side">',
-      block.points?.length ? `    <ul class="semantic-chip-list">${renderItems(block.points)}</ul>` : '',
-      block.stats?.length ? `    <div class="hero-stat-grid">${block.stats.map((item) => `<div class="hero-stat-box"><div class="hero-stat-value">${escapeHtml(item.value)}</div><div class="hero-stat-label">${escapeHtml(item.label)}</div></div>`).join('')}</div>` : '',
-      '  </div>',
-      '</section>'
-    ].filter(Boolean).join('\n');
+    const points = (block.points || []).slice(0, 4);
+    if (!points.length) return '';
+    const items = points.map((item, i) => {
+      const icon = pickBulletIcon(slideTitle, i);
+      return `<li class="point-card">
+        <span class="point-icon">${icon}</span>
+        <span class="point-text">${escapeHtml(item)}</span>
+      </li>`;
+    }).join('');
+    return `<ul class="slide-list reveal">${items}</ul>`;
   }
 
   if (block.type === 'compare') {
@@ -134,6 +233,15 @@ const renderBlock = (block) => {
   return '';
 };
 
+/* ── Decorative orb color pairs ──────────────────────────────── */
+
+const orbPalette = [
+  { a: 'rgba(255,122,69,0.16)', b: 'rgba(118,184,255,0.10)' },
+  { a: 'rgba(118,184,255,0.14)', b: 'rgba(160,100,255,0.09)' },
+  { a: 'rgba(160,100,255,0.13)', b: 'rgba(255,122,69,0.09)' },
+  { a: 'rgba(80,200,180,0.12)', b: 'rgba(118,184,255,0.09)' },
+];
+
 export const renderDarkCardDeck = (deck, options) => {
   const totalSlides = deck.slides.length + 1;
   const titleText = options.title || deck.title;
@@ -194,15 +302,21 @@ export const renderDarkCardDeck = (deck, options) => {
 
   const contentSlides = deck.slides.map((slide, index) => {
     const count = index + 2;
-    const renderedBlocks = slide.blocks.map(renderBlock).join('\n');
+    const renderedBlocks = slide.blocks.map((b) => renderBlock(b, slide.title)).join('\n');
+    const pageIcon = pickIcon(slide.title, index);
+    const orb = orbPalette[index % orbPalette.length];
+    const ox = 50 + (index * 17) % 40;
+    const oy = 20 + (index * 23) % 50;
     return `
       <section class="slide" data-title="${escapeHtml(slide.title)}" id="${slugify(slide.title)}">
         <div class="page-no">${String(count).padStart(2, '0')}</div>
+        <div class="slide-orb" style="background:radial-gradient(ellipse at ${ox}% ${oy}%,${orb.a},transparent 52%),radial-gradient(ellipse at ${100-ox}% ${100-oy}%,${orb.b},transparent 48%);"></div>
         <div class="slide-shell content-shell">
           <div class="content-panel reveal">
             <div class="content-panel-inner">
               <div class="content-kicker">Chapter ${String(count).padStart(2, '0')}</div>
-              <h2 class="slide-heading" data-fit-text data-fit-min="30" data-fit-max="58" data-fit-lines="2">${escapeHtml(slide.title)}</h2>
+              <div class="content-icon">${pageIcon}</div>
+              <h2 class="slide-heading" data-fit-text data-fit-min="30" data-fit-max="58" data-fit-lines="2">${highlightTitle(slide.title)}</h2>
               <div class="slide-body">
                 ${renderedBlocks}
               </div>
@@ -295,6 +409,15 @@ export const renderDarkCardDeck = (deck, options) => {
         linear-gradient(rgba(255,255,255,0.012) 0, rgba(255,255,255,0.012) 1px, transparent 1px, transparent 120px);
       opacity: 0.28;
       pointer-events: none;
+    }
+
+    /* ── Background orb decoration ── */
+    .slide-orb {
+      position: absolute;
+      inset: -15%;
+      z-index: 0;
+      pointer-events: none;
+      opacity: 0.65;
     }
 
     .progress-bar {
@@ -440,8 +563,8 @@ export const renderDarkCardDeck = (deck, options) => {
       left: 0;
       top: 0;
       bottom: 0;
-      width: 8px;
-      background: linear-gradient(180deg, var(--accent), var(--accent-soft));
+      width: 5px;
+      background: linear-gradient(180deg, var(--accent), var(--accent-alt));
     }
 
     .hero-panel {
@@ -536,6 +659,12 @@ export const renderDarkCardDeck = (deck, options) => {
       line-height: 1.2;
     }
 
+    /* ── Title keyword highlight ── */
+    .slide-heading .hl {
+      font-style: normal;
+      color: var(--accent);
+    }
+
     .slide-subtitle,
     .slide-paragraph,
     .slide-list li,
@@ -558,11 +687,29 @@ export const renderDarkCardDeck = (deck, options) => {
       background: linear-gradient(90deg, var(--accent), transparent);
     }
 
+    /* ── Content icon (per slide) ── */
+    .content-icon {
+      width: 48px;
+      height: 48px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 14px;
+      background: linear-gradient(135deg, rgba(255,122,69,0.12), rgba(118,184,255,0.10));
+      border: 1px solid rgba(255,255,255,0.06);
+      color: var(--accent);
+    }
+
+    .content-icon svg {
+      width: 26px;
+      height: 26px;
+    }
+
     .content-panel-inner {
       height: 100%;
       display: grid;
       align-content: center;
-      gap: 1rem;
+      gap: 0.9rem;
       padding: clamp(1.4rem, 3vw, 2rem) clamp(1.5rem, 3vw, 2.4rem) clamp(1.4rem, 3vw, 2rem) clamp(2rem, 4vw, 2.8rem);
       overflow: hidden;
     }
@@ -575,29 +722,50 @@ export const renderDarkCardDeck = (deck, options) => {
       padding-right: 0.25rem;
     }
 
+    /* ── Point cards (icon + text per bullet) ── */
     .slide-list {
       list-style: none;
       display: grid;
-      gap: 0.9rem;
-      max-width: 60ch;
+      gap: 0.7rem;
+      max-width: 64ch;
     }
 
-    .slide-list li {
+    .point-card {
       display: grid;
-      grid-template-columns: 16px 1fr;
-      gap: 0.9rem;
-      align-items: start;
-      color: var(--text-1);
+      grid-template-columns: 40px 1fr;
+      gap: 0;
+      align-items: stretch;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow: hidden;
+      background: rgba(255,255,255,0.02);
+      transition: background 0.2s ease;
     }
 
-    .slide-list li::before {
-      content: '';
-      width: 10px;
-      height: 10px;
-      margin-top: 0.48rem;
-      border-radius: 2px;
-      background: var(--accent-alt);
-      box-shadow: 0 0 0 5px rgba(118,184,255,0.12);
+    .point-card:hover {
+      background: rgba(255,255,255,0.04);
+    }
+
+    .point-icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(255,122,69,0.06);
+      border-right: 1px solid var(--line);
+      color: var(--accent);
+    }
+
+    .point-icon svg {
+      width: 20px;
+      height: 20px;
+    }
+
+    .point-text {
+      display: block;
+      padding: 0.72rem 0.9rem;
+      font-size: var(--body-size);
+      line-height: 1.6;
+      color: var(--text-1);
     }
 
     .slide-figure,

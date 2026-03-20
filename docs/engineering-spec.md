@@ -66,6 +66,7 @@ Phase 1 intentionally supports only:
 ### Goal
 
 Keep the CLI small, deterministic, and easy to understand.
+The CLI is the canonical interface for the core pipeline.
 
 ### Primary Command
 
@@ -75,16 +76,40 @@ md-to-html-slides build <input.md> -o <output.html>
 
 ### Supported Commands
 
+#### `plan`
+
+```bash
+md-to-html-slides plan <input.md> [--profile <name>] [--answer <key=value>] [-o <outline.json>]
+```
+
+#### `expand`
+
+```bash
+md-to-html-slides expand <input.md> [--profile <name>] [--answer <key=value>] [--outline <outline.json>] [-o <expanded.json>]
+```
+
 #### `build`
 
 ```bash
-md-to-html-slides build <input.md> -o <output.html> [--theme <name>] [--title <text>]
+md-to-html-slides build <input.md> -o <output.html> [--theme <name>] [--title <text>] [--profile <name>] [--answer <key=value>] [--outline <outline.json>]
 ```
 
 #### `preview`
 
 ```bash
-md-to-html-slides preview <input.md> [--theme <name>] [--title <text>]
+md-to-html-slides preview <input.md> [--theme <name>] [--title <text>] [--profile <name>] [--answer <key=value>] [--outline <outline.json>]
+```
+
+#### `render`
+
+```bash
+md-to-html-slides render <expanded.json> -o <output.html> [--theme <name>] [--title <text>]
+```
+
+#### `skills`
+
+```bash
+md-to-html-slides skills
 ```
 
 #### `validate`
@@ -102,9 +127,11 @@ md-to-html-slides themes
 ### Current CLI Principles
 
 - Accept one Markdown file at a time.
+- Expose the core pipeline stages: `plan -> expand -> render -> build`.
 - Produce one self-contained HTML file.
 - Keep renderer behavior deterministic.
-- Normalize direct Markdown builds into the same semantic render-deck contract used by expanded slide content before handing off to themes.
+- Use the same core pipeline as Studio for planning and expansion.
+- Keep Studio as a thin shell over the canonical CLI/core contracts.
 - Fail clearly when input is missing or invalid.
 
 ### Current Non-Goals
@@ -164,7 +191,10 @@ Legacy Moonshot aliases may still exist for compatibility, but new work should f
 
 - provider adapters know vendor details
 - planner and expander know only provider interfaces
-- UI and orchestration know only normalized request and response shapes
+- core pipeline orchestrates `plan / clarification / expand`
+- CLI is the canonical caller of the core pipeline
+- Studio is a thin shell that calls the same core pipeline over HTTP
+- UI and tests know only normalized request and response shapes
 
 ### Practical Rule
 

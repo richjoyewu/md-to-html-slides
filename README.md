@@ -38,6 +38,15 @@ Sample output: `examples/01-agent.html`
 
 Sample output: `examples/01-agent-editorial.html`
 
+## Canonical Interface
+
+The project is now moving toward a `CLI-first` model:
+
+- `CLI` is the canonical interface for plan / expand / build workflows
+- `Studio` is a thin local shell for clarification, outline editing, and HTML preview
+- `agent` modules stay focused on planning, rewriting, and fallback
+- `shared` modules keep the semantic contracts and render-deck normalization stable
+
 ## Studio Demo
 
 There is now a minimal playable studio demo:
@@ -121,13 +130,15 @@ Early-stage open source project. The current focus is to make one Markdown file 
 ## First Working Commands
 
 ```bash
+npm run themes
+npm run validate:example
+npm run plan:example
+npm run expand:example
 npm run build:example
 npm run build:example:editorial
 npm run build:example:launch
 npm run preview:example
 npm run studio
-npm run themes
-npm run validate:example
 npm run check
 npm run check:llm
 npm run check:llm:ab
@@ -136,12 +147,16 @@ npm run check:llm:ab
 Or run the CLI directly:
 
 ```bash
-node ./scripts/build.mjs build ./slides-src/openclaw/01-agent.md -o ./examples/01-agent.html --theme dark-card
-node ./scripts/build.mjs build ./slides-src/openclaw/01-agent.md -o ./examples/01-agent-editorial.html --theme editorial-light
-node ./scripts/build.mjs build ./slides-src/pitch/01-launch.md -o ./examples/01-launch-tech.html --theme tech-launch
-node ./scripts/build.mjs preview ./slides-src/openclaw/01-agent.md --theme dark-card
-node ./scripts/build.mjs validate ./slides-src/openclaw/01-agent.md
 node ./scripts/build.mjs themes
+node ./scripts/build.mjs validate ./slides-src/openclaw/01-agent.md
+node ./scripts/build.mjs skills
+node ./scripts/build.mjs plan ./slides-src/openclaw/01-agent.md --profile general
+node ./scripts/build.mjs expand ./slides-src/openclaw/01-agent.md --profile general
+node ./scripts/build.mjs render ./tmp/expanded.json -o ./examples/custom.html --theme signal-blue
+node ./scripts/build.mjs build ./slides-src/openclaw/01-agent.md -o ./examples/01-agent.html --profile general
+node ./scripts/build.mjs build ./slides-src/openclaw/01-agent.md -o ./examples/01-agent-editorial.html --theme editorial-light --profile general
+node ./scripts/build.mjs build ./slides-src/pitch/01-launch.md -o ./examples/01-launch-tech.html --profile pitch-tech-launch
+node ./scripts/build.mjs preview ./slides-src/openclaw/01-agent.md --profile general
 ```
 
 ## Design Direction

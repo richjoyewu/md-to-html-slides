@@ -7,6 +7,8 @@
     "md-to-html-slides": "./scripts/build.mjs"
   },
   "scripts": {
+    "plan:example": "node ./scripts/build.mjs plan ./slides-src/openclaw/01-agent.md --profile general",
+    "expand:example": "node ./scripts/build.mjs expand ./slides-src/openclaw/01-agent.md --profile general",
     "build:example": "node ./scripts/build.mjs build ./slides-src/openclaw/01-agent.md -o ./examples/01-agent.html --theme dark-card",
     "build:example:editorial": "node ./scripts/build.mjs build ./slides-src/openclaw/01-agent.md -o ./examples/01-agent-editorial.html --theme editorial-light",
     "build:example:launch": "node ./scripts/build.mjs build ./slides-src/pitch/01-launch.md -o ./examples/01-launch-tech.html --theme tech-launch",
@@ -20,6 +22,7 @@
     "check": "npm run check:fallback && npm run check:cli",
     "studio": "npm run build:ts -- --pretty false && node ./dist-ts/scripts/studio-server.js",
     "studio:legacy": "node ./scripts/studio-server.mjs",
+    "skills": "node ./scripts/build.mjs skills",
     "themes": "node ./scripts/build.mjs themes",
     "validate:example": "node ./scripts/build.mjs validate ./slides-src/openclaw/01-agent.md"
   },
