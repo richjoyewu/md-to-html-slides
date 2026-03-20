@@ -1,0 +1,33 @@
+{
+  "version": "skill-file@1",
+  "id": "custom-general",
+  "base_skill": "general",
+  "label": "Custom General",
+  "studio_label": "自定义通用演示",
+  "description": "Template skill extending the built-in general skill.",
+  "studio_description": "从通用演示 skill 派生，用于课程、说明稿和内部分享。",
+  "default_theme": "dark-card",
+  "planning": {
+    "rules": [
+      "在保留主线清晰度的前提下，可以更主动地合并背景信息。",
+      "标题优先采用结论式短句，而不是说明文标题。"
+    ]
+  },
+  "expansion": {
+    "rules": [
+      "优先把长句压缩成更适合上屏的短句。",
+      "结尾页要真正收束，不要重复中间内容。"
+    ]
+  },
+  "blocks": {
+    "preferred": ["list", "process", "summary"],
+    "format_guidance": [
+      { "when": "常规解释页", "format": "title-bullets" },
+      { "when": "需要步骤感时", "format": "process" },
+      { "when": "结尾收束时", "format": "summary" }
+    ]
+  },
+  "quality": {
+    "focus": ["clarity", "parallel_bullets", "good_summary"]
+  }
+}

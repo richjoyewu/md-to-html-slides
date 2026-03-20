@@ -1,5 +1,237 @@
 export const DEFAULT_SKILL = 'general';
 
+const ALLOWED_THEMES = new Set(['dark-card', 'tech-launch', 'signal-blue', 'editorial-light']);
+const ALLOWED_EXPAND_FORMATS = new Set([
+  'hero',
+  'title-bullets',
+  'title-body',
+  'compare',
+  'metrics',
+  'process',
+  'summary',
+  'cta'
+]);
+const ALLOWED_BLOCK_TYPES = new Set([
+  'paragraph',
+  'list',
+  'image',
+  'code',
+  'hero',
+  'compare',
+  'metrics',
+  'process',
+  'summary',
+  'cta'
+]);
+const ALLOWED_SKILL_TOP_LEVEL_KEYS = new Set([
+  'version',
+  'id',
+  'name',
+  'base_skill',
+  'baseSkill',
+  'extends',
+  'label',
+  'studio_label',
+  'studioLabel',
+  'description',
+  'studio_description',
+  'studioDescription',
+  'default_theme',
+  'defaultTheme',
+  'planning',
+  'expansion',
+  'blocks',
+  'quality',
+  'examples'
+]);
+const ALLOWED_PLANNING_KEYS = new Set(['narrative_pattern', 'narrativePattern', 'rules']);
+const ALLOWED_EXPANSION_KEYS = new Set(['bullet_style', 'bulletStyle', 'body_usage', 'bodyUsage', 'rules']);
+const ALLOWED_BLOCKS_KEYS = new Set(['preferred', 'format_guidance', 'formatGuidance']);
+const ALLOWED_QUALITY_KEYS = new Set(['focus']);
+const ALLOWED_EXAMPLES_KEYS = new Set(['outline', 'expanded']);
+
+const isPlainObject = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+const nonEmptyText = (value = '') => String(value || '').trim();
+
+const assertPlainObject = (value, path) => {
+  if (!isPlainObject(value)) throw new Error(`${path} must be an object`);
+};
+
+const assertNoUnknownKeys = (source, allowedKeys, path) => {
+  const unknown = Object.keys(source).filter((key) => !allowedKeys.has(key));
+  if (unknown.length) {
+    throw new Error(`${path} contains unsupported keys: ${unknown.join(', ')}`);
+  }
+};
+
+const readOptionalString = (value, path) => {
+  if (value === undefined || value === null) return undefined;
+  const normalized = nonEmptyText(value);
+  if (!normalized) throw new Error(`${path} must be a non-empty string`);
+  return normalized;
+};
+
+const readRequiredString = (value, path) => {
+  const normalized = readOptionalString(value, path);
+  if (!normalized) throw new Error(`${path} is required`);
+  return normalized;
+};
+
+const readAliasString = (source, keys, path) => {
+  const present = keys.filter((key) => source[key] !== undefined);
+  if (!present.length) return undefined;
+
+  const values = present.map((key) => readRequiredString(source[key], `${path} (${key})`));
+  if (new Set(values).size > 1) {
+    throw new Error(`${path} has conflicting alias values: ${present.join(', ')}`);
+  }
+  return values[0];
+};
+
+const readStringArray = (value, path, allowedValues) => {
+  if (value === undefined || value === null) return undefined;
+  if (!Array.isArray(value)) throw new Error(`${path} must be an array`);
+
+  const normalized = value.map((entry, index) => {
+    const item = readRequiredString(entry, `${path}[${index}]`);
+    if (allowedValues && !allowedValues.has(item)) {
+      throw new Error(`${path}[${index}] must be one of: ${[...allowedValues].join(', ')}`);
+    }
+    return item;
+  });
+
+  if (!normalized.length) throw new Error(`${path} must not be empty`);
+  return normalized;
+};
+
+const validateFormatGuidance = (value, path) => {
+  if (value === undefined || value === null) return undefined;
+  if (!Array.isArray(value)) throw new Error(`${path} must be an array`);
+
+  return value.map((entry, index) => {
+    const itemPath = `${path}[${index}]`;
+    assertPlainObject(entry, itemPath);
+    assertNoUnknownKeys(entry, new Set(['when', 'format']), itemPath);
+    return {
+      when: readRequiredString(entry.when, `${itemPath}.when`),
+      format: (() => {
+        const format = readRequiredString(entry.format, `${itemPath}.format`);
+        if (!ALLOWED_EXPAND_FORMATS.has(format)) {
+          throw new Error(`${itemPath}.format must be one of: ${[...ALLOWED_EXPAND_FORMATS].join(', ')}`);
+        }
+        return format;
+      })()
+    };
+  });
+};
+
+const validateExamples = (value, path) => {
+  if (value === undefined || value === null) return undefined;
+  assertPlainObject(value, path);
+  assertNoUnknownKeys(value, ALLOWED_EXAMPLES_KEYS, path);
+  if (value.outline !== undefined && !isPlainObject(value.outline)) {
+    throw new Error(`${path}.outline must be an object`);
+  }
+  if (value.expanded !== undefined && !isPlainObject(value.expanded)) {
+    throw new Error(`${path}.expanded must be an object`);
+  }
+  return {
+    outline: value.outline,
+    expanded: value.expanded
+  };
+};
+
+export const validateSkillInput = (skill) => {
+  if (!skill || typeof skill !== 'object') throw new Error('Skill definition must be an object');
+  assertPlainObject(skill, 'skill');
+  assertNoUnknownKeys(skill, ALLOWED_SKILL_TOP_LEVEL_KEYS, 'skill');
+
+  const normalizedId = nonEmptyText(skill.id || skill.name || '').toLowerCase();
+  if (!normalizedId) throw new Error('skill.id is required');
+  if (!/^[a-z0-9-]{3,48}$/.test(normalizedId)) {
+    throw new Error('skill.id must use lowercase letters, numbers, or hyphens, length 3-48');
+  }
+  if (runtimeSkills.has(normalizedId)) {
+    throw new Error(`skill.id already exists: ${normalizedId}`);
+  }
+
+  const version = readOptionalString(skill.version, 'skill.version');
+  if (version && version !== 'skill-file@1') {
+    throw new Error('skill.version must be "skill-file@1" when provided');
+  }
+
+  const baseSkill = readAliasString(skill, ['base_skill', 'baseSkill', 'extends'], 'skill.base_skill');
+  if (baseSkill && !runtimeSkills.has(baseSkill)) {
+    throw new Error(`skill.base_skill must reference an existing skill: ${baseSkill}`);
+  }
+  if (baseSkill && baseSkill === normalizedId) {
+    throw new Error('skill.base_skill must not equal skill.id');
+  }
+
+  const defaultTheme = readAliasString(skill, ['default_theme', 'defaultTheme'], 'skill.default_theme');
+  if (defaultTheme && !ALLOWED_THEMES.has(defaultTheme)) {
+    throw new Error(`skill.default_theme must be one of: ${[...ALLOWED_THEMES].join(', ')}`);
+  }
+
+  const planning = skill.planning === undefined ? undefined : (() => {
+    assertPlainObject(skill.planning, 'skill.planning');
+    assertNoUnknownKeys(skill.planning, ALLOWED_PLANNING_KEYS, 'skill.planning');
+    return {
+      narrative_pattern: readAliasString(skill.planning, ['narrative_pattern', 'narrativePattern'], 'skill.planning.narrative_pattern'),
+      rules: readStringArray(skill.planning.rules, 'skill.planning.rules')
+    };
+  })();
+
+  const expansion = skill.expansion === undefined ? undefined : (() => {
+    assertPlainObject(skill.expansion, 'skill.expansion');
+    assertNoUnknownKeys(skill.expansion, ALLOWED_EXPANSION_KEYS, 'skill.expansion');
+    return {
+      bullet_style: readAliasString(skill.expansion, ['bullet_style', 'bulletStyle'], 'skill.expansion.bullet_style'),
+      body_usage: readAliasString(skill.expansion, ['body_usage', 'bodyUsage'], 'skill.expansion.body_usage'),
+      rules: readStringArray(skill.expansion.rules, 'skill.expansion.rules')
+    };
+  })();
+
+  const blocks = skill.blocks === undefined ? undefined : (() => {
+    assertPlainObject(skill.blocks, 'skill.blocks');
+    assertNoUnknownKeys(skill.blocks, ALLOWED_BLOCKS_KEYS, 'skill.blocks');
+    return {
+      preferred: readStringArray(skill.blocks.preferred, 'skill.blocks.preferred', ALLOWED_BLOCK_TYPES),
+      format_guidance: validateFormatGuidance(
+        skill.blocks.format_guidance ?? skill.blocks.formatGuidance,
+        'skill.blocks.format_guidance'
+      )
+    };
+  })();
+
+  const quality = skill.quality === undefined ? undefined : (() => {
+    assertPlainObject(skill.quality, 'skill.quality');
+    assertNoUnknownKeys(skill.quality, ALLOWED_QUALITY_KEYS, 'skill.quality');
+    return {
+      focus: readStringArray(skill.quality.focus, 'skill.quality.focus')
+    };
+  })();
+
+  const examples = validateExamples(skill.examples, 'skill.examples');
+
+  return {
+    version: version || 'skill-file@1',
+    id: normalizedId,
+    name: normalizedId,
+    base_skill: baseSkill || DEFAULT_SKILL,
+    label: readOptionalString(skill.label, 'skill.label'),
+    studio_label: readAliasString(skill, ['studio_label', 'studioLabel'], 'skill.studio_label'),
+    description: readOptionalString(skill.description, 'skill.description'),
+    studio_description: readAliasString(skill, ['studio_description', 'studioDescription'], 'skill.studio_description'),
+    default_theme: defaultTheme,
+    planning,
+    expansion,
+    blocks,
+    quality,
+    examples
+  };
+};
+
 const GENERAL_OUTLINE_EXAMPLE = {
   deck_title: '理解 AI Agent 的基本结构',
   slides: [
@@ -239,43 +471,45 @@ export const normalizeSkillName = (value) => {
 
 export const getSkill = (value) => runtimeSkills.get(normalizeSkillName(value)) || runtimeSkills.get(DEFAULT_SKILL);
 
-export const registerSkill = (skill) => {
-  if (!skill || typeof skill !== 'object') throw new Error('Skill definition must be an object');
-  const normalizedId = String(skill.id || skill.name || '').trim().toLowerCase();
-  if (!normalizedId) throw new Error('Skill definition requires id');
-
-  const base = getSkill(skill.base_skill || skill.extends || DEFAULT_SKILL);
+export const resolveSkill = (skill) => {
+  const validated = validateSkillInput(skill);
+  const base = getSkill(validated.base_skill || DEFAULT_SKILL);
   const merged = createSkill({
-    id: normalizedId,
-    label: skill.label || base.label,
-    studio_label: skill.studio_label || skill.studioLabel || skill.label || base.studio_label,
-    description: skill.description || base.description,
-    studio_description: skill.studio_description || skill.studioDescription || base.studio_description,
-    default_theme: skill.default_theme || skill.defaultTheme || base.default_theme,
+    id: validated.id,
+    label: validated.label || base.label,
+    studio_label: validated.studio_label || validated.label || base.studio_label,
+    description: validated.description || base.description,
+    studio_description: validated.studio_description || base.studio_description,
+    default_theme: validated.default_theme || base.default_theme,
     planning: {
-      narrative_pattern: skill.planning?.narrative_pattern || skill.planning?.narrativePattern || base.planning.narrative_pattern,
-      rules: Array.isArray(skill.planning?.rules) && skill.planning.rules.length ? skill.planning.rules : base.planning.rules
+      narrative_pattern: validated.planning?.narrative_pattern || base.planning.narrative_pattern,
+      rules: Array.isArray(validated.planning?.rules) && validated.planning.rules.length ? validated.planning.rules : base.planning.rules
     },
     expansion: {
-      bullet_style: skill.expansion?.bullet_style || skill.expansion?.bulletStyle || base.expansion.bullet_style,
-      body_usage: skill.expansion?.body_usage || skill.expansion?.bodyUsage || base.expansion.body_usage,
-      rules: Array.isArray(skill.expansion?.rules) && skill.expansion.rules.length ? skill.expansion.rules : base.expansion.rules
+      bullet_style: validated.expansion?.bullet_style || base.expansion.bullet_style,
+      body_usage: validated.expansion?.body_usage || base.expansion.body_usage,
+      rules: Array.isArray(validated.expansion?.rules) && validated.expansion.rules.length ? validated.expansion.rules : base.expansion.rules
     },
     blocks: {
-      preferred: Array.isArray(skill.blocks?.preferred) && skill.blocks.preferred.length ? skill.blocks.preferred : base.blocks.preferred,
-      format_guidance: Array.isArray(skill.blocks?.format_guidance) && skill.blocks.format_guidance.length
-        ? skill.blocks.format_guidance
+      preferred: Array.isArray(validated.blocks?.preferred) && validated.blocks.preferred.length ? validated.blocks.preferred : base.blocks.preferred,
+      format_guidance: Array.isArray(validated.blocks?.format_guidance) && validated.blocks.format_guidance.length
+        ? validated.blocks.format_guidance
         : base.blocks.format_guidance
     },
     quality: {
-      focus: Array.isArray(skill.quality?.focus) && skill.quality.focus.length ? skill.quality.focus : base.quality.focus
+      focus: Array.isArray(validated.quality?.focus) && validated.quality.focus.length ? validated.quality.focus : base.quality.focus
     },
     examples: {
-      outline: skill.examples?.outline || base.examples.outline,
-      expanded: skill.examples?.expanded || base.examples.expanded
+      outline: validated.examples?.outline || base.examples.outline,
+      expanded: validated.examples?.expanded || base.examples.expanded
     }
   });
 
+  return merged;
+};
+
+export const registerSkill = (skill) => {
+  const merged = resolveSkill(skill);
   runtimeSkills.set(merged.id, merged);
   return merged;
 };

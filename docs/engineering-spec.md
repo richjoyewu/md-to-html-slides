@@ -79,13 +79,13 @@ md-to-html-slides build <input.md> -o <output.html>
 #### `plan`
 
 ```bash
-md-to-html-slides plan <input.md> [--skill <name>] [--profile <name> compatibility alias] [--answer <key=value>] [-o <outline.json>]
+md-to-html-slides plan <input.md> [--skill <name>] [--skill-file <skill.json>] [--profile <name> compatibility alias] [--answer <key=value>] [-o <outline.json>]
 ```
 
 #### `expand`
 
 ```bash
-md-to-html-slides expand <input.md> [--skill <name>] [--profile <name> compatibility alias] [--answer <key=value>] [--outline <outline.json>] [-o <expanded.json>]
+md-to-html-slides expand <input.md> [--skill <name>] [--skill-file <skill.json>] [--profile <name> compatibility alias] [--answer <key=value>] [--outline <outline.json>] [-o <expanded.json>]
 ```
 
 #### `render-deck`
@@ -97,13 +97,13 @@ md-to-html-slides render-deck <expanded.json> [--title <text>] [-o <render-deck.
 #### `build`
 
 ```bash
-md-to-html-slides build <input.md> -o <output.html> [--theme <name>] [--title <text>] [--skill <name>] [--profile <name> compatibility alias] [--answer <key=value>] [--outline <outline.json>]
+md-to-html-slides build <input.md> -o <output.html> [--theme <name>] [--title <text>] [--skill <name>] [--skill-file <skill.json>] [--profile <name> compatibility alias] [--answer <key=value>] [--outline <outline.json>]
 ```
 
 #### `preview`
 
 ```bash
-md-to-html-slides preview <input.md> [--theme <name>] [--title <text>] [--skill <name>] [--profile <name> compatibility alias] [--answer <key=value>] [--outline <outline.json>]
+md-to-html-slides preview <input.md> [--theme <name>] [--title <text>] [--skill <name>] [--skill-file <skill.json>] [--profile <name> compatibility alias] [--answer <key=value>] [--outline <outline.json>]
 ```
 
 #### `render`
@@ -116,6 +116,12 @@ md-to-html-slides render <render-deck.json|expanded.json> -o <output.html> [--th
 
 ```bash
 md-to-html-slides skills
+```
+
+#### `validate-skill`
+
+```bash
+md-to-html-slides validate-skill <skill.json> [-o <normalized-skill.json>]
 ```
 
 #### `validate`
@@ -329,6 +335,8 @@ Formalize the current legacy profile concept as a reusable skill contract while 
 - `skill` is the preferred concept
 - `profile` remains a compatibility alias for the same identifier
 - canonical built-in skills are defined in `shared/skills.js`
+- custom skill files are validated before registration
+- official templates and examples live in `skills/`
 - compatibility exports remain in `shared/deck-profiles.js`
 - a skill currently owns:
   - planning rules
@@ -336,6 +344,38 @@ Formalize the current legacy profile concept as a reusable skill contract while 
   - preferred semantic blocks
   - recommended default theme
   - quality focus
+
+### `skill-file@1`
+
+Current custom skill files use the `skill-file@1` schema.
+
+Required fields:
+
+- `id`
+
+Optional top-level fields:
+
+- `version`
+- `name`
+- `base_skill` / `extends`
+- `label`
+- `studio_label`
+- `description`
+- `studio_description`
+- `default_theme`
+- `planning`
+- `expansion`
+- `blocks`
+- `quality`
+- `examples`
+
+Current validation rules:
+
+- `id` must use lowercase letters, numbers, or hyphens
+- `base_skill` must reference an existing registered skill
+- `default_theme` must reference a registered built-in theme
+- `blocks.format_guidance[*].format` must be a valid expand format
+- unknown top-level or nested keys should fail validation
 
 ### Current Non-Goals
 

@@ -1,0 +1,35 @@
+{
+  "version": "skill-file@1",
+  "id": "custom-pitch-tech-launch",
+  "base_skill": "pitch-tech-launch",
+  "label": "Custom Pitch Tech Launch",
+  "studio_label": "自定义科技发布 Pitch",
+  "description": "Template skill extending the built-in pitch-tech-launch skill.",
+  "studio_description": "从科技发布 pitch skill 派生，用于产品发布、融资 pitch 和方案发布。",
+  "default_theme": "tech-launch",
+  "planning": {
+    "rules": [
+      "开场直接给出产品主张，不先绕市场背景。",
+      "整套结构优先服务 thesis、proof 和 ask。"
+    ]
+  },
+  "expansion": {
+    "rules": [
+      "Hero 页必须像主张，不像摘要。",
+      "指标页必须把数字放在最前面。"
+    ]
+  },
+  "blocks": {
+    "preferred": ["hero", "compare", "metrics", "process", "cta"],
+    "format_guidance": [
+      { "when": "产品主张页", "format": "hero" },
+      { "when": "旧方式 vs 新方式", "format": "compare" },
+      { "when": "增长和效率证据", "format": "metrics" },
+      { "when": "路线图或落地步骤", "format": "process" },
+      { "when": "收尾诉求", "format": "cta" }
+    ]
+  },
+  "quality": {
+    "focus": ["strong_opening", "proof_with_numbers", "clear_cta"]
+  }
+}

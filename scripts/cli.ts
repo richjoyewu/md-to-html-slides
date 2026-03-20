@@ -5,7 +5,7 @@ import path from 'node:path';
 import process from 'node:process';
 import { createInterface } from 'node:readline/promises';
 import { normalizeOutline, normalizePlanContext, validateRenderDeck } from '../shared/core.js';
-import { registerSkill, SKILLS } from '../shared/skills.js';
+import { DEFAULT_SKILL, registerSkill, resolveSkill, SKILLS, validateSkillInput } from '../shared/skills.js';
 import { parseMarkdownDeck } from '../shared/markdown.js';
 import { createCorePipeline, loadDotEnv, resolveProviderRuntime } from '../agent/pipeline.js';
 import type { ClarificationResult, OutlineResult, PlanContext } from '../agent/types.js';
@@ -42,6 +42,7 @@ const usage = (): string => {
     '  md-to-html-slides render <render-deck.json|expanded.json> -o <output.html> [--theme <name>] [--title <text>]',
     '  md-to-html-slides ... [--interactive|--no-interactive]',
     '  md-to-html-slides skills',
+    '  md-to-html-slides validate-skill <skill.json> [-o <normalized-skill.json>]',
     '  md-to-html-slides validate <input.md>',
     '  md-to-html-slides validate-render-deck <render-deck.json>',
     '  md-to-html-slides themes',
@@ -54,6 +55,7 @@ const usage = (): string => {
     '  md-to-html-slides build ./fixtures/pitch/clean/product-pitch.md -o ./.tmp/examples/01-launch-tech.html --answer audience=投资人 --answer goal=解释融资亮点',
     '  md-to-html-slides render ./tmp/render-deck.json -o ./.tmp/examples/custom.html --theme signal-blue',
     '  md-to-html-slides preview ./fixtures/course/clean/openclaw-intro.md --skill general',
+    '  md-to-html-slides validate-skill ./skills/founder-pitch.json',
     '  md-to-html-slides validate ./fixtures/course/clean/openclaw-intro.md',
     '  md-to-html-slides validate-render-deck ./tmp/render-deck.json',
     '  md-to-html-slides skills',
@@ -63,7 +65,7 @@ const usage = (): string => {
 
 interface ParsedArgs {
   answers: Record<string, string>;
-  command: 'build' | 'expand' | 'help' | 'plan' | 'preview' | 'render' | 'render-deck' | 'skills' | 'themes' | 'validate' | 'validate-render-deck';
+  command: 'build' | 'expand' | 'help' | 'plan' | 'preview' | 'render' | 'render-deck' | 'skills' | 'themes' | 'validate' | 'validate-render-deck' | 'validate-skill';
   input?: string;
   interactiveMode?: 'auto' | 'force' | 'off';
   jsonOutput?: string;
@@ -240,6 +242,12 @@ const loadSkillFile = async (skillFilePath: string): Promise<string> => {
   }
 
   const raw = JSON.parse(await readFile(resolved, 'utf8'));
+  try {
+    validateSkillInput(raw);
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    throw new Error(`Invalid skill file ${path.relative(process.cwd(), resolved)}: ${detail}`);
+  }
   const registered = registerSkill(raw);
   return registered.id;
 };
@@ -398,6 +406,18 @@ const main = async (): Promise<void> => {
   }
 
   const markdown = await readFile(inputPath, 'utf8');
+
+  if (args.command === 'validate-skill') {
+    const raw = JSON.parse(markdown);
+    validateSkillInput(raw);
+    const skill = resolveSkill(raw);
+    if (args.jsonOutput) await writeJson(args.jsonOutput, skill);
+    process.stdout.write(`Skill:  ${skill.id}\n`);
+    process.stdout.write(`Base:   ${String(raw.base_skill || raw.baseSkill || raw.extends || DEFAULT_SKILL)}\n`);
+    process.stdout.write(`Theme:  ${skill.default_theme}\n`);
+    process.stdout.write(`Status: valid\n`);
+    return;
+  }
 
   if (args.command === 'validate') {
     const assets = await validateDeckAssets(inputPath);

@@ -1,0 +1,39 @@
+{
+  "version": "skill-file@1",
+  "id": "founder-story-pitch",
+  "base_skill": "pitch-tech-launch",
+  "label": "Founder Story Pitch",
+  "studio_label": "Pitch · 创始人叙事",
+  "description": "Custom pitch skill for founder-led storytelling, investor context, and product conviction.",
+  "studio_description": "适合创始人口播、融资沟通和带有叙事感的产品 pitch。",
+  "default_theme": "tech-launch",
+  "planning": {
+    "narrative_pattern": "founder-thesis-proof-ask",
+    "rules": [
+      "开场优先给出创始人视角下的核心判断，不先堆市场背景。",
+      "中段同时交代问题、方案和为什么现在必须做。",
+      "结尾必须回到 why now、why us、next ask。"
+    ]
+  },
+  "expansion": {
+    "bullet_style": "conviction-first",
+    "body_usage": "minimal",
+    "rules": [
+      "页面表达优先呈现判断和信念，而不是平铺说明。",
+      "证据页必须让数字直接服务于可信度，而不是变成报表。",
+      "CTA 页必须清楚给出融资、合作或下一步动作。"
+    ]
+  },
+  "blocks": {
+    "preferred": ["hero", "compare", "metrics", "cta"],
+    "format_guidance": [
+      { "when": "开场创始人主张页", "format": "hero" },
+      { "when": "旧方式和新方式的判断对照", "format": "compare" },
+      { "when": "增长、效率、客户证据", "format": "metrics" },
+      { "when": "融资诉求与下一步动作", "format": "cta" }
+    ]
+  },
+  "quality": {
+    "focus": ["strong_opening", "founder_conviction", "clear_ask"]
+  }
+}
