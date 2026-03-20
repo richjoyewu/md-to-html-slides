@@ -97,6 +97,7 @@ md-to-html-slides/
 ├─ LICENSE
 ├─ .gitignore
 ├─ docs/
+├─ skills/
 ├─ templates/
 ├─ scripts/
 ├─ fixtures/
@@ -128,6 +129,8 @@ md-to-html-slides/
 
 - `fixtures/course/clean/openclaw-intro.md`: sample course-style input
 - `fixtures/pitch/clean/product-pitch.md`: sample pitch-style input
+- `skills/founder-pitch.json`: ready-to-use custom skill-file example
+- `skills/templates/pitch-tech-launch-template.json`: local skill-file template
 - `.tmp/examples/01-agent.html`: generated deck using `dark-card`
 - `.tmp/examples/01-launch-tech.html`: generated deck using `tech-launch`
 - `scripts/build.mjs`: bootstrap wrapper for the canonical CLI
@@ -160,6 +163,8 @@ npm run test:llm:ab
 ### Example Commands
 
 ```bash
+npm run example:validate-skill
+npm run example:plan:skill-file
 npm run example:validate
 npm run example:plan
 npm run example:expand
@@ -175,8 +180,10 @@ Or run the canonical CLI directly:
 
 ```bash
 node ./scripts/build.mjs themes
+node ./scripts/build.mjs validate-skill ./skills/founder-pitch.json
 node ./scripts/build.mjs validate ./fixtures/course/clean/openclaw-intro.md
 node ./scripts/build.mjs skills
+node ./scripts/build.mjs plan ./fixtures/pitch/clean/product-pitch.md --skill-file ./skills/founder-pitch.json
 node ./scripts/build.mjs plan ./fixtures/course/clean/openclaw-intro.md --skill general
 node ./scripts/build.mjs expand ./fixtures/course/clean/openclaw-intro.md --skill general
 node ./scripts/build.mjs render-deck ./tmp/expanded.json -o ./tmp/render-deck.json
@@ -194,6 +201,12 @@ Artifact responsibilities:
 - `outline.json`: page order, focus, and intent
 - `expanded.json`: on-screen wording and semantic blocks
 - `render-deck.json`: deterministic renderer input
+
+Custom skill files:
+
+- validate a custom skill with `validate-skill`
+- load a custom skill into planning/build with `--skill-file`
+- official templates and examples live in [skills/README.md](./skills/README.md)
 
 ## Design Direction
 

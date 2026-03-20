@@ -97,6 +97,7 @@ md-to-html-slides/
 ├─ LICENSE
 ├─ .gitignore
 ├─ docs/
+├─ skills/
 ├─ templates/
 ├─ scripts/
 ├─ fixtures/
@@ -128,6 +129,8 @@ md-to-html-slides/
 
 - `fixtures/course/clean/openclaw-intro.md`: 课程型输入样本
 - `fixtures/pitch/clean/product-pitch.md`: pitch 型输入样本
+- `skills/founder-pitch.json`: 可直接使用的自定义 skill-file 示例
+- `skills/templates/pitch-tech-launch-template.json`: 本地 skill-file 模板
 - `.tmp/examples/01-agent.html`: `dark-card` 生成结果
 - `.tmp/examples/01-launch-tech.html`: `tech-launch` 生成结果
 - `scripts/build.mjs`: canonical CLI 的 bootstrap wrapper
@@ -160,6 +163,8 @@ npm run test:llm:ab
 ### 示例命令
 
 ```bash
+npm run example:validate-skill
+npm run example:plan:skill-file
 npm run example:validate
 npm run example:plan
 npm run example:expand
@@ -175,8 +180,10 @@ npm run example:preview
 
 ```bash
 node ./scripts/build.mjs themes
+node ./scripts/build.mjs validate-skill ./skills/founder-pitch.json
 node ./scripts/build.mjs validate ./fixtures/course/clean/openclaw-intro.md
 node ./scripts/build.mjs skills
+node ./scripts/build.mjs plan ./fixtures/pitch/clean/product-pitch.md --skill-file ./skills/founder-pitch.json
 node ./scripts/build.mjs plan ./fixtures/course/clean/openclaw-intro.md --skill general
 node ./scripts/build.mjs expand ./fixtures/course/clean/openclaw-intro.md --skill general
 node ./scripts/build.mjs render-deck ./tmp/expanded.json -o ./tmp/render-deck.json
@@ -194,6 +201,12 @@ Artifact 分工：
 - `outline.json`: 页序、焦点和 intent
 - `expanded.json`: 上屏文案和语义块
 - `render-deck.json`: renderer 最终消费的确定性输入
+
+自定义 skill 文件：
+
+- 用 `validate-skill` 校验自定义 skill
+- 用 `--skill-file` 把自定义 skill 接入 plan / build
+- 官方模板和示例见 [skills/README.md](./skills/README.md)
 
 ## 设计方向
 
