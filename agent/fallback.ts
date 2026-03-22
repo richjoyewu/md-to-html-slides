@@ -250,6 +250,8 @@ function coerceFormat(slide: OutlineSlide): ExpandedSlide['format'] {
 }
 
 function coerceGeneralFormat(slide: OutlineSlide, index: number, total: number): ExpandedSlide['format'] {
+  if (/引述|引用|quote|金句|原话/.test(slide.title)) return 'title-body';
+  if (/过渡|transition|下一部分|接下来|现在来看|下一章/.test(slide.title)) return 'title-body';
   if (slide.intent === 'summary') return 'summary';
   if (index === total - 1 && total >= 4) return 'summary';
   if (slide.intent === 'process' || /(路线图|阶段|步骤|流程|方法|路径)/.test(slide.title)) return 'process';

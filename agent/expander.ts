@@ -113,8 +113,8 @@ export const requestExpand = async (
   try {
     const payload = await provider.callJson({
       prompt: buildExpandPrompt({ markdown, outline, analysis, context }),
-      timeoutMs: options.timeoutMs ?? 12000,
-      maxTokens: options.maxTokens ?? 900
+      timeoutMs: options.timeoutMs ?? 120000,
+      maxTokens: options.maxTokens ?? 8192
     });
     return { expanded: finalizeExpanded(payload), mode: 'llm' };
   } catch (error) {

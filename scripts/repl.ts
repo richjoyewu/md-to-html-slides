@@ -142,22 +142,39 @@ const loadMarkdownFromFile = async (state: ReplState, filePath: string): Promise
 };
 
 const renderOutlineSummary = (outline: OutlineResult): string[] => {
+  const meta = outline.meta;
   const lines = [
-    `Deck: ${outline.deck_title}`,
-    `Skill: ${outline.meta?.skill || outline.meta?.profile || 'n/a'}`,
-    `Theme: ${outline.meta?.default_theme || 'n/a'}`,
-    `Pages: ${outline.slides.length}`,
-    `Goal: ${outline.meta?.deck_goal || 'n/a'}`,
+    '',
+    `  大纲草案`,
+    '',
+    `  演示目标：${meta?.deck_goal || '未确定'}`,
+    `  核心信息：${meta?.core_message || '未确定'}`,
+    `  目标受众：${meta?.audience_guess || '未指定'}`,
+    `  页数：${outline.slides.length}`,
     ''
   ];
 
+  lines.push('  页面结构：');
   outline.slides.forEach((slide) => {
-    const points = (slide.preview_points || []).slice(0, 3);
-    lines.push(`${String(slide.index).padStart(2, '0')}. ${slide.title}`);
-    if (slide.summary) lines.push(`    ${slide.summary}`);
-    points.forEach((point) => lines.push(`    - ${point}`));
+    lines.push(`    ${String(slide.index).padStart(2, '0')}. ${slide.title}`);
+    if (slide.summary) lines.push(`        ${slide.summary}`);
   });
 
+  const uncertainties = meta?.uncertainties?.filter((u) => u.trim()) || [];
+  if (uncertainties.length > 0) {
+    lines.push('');
+    lines.push('  不确定项：');
+    uncertainties.forEach((u) => lines.push(`    - ${u}`));
+  }
+
+  const omitted = meta?.omitted_topics?.filter((t) => t.trim()) || [];
+  if (omitted.length > 0) {
+    lines.push('');
+    lines.push('  已舍弃：');
+    omitted.forEach((t) => lines.push(`    - ${t}`));
+  }
+
+  lines.push('');
   return lines;
 };
 
@@ -205,8 +222,30 @@ const planInteractively = async (
 
 const confirmOutline = async (outline: OutlineResult, rl: ReplInterface): Promise<boolean> => {
   process.stdout.write(`${renderOutlineSummary(outline).join('\n')}\n`);
-  const answer = (await rl.question('确认使用这份大纲继续生成 HTML？ [Y/n] ')).trim().toLowerCase();
-  return answer === '' || answer === 'y' || answer === 'yes';
+
+  // Step 1: 确认或修改演示目标
+  const goalAnswer = (await rl.question(
+    `演示目标：${outline.meta?.deck_goal || '未确定'}\n  回车确认，或输入新的目标 > `
+  )).trim();
+  if (goalAnswer) {
+    outline.meta.deck_goal = goalAnswer;
+  }
+
+  // Step 2: 确认或修改核心信息
+  const messageAnswer = (await rl.question(
+    `核心信息：${outline.meta?.core_message || '未确定'}\n  回车确认，或输入新的核心信息 > `
+  )).trim();
+  if (messageAnswer) {
+    outline.meta.core_message = messageAnswer;
+  }
+
+  // Step 3: 确认页面结构
+  process.stdout.write('\n  页面结构：\n');
+  outline.slides.forEach((slide) => {
+    process.stdout.write(`    ${String(slide.index).padStart(2, '0')}. ${slide.title}\n`);
+  });
+  const structureAnswer = (await rl.question('\n  确认页面结构？ [Y/n] ')).trim().toLowerCase();
+  return structureAnswer === '' || structureAnswer === 'y' || structureAnswer === 'yes';
 };
 
 const printHelp = (): void => {

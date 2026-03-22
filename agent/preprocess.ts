@@ -10,14 +10,14 @@ export const preprocessMarkdown = (markdown: string): PreprocessedMarkdown => {
   const deckTitle = inferDeckTitle(markdown);
   const normalizedSections = extractMarkdownSections(markdown, {
     fallbackTitle: deckTitle,
-    maxSections: 10,
-    maxPointsPerSection: 6
+    maxSections: 20,
+    maxPointsPerSection: 12
   });
 
   return {
     deck_title: deckTitle,
     sections: normalizedSections,
-    raw_excerpt: String(markdown || '').slice(0, 2400)
+    raw_excerpt: String(markdown || '').slice(0, 6000)
   };
 };
 

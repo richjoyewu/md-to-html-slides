@@ -494,6 +494,28 @@ const main = async (): Promise<void> => {
       await writeJson(args.jsonOutput, { ...result.payload, mode: result.mode, source: result.source });
       return;
     }
+    // Interactive mode: print human-friendly confirmation format to stderr
+    if (isInteractiveTerminal() && args.interactiveMode !== 'off') {
+      const outline = result.payload as OutlineResult;
+      const meta = outline.meta;
+      process.stderr.write('\n  大纲草案\n\n');
+      process.stderr.write(`  演示目标：${meta?.deck_goal || '未确定'}\n`);
+      process.stderr.write(`  核心信息：${meta?.core_message || '未确定'}\n`);
+      process.stderr.write(`  目标受众：${meta?.audience_guess || '未指定'}\n`);
+      process.stderr.write(`  页数：${outline.slides.length}\n\n`);
+      process.stderr.write('  页面结构：\n');
+      for (const slide of outline.slides) {
+        process.stderr.write(`    ${String(slide.index).padStart(2, '0')}. ${slide.title}\n`);
+        if (slide.summary) process.stderr.write(`        ${slide.summary}\n`);
+      }
+      const uncertainties = meta?.uncertainties?.filter((u: string) => u.trim()) || [];
+      if (uncertainties.length > 0) {
+        process.stderr.write('\n  不确定项：\n');
+        for (const u of uncertainties) process.stderr.write(`    - ${u}\n`);
+      }
+      process.stderr.write('\n');
+    }
+    // JSON always goes to stdout (for piping)
     await writeJson(args.jsonOutput, { ...result.payload, mode: result.mode });
     return;
   }

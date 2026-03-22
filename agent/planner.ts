@@ -20,8 +20,8 @@ export const requestPlan = async (
   try {
     const payload = await provider.callJson({
       prompt: buildPlanPrompt(markdown, context),
-      timeoutMs: options.timeoutMs ?? 6000,
-      maxTokens: options.maxTokens ?? 500
+      timeoutMs: options.timeoutMs ?? 90000,
+      maxTokens: options.maxTokens ?? 8192
     });
     return { outline: polishOutline(normalizeOutline(payload)), mode: 'llm' };
   } catch (error) {

@@ -103,7 +103,9 @@ export function buildClarificationFromPlan(outline: OutlineResult, context?: Pla
 
   for (const item of uncertainties) {
     const normalized = item.toLowerCase();
-    if (normalized.includes('audience') || normalized.includes('受众')) {
+
+    // 精确匹配已知类型
+    if (normalized.includes('audience') || normalized.includes('受众') || normalized.includes('给谁')) {
       questions.push({
         id: 'audience',
         label: '这份内容主要给谁看？',
@@ -112,7 +114,7 @@ export function buildClarificationFromPlan(outline: OutlineResult, context?: Pla
       continue;
     }
 
-    if (normalized.includes('slide') || normalized.includes('页数')) {
+    if (normalized.includes('slide') || normalized.includes('页数') || normalized.includes('多少页')) {
       questions.push({
         id: 'slide_count',
         label: '你希望大约生成多少页？',
@@ -121,12 +123,27 @@ export function buildClarificationFromPlan(outline: OutlineResult, context?: Pla
       continue;
     }
 
-    if (normalized.includes('goal') || normalized.includes('重点') || normalized.includes('核心')) {
+    if (normalized.includes('goal') || normalized.includes('重点') || normalized.includes('核心') || normalized.includes('目标')) {
       questions.push({
         id: 'goal',
         label: '这份演示最想让观众记住什么？',
-        placeholder: '例如：OpenClaw 的本地优势',
+        placeholder: '例如：理解产品的核心价值',
       });
+      continue;
+    }
+
+    // 对于无法分类的 uncertainty，直接作为开放式问题呈现给用户
+    if (item.trim().length >= 4) {
+      const questionId = `uncertainty_${questions.length}`;
+      if (!hasAnswer(context, questionId)) {
+        questions.push({
+          id: questionId,
+          label: item.trim().endsWith('？') || item.trim().endsWith('?')
+            ? item.trim()
+            : `关于「${item.trim().slice(0, 30)}」，你有什么补充？`,
+          placeholder: '可以补充说明，也可以跳过',
+        });
+      }
     }
   }
 
@@ -140,6 +157,7 @@ export function buildClarificationFromPlan(outline: OutlineResult, context?: Pla
     );
   }
 
+  // 低置信度时用兜底问题
   const confidence = meta.planning_confidence ?? 0.75;
   const thinOutline = outline.slides.length <= 2;
 
