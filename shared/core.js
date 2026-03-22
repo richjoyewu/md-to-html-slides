@@ -285,6 +285,215 @@ const normalizeRenderBlock = (block) => {
     return content ? { type: 'code', language: compactText(block.language || ''), content } : null;
   }
 
+  if (block.type === 'quote') {
+    const quote = compactText(block.quote || block.content || block.text || '');
+    if (!quote) return null;
+    return {
+      type: 'quote',
+      quote,
+      attribution: compactText(block.attribution || block.author || ''),
+      emphasis: compactText(block.emphasis || '')
+    };
+  }
+
+  if (block.type === 'transition') {
+    const headline = compactText(block.headline || block.title || '');
+    const body = compactText(block.body || block.content || '');
+    if (!headline && !body) return null;
+    return {
+      type: 'transition',
+      kicker: compactText(block.kicker || block.eyebrow || ''),
+      headline: headline || body || '下一部分',
+      body
+    };
+  }
+
+  if (block.type === 'tags') {
+    const items = normalizeTextList(block.items, 10);
+    const intro = compactText(block.intro || block.body || '');
+    if (!items.length && !intro) return null;
+    return {
+      type: 'tags',
+      intro,
+      items,
+      emphasis: compactText(block.emphasis || '')
+    };
+  }
+
+  if (block.type === 'flow') {
+    const nodes = Array.isArray(block.nodes)
+      ? block.nodes.map((item) => ({
+          label: compactText(item?.label || item?.title || ''),
+          detail: compactText(item?.detail || '')
+        })).filter((item) => item.label).slice(0, 6)
+      : [];
+    if (!nodes.length) return null;
+    return {
+      type: 'flow',
+      eyebrow: compactText(block.eyebrow || ''),
+      intro: compactText(block.intro || ''),
+      nodes
+    };
+  }
+
+  if (block.type === 'table-lite') {
+    const columns = Array.isArray(block.columns)
+      ? block.columns.map((item) => compactText(item)).filter(Boolean).slice(0, 4)
+      : [];
+    const rows = Array.isArray(block.rows)
+      ? block.rows.map((row) => ({
+          cells: Array.isArray(row?.cells)
+            ? row.cells.map((cell) => compactText(cell)).filter(Boolean).slice(0, 4)
+            : []
+        })).filter((row) => row.cells.length)
+      : [];
+    if (!columns.length || !rows.length) return null;
+    return {
+      type: 'table-lite',
+      eyebrow: compactText(block.eyebrow || ''),
+      caption: compactText(block.caption || ''),
+      columns,
+      rows
+    };
+  }
+
+  if (block.type === 'timeline') {
+    const items = Array.isArray(block.items)
+      ? block.items.map((item) => ({
+          label: compactText(item?.label || item?.title || ''),
+          detail: compactText(item?.detail || '')
+        })).filter((item) => item.label).slice(0, 6)
+      : [];
+    if (!items.length) return null;
+    return {
+      type: 'timeline',
+      eyebrow: compactText(block.eyebrow || ''),
+      intro: compactText(block.intro || ''),
+      items
+    };
+  }
+
+  if (block.type === 'callout') {
+    const body = compactText(block.body || block.content || '');
+    if (!body) return null;
+    const tone = compactText(block.tone || '').toLowerCase();
+    return {
+      type: 'callout',
+      tone: tone === 'warning' || tone === 'accent' ? tone : 'neutral',
+      title: compactText(block.title || ''),
+      body
+    };
+  }
+
+  if (block.type === 'stat-strip') {
+    const items = Array.isArray(block.items)
+      ? block.items.map((item) => ({
+          value: compactText(item?.value || ''),
+          label: compactText(item?.label || '')
+        })).filter((item) => item.value || item.label).slice(0, 4)
+      : [];
+    if (!items.length) return null;
+    return {
+      type: 'stat-strip',
+      eyebrow: compactText(block.eyebrow || ''),
+      items
+    };
+  }
+
+  if (block.type === 'matrix') {
+    const columns = Array.isArray(block.columns)
+      ? block.columns.map((item) => compactText(item)).filter(Boolean).slice(0, 2)
+      : [];
+    const rows = Array.isArray(block.rows)
+      ? block.rows.map((row) => ({
+          label: compactText(row?.label || ''),
+          cells: Array.isArray(row?.cells)
+            ? row.cells.map((cell) => ({
+                title: compactText(cell?.title || ''),
+                body: compactText(cell?.body || '')
+              })).filter((cell) => cell.title).slice(0, 2)
+            : []
+        })).filter((row) => row.label && row.cells.length)
+      : [];
+    if (columns.length !== 2 || rows.length !== 2) return null;
+    return {
+      type: 'matrix',
+      eyebrow: compactText(block.eyebrow || ''),
+      columns,
+      rows
+    };
+  }
+
+  if (block.type === 'people') {
+    const people = Array.isArray(block.people)
+      ? block.people.map((item) => ({
+          name: compactText(item?.name || ''),
+          role: compactText(item?.role || ''),
+          note: compactText(item?.note || '')
+        })).filter((person) => person.name && person.role).slice(0, 4)
+      : [];
+    if (!people.length) return null;
+    return {
+      type: 'people',
+      eyebrow: compactText(block.eyebrow || ''),
+      intro: compactText(block.intro || ''),
+      people
+    };
+  }
+
+  if (block.type === 'faq') {
+    const items = Array.isArray(block.items)
+      ? block.items.map((item) => ({
+          question: compactText(item?.question || ''),
+          answer: compactText(item?.answer || '')
+        })).filter((entry) => entry.question).slice(0, 6)
+      : [];
+    if (!items.length) return null;
+    return {
+      type: 'faq',
+      eyebrow: compactText(block.eyebrow || ''),
+      intro: compactText(block.intro || ''),
+      items
+    };
+  }
+
+  if (block.type === 'risk') {
+    const items = Array.isArray(block.items)
+      ? block.items.map((item) => {
+          const severity = compactText(item?.severity || '').toLowerCase();
+          return {
+            title: compactText(item?.title || ''),
+            detail: compactText(item?.detail || ''),
+            severity: severity === 'low' || severity === 'high' ? severity : 'medium'
+          };
+        }).filter((entry) => entry.title).slice(0, 6)
+      : [];
+    if (!items.length) return null;
+    return {
+      type: 'risk',
+      eyebrow: compactText(block.eyebrow || ''),
+      intro: compactText(block.intro || ''),
+      items
+    };
+  }
+
+  if (block.type === 'architecture') {
+    const nodes = Array.isArray(block.nodes)
+      ? block.nodes.map((item) => ({
+          label: compactText(item?.label || item?.title || ''),
+          detail: compactText(item?.detail || ''),
+          group: compactText(item?.group || '')
+        })).filter((entry) => entry.label).slice(0, 8)
+      : [];
+    if (!nodes.length) return null;
+    return {
+      type: 'architecture',
+      eyebrow: compactText(block.eyebrow || ''),
+      intro: compactText(block.intro || ''),
+      nodes
+    };
+  }
+
   if (block.type === 'hero') {
     const headline = compactText(block.headline || block.title || '');
     const points = normalizeTextList(block.points, 4);
@@ -519,7 +728,410 @@ const buildCtaBlockFromBlocks = (title, blocks) => {
   };
 };
 
+const buildQuoteBlockFromBlocks = (title, blocks) => {
+  const paragraphs = collectParagraphs(blocks);
+  const items = collectListItems(blocks);
+  const quote = paragraphs[0] || items[0] || compactTitle(title);
+  const attribution = paragraphs[1] || '';
+  return {
+    type: 'quote',
+    quote,
+    attribution,
+    emphasis: compactTitle(title)
+  };
+};
+
+const buildTransitionBlockFromBlocks = (title, blocks) => {
+  const paragraphs = collectParagraphs(blocks);
+  return {
+    type: 'transition',
+    kicker: 'Next Section',
+    headline: compactTitle(title),
+    body: paragraphs[0] || ''
+  };
+};
+
+const buildTagsBlockFromBlocks = (title, blocks) => {
+  const paragraphs = collectParagraphs(blocks);
+  const items = collectListItems(blocks);
+  return {
+    type: 'tags',
+    intro: paragraphs[0] || '',
+    items: items.slice(0, 8),
+    emphasis: compactTitle(title)
+  };
+};
+
+const buildFlowBlockFromBlocks = (title, blocks) => {
+  const paragraphs = collectParagraphs(blocks);
+  const items = collectListItems(blocks);
+  return {
+    type: 'flow',
+    eyebrow: 'Flow',
+    intro: paragraphs[0] || '',
+    nodes: items.slice(0, 6).map((item) => ({ label: item || compactTitle(title) }))
+  };
+};
+
+const buildTableLiteBlockFromBlocks = (title, blocks) => {
+  const items = collectListItems(blocks);
+  const rows = items
+    .map((item) => item.split(/[|｜]/).map((cell) => compactText(cell)).filter(Boolean))
+    .filter((cells) => cells.length >= 2)
+    .slice(0, 5);
+  if (!rows.length) return null;
+  const columnCount = Math.min(4, Math.max(...rows.map((cells) => cells.length)));
+  const columns = Array.from({ length: columnCount }, (_, index) => `字段 ${index + 1}`);
+  return {
+    type: 'table-lite',
+    eyebrow: 'Table',
+    caption: compactTitle(title),
+    columns,
+    rows: rows.map((cells) => ({ cells: cells.slice(0, columnCount) }))
+  };
+};
+
+const buildTimelineBlockFromBlocks = (title, blocks) => {
+  const paragraphs = collectParagraphs(blocks);
+  const items = collectListItems(blocks);
+  return {
+    type: 'timeline',
+    eyebrow: 'Timeline',
+    intro: paragraphs[0] || '',
+    items: items.slice(0, 6).map((item) => ({ label: item }))
+  };
+};
+
+const buildCalloutBlockFromBlocks = (title, blocks) => {
+  const paragraphs = collectParagraphs(blocks);
+  const items = collectListItems(blocks);
+  const body = paragraphs[0] || items[0] || compactTitle(title);
+  return {
+    type: 'callout',
+    tone: /(风险|警告|提醒|warning|risk)/i.test(title) ? 'warning' : 'accent',
+    title: compactTitle(title),
+    body
+  };
+};
+
+const buildStatStripBlockFromBlocks = (title, blocks) => {
+  const items = collectListItems(blocks).slice(0, 4).map(parseMetricItem);
+  if (!items.length) return null;
+  return {
+    type: 'stat-strip',
+    eyebrow: compactTitle(title),
+    items: items.map((item) => ({ value: item.value, label: item.label }))
+  };
+};
+
+const buildMatrixBlockFromBlocks = (title, blocks) => {
+  const items = collectListItems(blocks)
+    .map((item) => item.split(/[|｜]/).map((cell) => compactText(cell)).filter(Boolean))
+    .filter((cells) => cells.length >= 3)
+    .slice(0, 4);
+  if (items.length < 4) return null;
+
+  return {
+    type: 'matrix',
+    eyebrow: compactTitle(title),
+    columns: ['维度 A', '维度 B'],
+    rows: [
+      {
+        label: '象限 1',
+        cells: [
+          { title: items[0][0], body: items[0].slice(1).join(' · ') },
+          { title: items[1][0], body: items[1].slice(1).join(' · ') }
+        ]
+      },
+      {
+        label: '象限 2',
+        cells: [
+          { title: items[2][0], body: items[2].slice(1).join(' · ') },
+          { title: items[3][0], body: items[3].slice(1).join(' · ') }
+        ]
+      }
+    ]
+  };
+};
+
+const buildPeopleBlockFromBlocks = (title, blocks) => {
+  const paragraphs = collectParagraphs(blocks);
+  const items = collectListItems(blocks)
+    .map((item) => item.split(/[：:|-]/).map((part) => compactText(part)).filter(Boolean))
+    .filter((parts) => parts.length >= 2)
+    .slice(0, 4);
+  if (!items.length) return null;
+  return {
+    type: 'people',
+    eyebrow: compactTitle(title),
+    intro: paragraphs[0] || '',
+    people: items.map((parts) => ({
+      name: parts[0],
+      role: parts[1],
+      note: parts.slice(2).join(' · ')
+    }))
+  };
+};
+
+const buildFaqBlockFromBlocks = (title, blocks) => {
+  const paragraphs = collectParagraphs(blocks);
+  const listItems = collectListItems(blocks);
+  const items = listItems
+    .map((item) => {
+      const qaMatch = item.match(/^(.+?[？?])\s*(.+)$/);
+      if (qaMatch) {
+        return {
+          question: compactText(qaMatch[1]),
+          answer: compactText(qaMatch[2])
+        };
+      }
+      const parts = item.split(/[：:]/).map((part) => compactText(part)).filter(Boolean);
+      if (parts.length >= 2) {
+        return {
+          question: parts[0],
+          answer: parts.slice(1).join('：')
+        };
+      }
+      return {
+        question: compactText(item),
+        answer: ''
+      };
+    })
+    .filter((entry) => entry.question)
+    .slice(0, 6);
+
+  if (!items.length) return null;
+  return {
+    type: 'faq',
+    eyebrow: compactTitle(title),
+    intro: paragraphs[0] || '',
+    items
+  };
+};
+
+const buildRiskBlockFromBlocks = (title, blocks) => {
+  const paragraphs = collectParagraphs(blocks);
+  const listItems = collectListItems(blocks);
+  const items = listItems
+    .map((item) => {
+      const parts = item.split(/[：:]/).map((part) => compactText(part)).filter(Boolean);
+      const head = parts[0] || compactText(item);
+      const detail = parts.length > 1 ? parts.slice(1).join('：') : '';
+      const severity = /高|critical|严重|关键/i.test(head)
+        ? 'high'
+        : /低|minor|轻微/i.test(head)
+          ? 'low'
+          : 'medium';
+      return {
+        title: head,
+        detail,
+        severity
+      };
+    })
+    .filter((entry) => entry.title)
+    .slice(0, 6);
+  if (!items.length) return null;
+  return {
+    type: 'risk',
+    eyebrow: compactTitle(title),
+    intro: paragraphs[0] || '',
+    items
+  };
+};
+
+const buildArchitectureBlockFromBlocks = (title, blocks) => {
+  const paragraphs = collectParagraphs(blocks);
+  const listItems = collectListItems(blocks);
+  const nodes = listItems
+    .map((item) => {
+      const parts = item.split(/[：:|-]/).map((part) => compactText(part)).filter(Boolean);
+      return {
+        label: parts[0] || compactText(item),
+        detail: parts.length > 1 ? parts.slice(1).join(' · ') : '',
+        group: ''
+      };
+    })
+    .filter((entry) => entry.label)
+    .slice(0, 8);
+  if (!nodes.length) return null;
+  return {
+    type: 'architecture',
+    eyebrow: compactTitle(title),
+    intro: paragraphs[0] || '',
+    nodes
+  };
+};
+
 const buildExpandedBlocks = (slide) => {
+  if (slide.format === 'title-body' && slide.body && !slide.bullets.length) {
+    return [{
+      type: 'transition',
+      kicker: 'Next Section',
+      headline: slide.title,
+      body: slide.body
+    }].map(normalizeRenderBlock).filter(Boolean);
+  }
+
+  if (slide.format === 'title-bullets' && slide.bullets.length >= 4 && /标签|关键词|tag|术语|维度/.test(slide.title)) {
+    return [{
+      type: 'tags',
+      intro: slide.body,
+      items: slide.bullets.slice(0, 8),
+      emphasis: slide.title
+    }].map(normalizeRenderBlock).filter(Boolean);
+  }
+
+  if (slide.format === 'process' && slide.bullets.length >= 3 && /流程图|流转|链路|架构流|flow/.test(slide.title)) {
+    return [{
+      type: 'flow',
+      eyebrow: 'Flow',
+      intro: slide.body,
+      nodes: slide.bullets.slice(0, 6).map((item) => ({ label: item }))
+    }].map(normalizeRenderBlock).filter(Boolean);
+  }
+
+  if (slide.format === 'compare' && slide.bullets.length >= 2 && /表格|对照表|table|矩阵/.test(slide.title)) {
+    const rows = slide.bullets
+      .map((item) => item.split(/[|｜]/).map((cell) => compactText(cell)).filter(Boolean))
+      .filter((cells) => cells.length >= 2)
+      .slice(0, 5);
+    if (rows.length) {
+      const columnCount = Math.min(4, Math.max(...rows.map((cells) => cells.length)));
+      return [{
+        type: 'table-lite',
+        eyebrow: 'Table',
+        caption: slide.title,
+        columns: Array.from({ length: columnCount }, (_, index) => `字段 ${index + 1}`),
+        rows: rows.map((cells) => ({ cells: cells.slice(0, columnCount) }))
+      }].map(normalizeRenderBlock).filter(Boolean);
+    }
+  }
+
+  if (slide.format === 'process' && slide.bullets.length >= 3 && /时间线|timeline|阶段进展|里程碑/.test(slide.title)) {
+    return [{
+      type: 'timeline',
+      eyebrow: 'Timeline',
+      intro: slide.body,
+      items: slide.bullets.slice(0, 6).map((item) => ({ label: item }))
+    }].map(normalizeRenderBlock).filter(Boolean);
+  }
+
+  if (slide.format === 'title-body' && slide.body && /提醒|判断|结论|风险|warning|callout/.test(slide.title)) {
+    return [{
+      type: 'callout',
+      tone: /(风险|warning)/i.test(slide.title) ? 'warning' : 'accent',
+      title: slide.title,
+      body: slide.body
+    }].map(normalizeRenderBlock).filter(Boolean);
+  }
+
+  if (slide.format === 'metrics' && slide.bullets.length >= 2 && slide.bullets.length <= 4) {
+    return [{
+      type: 'stat-strip',
+      eyebrow: slide.title,
+      items: slide.bullets.slice(0, 4).map(parseMetricItem).map((item) => ({ value: item.value, label: item.label }))
+    }].map(normalizeRenderBlock).filter(Boolean);
+  }
+
+  if (slide.format === 'compare' && slide.bullets.length >= 4 && /矩阵|matrix|象限/.test(slide.title)) {
+    const items = slide.bullets
+      .map((item) => item.split(/[|｜]/).map((cell) => compactText(cell)).filter(Boolean))
+      .filter((cells) => cells.length >= 2)
+      .slice(0, 4);
+    if (items.length === 4) {
+      return [{
+        type: 'matrix',
+        eyebrow: slide.title,
+        columns: ['维度 A', '维度 B'],
+        rows: [
+          {
+            label: '象限 1',
+            cells: [
+              { title: items[0][0], body: items[0].slice(1).join(' · ') },
+              { title: items[1][0], body: items[1].slice(1).join(' · ') }
+            ]
+          },
+          {
+            label: '象限 2',
+            cells: [
+              { title: items[2][0], body: items[2].slice(1).join(' · ') },
+              { title: items[3][0], body: items[3].slice(1).join(' · ') }
+            ]
+          }
+        ]
+      }].map(normalizeRenderBlock).filter(Boolean);
+    }
+  }
+
+  if (slide.format === 'compare' && slide.bullets.length >= 2 && /团队|角色|画像|用户群|people|persona/.test(slide.title)) {
+    const people = slide.bullets
+      .map((item) => item.split(/[：:|-]/).map((part) => compactText(part)).filter(Boolean))
+      .filter((parts) => parts.length >= 2)
+      .slice(0, 4);
+    if (people.length) {
+      return [{
+        type: 'people',
+        eyebrow: slide.title,
+        intro: slide.body,
+        people: people.map((parts) => ({
+          name: parts[0],
+          role: parts[1],
+          note: parts.slice(2).join(' · ')
+        }))
+      }].map(normalizeRenderBlock).filter(Boolean);
+    }
+  }
+
+  if (slide.format === 'title-bullets' && slide.bullets.length >= 2 && /faq|常见问题|问答|问题解答/i.test(slide.title)) {
+    return [{
+      type: 'faq',
+      eyebrow: slide.title,
+      intro: slide.body,
+      items: slide.bullets.slice(0, 6).map((item) => {
+        const qaMatch = compactText(item).match(/^(.+?[？?])\s*(.+)$/);
+        if (qaMatch) return { question: qaMatch[1], answer: qaMatch[2] };
+        const parts = compactText(item).split(/[：:]/).map((part) => compactText(part)).filter(Boolean);
+        return {
+          question: parts[0] || compactText(item),
+          answer: parts.length > 1 ? parts.slice(1).join('：') : ''
+        };
+      })
+    }].map(normalizeRenderBlock).filter(Boolean);
+  }
+
+  if ((slide.format === 'title-bullets' || slide.format === 'title-body') && /风险|限制|约束|注意事项|risk/i.test(slide.title)) {
+    return [{
+      type: 'risk',
+      eyebrow: slide.title,
+      intro: slide.body,
+      items: slide.bullets.slice(0, 6).map((item) => {
+        const parts = compactText(item).split(/[：:]/).map((part) => compactText(part)).filter(Boolean);
+        const head = parts[0] || compactText(item);
+        return {
+          title: head,
+          detail: parts.length > 1 ? parts.slice(1).join('：') : '',
+          severity: /高|critical|严重|关键/i.test(head) ? 'high' : (/低|minor|轻微/i.test(head) ? 'low' : 'medium')
+        };
+      })
+    }].map(normalizeRenderBlock).filter(Boolean);
+  }
+
+  if ((slide.format === 'process' || slide.format === 'title-bullets') && slide.bullets.length >= 3 && /架构|系统图|architecture|模块图|组件图|平台结构/.test(slide.title)) {
+    return [{
+      type: 'architecture',
+      eyebrow: slide.title,
+      intro: slide.body,
+      nodes: slide.bullets.slice(0, 8).map((item) => {
+        const parts = compactText(item).split(/[：:|-]/).map((part) => compactText(part)).filter(Boolean);
+        return {
+          label: parts[0] || compactText(item),
+          detail: parts.length > 1 ? parts.slice(1).join(' · ') : '',
+          group: ''
+        };
+      })
+    }].map(normalizeRenderBlock).filter(Boolean);
+  }
+
   if (slide.format === 'hero') {
     return [{
       type: 'hero',
@@ -640,6 +1252,20 @@ const inferRenderVariant = (item, blocks) => {
     ['hero', 'compare', 'metrics', 'process', 'summary', 'cta'].includes(block.type)
   );
   if (semanticBlock && ALLOWED_VARIANTS.has(semanticBlock.type)) return semanticBlock.type;
+
+  if (blocks.some((block) => block.type === 'transition')) return 'default';
+  if (blocks.some((block) => block.type === 'quote')) return 'default';
+  if (blocks.some((block) => block.type === 'tags')) return 'default';
+  if (blocks.some((block) => block.type === 'flow')) return 'default';
+  if (blocks.some((block) => block.type === 'table-lite')) return 'default';
+  if (blocks.some((block) => block.type === 'timeline')) return 'default';
+  if (blocks.some((block) => block.type === 'callout')) return 'default';
+  if (blocks.some((block) => block.type === 'stat-strip')) return 'default';
+  if (blocks.some((block) => block.type === 'matrix')) return 'default';
+  if (blocks.some((block) => block.type === 'people')) return 'default';
+  if (blocks.some((block) => block.type === 'faq')) return 'default';
+  if (blocks.some((block) => block.type === 'risk')) return 'default';
+  if (blocks.some((block) => block.type === 'architecture')) return 'default';
 
   const title = compactText(item.title || '');
   const paragraphs = blocks
@@ -796,6 +1422,123 @@ export const markdownDeckToRenderDeck = (deck) => {
               title: item.title,
               variant: semanticBlock ? variant : 'default',
               blocks: semanticBlock ? [semanticBlock, ...carryBlocks] : fallbackSlide.blocks
+            };
+          }
+
+          if (/引述|引用|quote|金句|原话/i.test(String(item.title || ''))) {
+            const semanticBlock = normalizeRenderBlock(buildQuoteBlockFromBlocks(item.title, normalizedBlocks));
+            return {
+              title: item.title,
+              variant: 'default',
+              blocks: semanticBlock ? [semanticBlock, ...carryBlocks] : fallbackSlide.blocks
+            };
+          }
+
+          if (/过渡|transition|下一部分|接下来|现在来看|下一章/i.test(String(item.title || ''))) {
+            const semanticBlock = normalizeRenderBlock(buildTransitionBlockFromBlocks(item.title, normalizedBlocks));
+            return {
+              title: item.title,
+              variant: 'default',
+              blocks: semanticBlock ? [semanticBlock, ...carryBlocks] : fallbackSlide.blocks
+            };
+          }
+
+          if (/标签|关键词|tag|标签云|术语/i.test(String(item.title || ''))) {
+            const semanticBlock = normalizeRenderBlock(buildTagsBlockFromBlocks(item.title, normalizedBlocks));
+            return {
+              title: item.title,
+              variant: 'default',
+              blocks: semanticBlock ? [semanticBlock, ...carryBlocks] : fallbackSlide.blocks
+            };
+          }
+
+          if (/流程图|流转|链路|架构流|flow/i.test(String(item.title || ''))) {
+            const semanticBlock = normalizeRenderBlock(buildFlowBlockFromBlocks(item.title, normalizedBlocks));
+            return {
+              title: item.title,
+              variant: 'default',
+              blocks: semanticBlock ? [semanticBlock, ...carryBlocks] : fallbackSlide.blocks
+            };
+          }
+
+          if (/表格|对照表|table|矩阵/i.test(String(item.title || ''))) {
+            const semanticBlock = buildTableLiteBlockFromBlocks(item.title, normalizedBlocks);
+            return {
+              title: item.title,
+              variant: 'default',
+              blocks: semanticBlock ? [normalizeRenderBlock(semanticBlock), ...carryBlocks].filter(Boolean) : fallbackSlide.blocks
+            };
+          }
+
+          if (/时间线|timeline|阶段进展|里程碑/i.test(String(item.title || ''))) {
+            const semanticBlock = normalizeRenderBlock(buildTimelineBlockFromBlocks(item.title, normalizedBlocks));
+            return {
+              title: item.title,
+              variant: 'default',
+              blocks: semanticBlock ? [semanticBlock, ...carryBlocks] : fallbackSlide.blocks
+            };
+          }
+
+          if (/提醒|判断|结论|风险|warning|callout/i.test(String(item.title || ''))) {
+            const semanticBlock = normalizeRenderBlock(buildCalloutBlockFromBlocks(item.title, normalizedBlocks));
+            return {
+              title: item.title,
+              variant: 'default',
+              blocks: semanticBlock ? [semanticBlock, ...carryBlocks] : fallbackSlide.blocks
+            };
+          }
+
+          if (/指标带|核心数字|stat|数据条/i.test(String(item.title || ''))) {
+            const semanticBlock = buildStatStripBlockFromBlocks(item.title, normalizedBlocks);
+            return {
+              title: item.title,
+              variant: 'default',
+              blocks: semanticBlock ? [normalizeRenderBlock(semanticBlock), ...carryBlocks].filter(Boolean) : fallbackSlide.blocks
+            };
+          }
+
+          if (/矩阵|matrix|象限/i.test(String(item.title || ''))) {
+            const semanticBlock = buildMatrixBlockFromBlocks(item.title, normalizedBlocks);
+            return {
+              title: item.title,
+              variant: 'default',
+              blocks: semanticBlock ? [normalizeRenderBlock(semanticBlock), ...carryBlocks].filter(Boolean) : fallbackSlide.blocks
+            };
+          }
+
+          if (/团队|角色|画像|用户群|people|persona/i.test(String(item.title || ''))) {
+            const semanticBlock = buildPeopleBlockFromBlocks(item.title, normalizedBlocks);
+            return {
+              title: item.title,
+              variant: 'default',
+              blocks: semanticBlock ? [normalizeRenderBlock(semanticBlock), ...carryBlocks].filter(Boolean) : fallbackSlide.blocks
+            };
+          }
+
+          if (/faq|常见问题|问答|问题解答/i.test(String(item.title || ''))) {
+            const semanticBlock = buildFaqBlockFromBlocks(item.title, normalizedBlocks);
+            return {
+              title: item.title,
+              variant: 'default',
+              blocks: semanticBlock ? [normalizeRenderBlock(semanticBlock), ...carryBlocks].filter(Boolean) : fallbackSlide.blocks
+            };
+          }
+
+          if (/风险|限制|约束|注意事项|risk/i.test(String(item.title || ''))) {
+            const semanticBlock = buildRiskBlockFromBlocks(item.title, normalizedBlocks);
+            return {
+              title: item.title,
+              variant: 'default',
+              blocks: semanticBlock ? [normalizeRenderBlock(semanticBlock), ...carryBlocks].filter(Boolean) : fallbackSlide.blocks
+            };
+          }
+
+          if (/架构|系统图|architecture|模块图|组件图|平台结构/i.test(String(item.title || ''))) {
+            const semanticBlock = buildArchitectureBlockFromBlocks(item.title, normalizedBlocks);
+            return {
+              title: item.title,
+              variant: 'default',
+              blocks: semanticBlock ? [normalizeRenderBlock(semanticBlock), ...carryBlocks].filter(Boolean) : fallbackSlide.blocks
             };
           }
 

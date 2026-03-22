@@ -45,6 +45,195 @@ const renderBlock = (block) => {
     ].filter(Boolean).join('\n');
   }
 
+  if (block.type === 'quote') {
+    return `
+      <section class="slide-quote reveal">
+        <div class="quote-kicker">${escapeHtml(block.emphasis || 'Quote')}</div>
+        <blockquote class="quote-copy">${escapeHtml(block.quote)}</blockquote>
+        ${block.attribution ? `<div class="quote-attribution">— ${escapeHtml(block.attribution)}</div>` : ''}
+      </section>
+    `;
+  }
+
+  if (block.type === 'transition') {
+    return `
+      <section class="slide-transition reveal">
+        ${block.kicker ? `<div class="semantic-kicker">${escapeHtml(block.kicker)}</div>` : ''}
+        <h3 class="transition-headline">${escapeHtml(block.headline)}</h3>
+        ${block.body ? `<p class="slide-paragraph">${escapeHtml(block.body)}</p>` : ''}
+      </section>
+    `;
+  }
+
+  if (block.type === 'tags') {
+    return `
+      <section class="slide-tags reveal">
+        ${block.intro ? `<p class="slide-paragraph">${escapeHtml(block.intro)}</p>` : ''}
+        <div class="cta-pill-row">
+          ${block.items.map((item) => `<span class="cta-pill">${escapeHtml(item)}</span>`).join('')}
+        </div>
+      </section>
+    `;
+  }
+
+  if (block.type === 'flow') {
+    return `
+      <section class="slide-flow reveal">
+        ${block.eyebrow ? `<div class="semantic-kicker">${escapeHtml(block.eyebrow)}</div>` : ''}
+        ${block.intro ? `<p class="slide-paragraph">${escapeHtml(block.intro)}</p>` : ''}
+        <ol class="process-list">
+          ${block.nodes.map((node, index) => `
+            <li>
+              <span class="process-index">${String(index + 1).padStart(2, '0')}</span>
+              <span class="process-copy">${escapeHtml(node.label)}</span>
+            </li>
+          `).join('')}
+        </ol>
+      </section>
+    `;
+  }
+
+  if (block.type === 'table-lite') {
+    return `
+      <section class="slide-table reveal">
+        ${block.caption ? `<p class="slide-paragraph">${escapeHtml(block.caption)}</p>` : ''}
+        <div class="slide-table-wrap">
+          <table class="slide-table-lite">
+            <thead>
+              <tr>${block.columns.map((item) => `<th>${escapeHtml(item)}</th>`).join('')}</tr>
+            </thead>
+            <tbody>
+              ${block.rows.map((row) => `<tr>${row.cells.map((cell) => `<td>${escapeHtml(cell)}</td>`).join('')}</tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    `;
+  }
+
+  if (block.type === 'timeline') {
+    return `
+      <section class="slide-timeline reveal">
+        ${block.eyebrow ? `<div class="semantic-kicker">${escapeHtml(block.eyebrow)}</div>` : ''}
+        ${block.intro ? `<p class="slide-paragraph">${escapeHtml(block.intro)}</p>` : ''}
+        <ol class="process-list">
+          ${block.items.map((item, index) => `
+            <li>
+              <span class="process-index">${String(index + 1).padStart(2, '0')}</span>
+              <span class="process-copy">${escapeHtml(item.label)}</span>
+            </li>
+          `).join('')}
+        </ol>
+      </section>
+    `;
+  }
+
+  if (block.type === 'callout') {
+    return `
+      <section class="slide-callout reveal tone-${escapeHtml(block.tone || 'neutral')}">
+        ${block.title ? `<div class="semantic-kicker">${escapeHtml(block.title)}</div>` : ''}
+        <p class="slide-paragraph">${escapeHtml(block.body)}</p>
+      </section>
+    `;
+  }
+
+  if (block.type === 'stat-strip') {
+    return `
+      <section class="slide-stat-strip reveal">
+        <div class="metric-grid">
+          ${block.items.map((item) => `
+            <div class="metric-card">
+              <div class="metric-value">${escapeHtml(item.value)}</div>
+              <div class="metric-label">${escapeHtml(item.label)}</div>
+            </div>
+          `).join('')}
+        </div>
+      </section>
+    `;
+  }
+
+  if (block.type === 'matrix') {
+    return `
+      <section class="slide-matrix reveal">
+        <div class="slide-table-wrap">
+          <table class="slide-table-lite">
+            <thead>
+              <tr><th></th>${block.columns.map((item) => `<th>${escapeHtml(item)}</th>`).join('')}</tr>
+            </thead>
+            <tbody>
+              ${block.rows.map((row) => `
+                <tr>
+                  <th>${escapeHtml(row.label)}</th>
+                  ${row.cells.map((cell) => `<td><strong>${escapeHtml(cell.title)}</strong>${cell.body ? `<div>${escapeHtml(cell.body)}</div>` : ''}</td>`).join('')}
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    `;
+  }
+
+  if (block.type === 'people') {
+    return `
+      <section class="slide-people reveal">
+        ${block.intro ? `<p class="slide-paragraph">${escapeHtml(block.intro)}</p>` : ''}
+        <div class="summary-grid">
+          ${block.people.map((person) => `
+            <div class="summary-card">
+              <span><strong>${escapeHtml(person.name)}</strong><br/>${escapeHtml(person.role)}${person.note ? `<br/><small>${escapeHtml(person.note)}</small>` : ''}</span>
+            </div>
+          `).join('')}
+        </div>
+      </section>
+    `;
+  }
+
+  if (block.type === 'faq') {
+    return `
+      <section class="slide-faq reveal">
+        ${block.intro ? `<p class="slide-paragraph">${escapeHtml(block.intro)}</p>` : ''}
+        <div class="summary-grid">
+          ${block.items.map((item) => `
+            <div class="summary-card">
+              <span><strong>${escapeHtml(item.question)}</strong>${item.answer ? `<br/><small>${escapeHtml(item.answer)}</small>` : ''}</span>
+            </div>
+          `).join('')}
+        </div>
+      </section>
+    `;
+  }
+
+  if (block.type === 'risk') {
+    return `
+      <section class="slide-risk reveal">
+        ${block.intro ? `<p class="slide-paragraph">${escapeHtml(block.intro)}</p>` : ''}
+        <div class="summary-grid">
+          ${block.items.map((item) => `
+            <div class="summary-card">
+              <span><strong>${escapeHtml(item.title)}</strong>${item.detail ? `<br/><small>${escapeHtml(item.detail)}</small>` : ''}</span>
+            </div>
+          `).join('')}
+        </div>
+      </section>
+    `;
+  }
+
+  if (block.type === 'architecture') {
+    return `
+      <section class="slide-architecture reveal">
+        ${block.intro ? `<p class="slide-paragraph">${escapeHtml(block.intro)}</p>` : ''}
+        <div class="summary-grid">
+          ${block.nodes.map((node) => `
+            <div class="summary-card">
+              <span><strong>${escapeHtml(node.label)}</strong>${node.detail ? `<br/><small>${escapeHtml(node.detail)}</small>` : ''}</span>
+            </div>
+          `).join('')}
+        </div>
+      </section>
+    `;
+  }
+
   if (block.type === 'hero') {
     return [
       '<section class="slide-hero-block hero-grid hero-grid-system reveal">',

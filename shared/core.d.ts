@@ -23,6 +23,147 @@ export interface RenderCodeBlock {
   content: string;
 }
 
+export interface RenderQuoteBlock {
+  type: 'quote';
+  quote: string;
+  attribution?: string;
+  emphasis?: string;
+}
+
+export interface RenderTransitionBlock {
+  type: 'transition';
+  kicker?: string;
+  headline: string;
+  body?: string;
+}
+
+export interface RenderTagsBlock {
+  type: 'tags';
+  intro?: string;
+  items: string[];
+  emphasis?: string;
+}
+
+export interface RenderFlowNode {
+  label: string;
+  detail?: string;
+}
+
+export interface RenderFlowBlock {
+  type: 'flow';
+  eyebrow?: string;
+  intro?: string;
+  nodes: RenderFlowNode[];
+}
+
+export interface RenderTableLiteRow {
+  cells: string[];
+}
+
+export interface RenderTableLiteBlock {
+  type: 'table-lite';
+  eyebrow?: string;
+  caption?: string;
+  columns: string[];
+  rows: RenderTableLiteRow[];
+}
+
+export interface RenderTimelineItem {
+  label: string;
+  detail?: string;
+}
+
+export interface RenderTimelineBlock {
+  type: 'timeline';
+  eyebrow?: string;
+  intro?: string;
+  items: RenderTimelineItem[];
+}
+
+export interface RenderCalloutBlock {
+  type: 'callout';
+  tone?: 'neutral' | 'warning' | 'accent';
+  title?: string;
+  body: string;
+}
+
+export interface RenderStatStripItem {
+  value: string;
+  label: string;
+}
+
+export interface RenderStatStripBlock {
+  type: 'stat-strip';
+  eyebrow?: string;
+  items: RenderStatStripItem[];
+}
+
+export interface RenderMatrixCell {
+  title: string;
+  body?: string;
+}
+
+export interface RenderMatrixBlock {
+  type: 'matrix';
+  eyebrow?: string;
+  columns: string[];
+  rows: Array<{
+    label: string;
+    cells: RenderMatrixCell[];
+  }>;
+}
+
+export interface RenderPeoplePerson {
+  name: string;
+  role: string;
+  note?: string;
+}
+
+export interface RenderPeopleBlock {
+  type: 'people';
+  eyebrow?: string;
+  intro?: string;
+  people: RenderPeoplePerson[];
+}
+
+export interface RenderFaqItem {
+  question: string;
+  answer?: string;
+}
+
+export interface RenderFaqBlock {
+  type: 'faq';
+  eyebrow?: string;
+  intro?: string;
+  items: RenderFaqItem[];
+}
+
+export interface RenderRiskItem {
+  title: string;
+  detail?: string;
+  severity?: 'low' | 'medium' | 'high';
+}
+
+export interface RenderRiskBlock {
+  type: 'risk';
+  eyebrow?: string;
+  intro?: string;
+  items: RenderRiskItem[];
+}
+
+export interface RenderArchitectureNode {
+  label: string;
+  detail?: string;
+  group?: string;
+}
+
+export interface RenderArchitectureBlock {
+  type: 'architecture';
+  eyebrow?: string;
+  intro?: string;
+  nodes: RenderArchitectureNode[];
+}
+
 export interface RenderHeroBlock {
   type: 'hero';
   eyebrow?: string;
@@ -99,6 +240,19 @@ export type RenderBlock =
   | RenderListBlock
   | RenderImageBlock
   | RenderCodeBlock
+  | RenderQuoteBlock
+  | RenderTransitionBlock
+  | RenderTagsBlock
+  | RenderFlowBlock
+  | RenderTableLiteBlock
+  | RenderTimelineBlock
+  | RenderCalloutBlock
+  | RenderStatStripBlock
+  | RenderMatrixBlock
+  | RenderPeopleBlock
+  | RenderFaqBlock
+  | RenderRiskBlock
+  | RenderArchitectureBlock
   | RenderHeroBlock
   | RenderCompareBlock
   | RenderMetricsBlock

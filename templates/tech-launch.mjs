@@ -51,6 +51,246 @@ const renderCodeBlock = (block) => [
   '</div>'
 ].filter(Boolean).join('\n');
 
+const renderQuoteSurface = (slide) => {
+  const quoteBlock = getSemanticBlock(slide, 'quote');
+  if (!quoteBlock) return '';
+  return `
+    <div class="quote-surface reveal">
+      <div class="surface-kicker">${escapeHtml(quoteBlock.emphasis || 'Quote')}</div>
+      <blockquote class="quote-headline">${escapeHtml(quoteBlock.quote)}</blockquote>
+      ${quoteBlock.attribution ? `<div class="quote-source">— ${escapeHtml(quoteBlock.attribution)}</div>` : ''}
+    </div>
+  `;
+};
+
+const renderTransitionSurface = (slide) => {
+  const transitionBlock = getSemanticBlock(slide, 'transition');
+  if (!transitionBlock) return '';
+  return `
+    <div class="transition-surface reveal">
+      ${transitionBlock.kicker ? `<div class="surface-kicker">${escapeHtml(transitionBlock.kicker)}</div>` : ''}
+      <h2 class="transition-heading" data-fit-text data-fit-min="34" data-fit-max="68" data-fit-lines="3">${escapeHtml(transitionBlock.headline)}</h2>
+      ${transitionBlock.body ? `<p class="lead-copy">${escapeHtml(transitionBlock.body)}</p>` : ''}
+    </div>
+  `;
+};
+
+const renderTagsSurface = (slide) => {
+  const tagsBlock = getSemanticBlock(slide, 'tags');
+  if (!tagsBlock) return '';
+  return `
+    <div class="summary-surface reveal">
+      ${tagsBlock.intro ? `<p class="summary-body">${escapeHtml(tagsBlock.intro)}</p>` : ''}
+      <div class="summary-grid">
+        ${tagsBlock.items.map((item) => `
+          <div class="summary-card">
+            <span class="summary-icon">${renderGlyph('spark')}</span>
+            <span>${escapeHtml(item)}</span>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `;
+};
+
+const renderFlowSurface = (slide) => {
+  const flowBlock = getSemanticBlock(slide, 'flow');
+  if (!flowBlock) return '';
+  return `
+    <div class="process-surface reveal">
+      ${flowBlock.eyebrow ? `<div class="surface-kicker">${escapeHtml(flowBlock.eyebrow)}</div>` : ''}
+      ${flowBlock.intro ? `<p class="process-body">${escapeHtml(flowBlock.intro)}</p>` : ''}
+      <div class="process-line"></div>
+      <div class="process-grid">
+        ${flowBlock.nodes.map((item, index) => `
+          <div class="process-card">
+            <div class="process-card-head">
+              <div class="process-step">0${index + 1}</div>
+              <div class="process-icon">${renderGlyph(['orbit', 'target', 'graph', 'spark', 'launch'][index % 5])}</div>
+            </div>
+            <div class="process-copy">${escapeHtml(item.label)}</div>
+            ${item.detail ? `<div class="process-detail">${escapeHtml(item.detail)}</div>` : ''}
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `;
+};
+
+const renderTableLiteSurface = (slide) => {
+  const tableBlock = getSemanticBlock(slide, 'table-lite');
+  if (!tableBlock) return '';
+  return `
+    <div class="metrics-surface reveal">
+      ${tableBlock.caption ? `<p class="metrics-body">${escapeHtml(tableBlock.caption)}</p>` : ''}
+      <div class="slide-table-wrap">
+        <table class="slide-table-lite">
+          <thead>
+            <tr>${tableBlock.columns.map((item) => `<th>${escapeHtml(item)}</th>`).join('')}</tr>
+          </thead>
+          <tbody>
+            ${tableBlock.rows.map((row) => `<tr>${row.cells.map((cell) => `<td>${escapeHtml(cell)}</td>`).join('')}</tr>`).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+};
+
+const renderTimelineSurface = (slide) => {
+  const timelineBlock = getSemanticBlock(slide, 'timeline');
+  if (!timelineBlock) return '';
+  return `
+    <div class="process-surface reveal">
+      ${timelineBlock.eyebrow ? `<div class="surface-kicker">${escapeHtml(timelineBlock.eyebrow)}</div>` : ''}
+      ${timelineBlock.intro ? `<p class="process-body">${escapeHtml(timelineBlock.intro)}</p>` : ''}
+      <div class="process-line"></div>
+      <div class="process-grid">
+        ${timelineBlock.items.map((item, index) => `
+          <div class="process-card">
+            <div class="process-card-head">
+              <div class="process-step">0${index + 1}</div>
+              <div class="process-icon">${renderGlyph(['orbit', 'target', 'graph', 'spark', 'launch'][index % 5])}</div>
+            </div>
+            <div class="process-copy">${escapeHtml(item.label)}</div>
+            ${item.detail ? `<div class="process-detail">${escapeHtml(item.detail)}</div>` : ''}
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `;
+};
+
+const renderCalloutSurface = (slide) => {
+  const calloutBlock = getSemanticBlock(slide, 'callout');
+  if (!calloutBlock) return '';
+  return `
+    <div class="transition-surface reveal">
+      ${calloutBlock.title ? `<div class="surface-kicker">${escapeHtml(calloutBlock.title)}</div>` : ''}
+      <h2 class="transition-heading" data-fit-text data-fit-min="30" data-fit-max="60" data-fit-lines="3">${escapeHtml(calloutBlock.body)}</h2>
+    </div>
+  `;
+};
+
+const renderStatStripSurface = (slide) => {
+  const statBlock = getSemanticBlock(slide, 'stat-strip');
+  if (!statBlock) return '';
+  return `
+    <div class="metrics-surface reveal">
+      <div class="metrics-grid">
+        ${statBlock.items.map((metric, index) => `
+          <div class="metric-card">
+            <div class="metric-icon">${renderGlyph(['graph', 'target', 'orbit', 'spark'][index % 4])}</div>
+            <div class="metric-value">${escapeHtml(metric.value)}</div>
+            <div class="metric-label">${escapeHtml(metric.label)}</div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `;
+};
+
+const renderMatrixSurface = (slide) => {
+  const matrixBlock = getSemanticBlock(slide, 'matrix');
+  if (!matrixBlock) return '';
+  return `
+    <div class="metrics-surface reveal">
+      <div class="slide-table-wrap">
+        <table class="slide-table-lite">
+          <thead>
+            <tr><th></th>${matrixBlock.columns.map((item) => `<th>${escapeHtml(item)}</th>`).join('')}</tr>
+          </thead>
+          <tbody>
+            ${matrixBlock.rows.map((row) => `
+              <tr>
+                <th>${escapeHtml(row.label)}</th>
+                ${row.cells.map((cell) => `<td><strong>${escapeHtml(cell.title)}</strong>${cell.body ? `<div>${escapeHtml(cell.body)}</div>` : ''}</td>`).join('')}
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+};
+
+const renderPeopleSurface = (slide) => {
+  const peopleBlock = getSemanticBlock(slide, 'people');
+  if (!peopleBlock) return '';
+  return `
+    <div class="summary-surface reveal">
+      ${peopleBlock.intro ? `<p class="summary-body">${escapeHtml(peopleBlock.intro)}</p>` : ''}
+      <div class="summary-grid">
+        ${peopleBlock.people.map((person) => `
+          <div class="summary-card">
+            <span class="summary-icon">${renderGlyph('orbit')}</span>
+            <span><strong>${escapeHtml(person.name)}</strong><br/>${escapeHtml(person.role)}${person.note ? `<br/><small>${escapeHtml(person.note)}</small>` : ''}</span>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `;
+};
+
+const renderFaqSurface = (slide) => {
+  const faqBlock = getSemanticBlock(slide, 'faq');
+  if (!faqBlock) return '';
+  return `
+    <div class="summary-surface reveal">
+      ${faqBlock.intro ? `<p class="summary-body">${escapeHtml(faqBlock.intro)}</p>` : ''}
+      <div class="summary-grid">
+        ${faqBlock.items.map((item) => `
+          <div class="summary-card">
+            <span class="summary-icon">${renderGlyph('spark')}</span>
+            <span><strong>${escapeHtml(item.question)}</strong>${item.answer ? `<br/><small>${escapeHtml(item.answer)}</small>` : ''}</span>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `;
+};
+
+const renderRiskSurface = (slide) => {
+  const riskBlock = getSemanticBlock(slide, 'risk');
+  if (!riskBlock) return '';
+  return `
+    <div class="summary-surface reveal">
+      ${riskBlock.intro ? `<p class="summary-body">${escapeHtml(riskBlock.intro)}</p>` : ''}
+      <div class="summary-grid">
+        ${riskBlock.items.map((item) => `
+          <div class="summary-card">
+            <span class="summary-icon">${renderGlyph(item.severity === 'high' ? 'target' : item.severity === 'low' ? 'orbit' : 'graph')}</span>
+            <span><strong>${escapeHtml(item.title)}</strong>${item.detail ? `<br/><small>${escapeHtml(item.detail)}</small>` : ''}</span>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `;
+};
+
+const renderArchitectureSurface = (slide) => {
+  const architectureBlock = getSemanticBlock(slide, 'architecture');
+  if (!architectureBlock) return '';
+  return `
+    <div class="process-surface reveal">
+      ${architectureBlock.eyebrow ? `<div class="surface-kicker">${escapeHtml(architectureBlock.eyebrow)}</div>` : ''}
+      ${architectureBlock.intro ? `<p class="process-body">${escapeHtml(architectureBlock.intro)}</p>` : ''}
+      <div class="process-grid">
+        ${architectureBlock.nodes.map((node, index) => `
+          <div class="process-card">
+            <div class="process-card-head">
+              <div class="process-step">0${index + 1}</div>
+              <div class="process-icon">${renderGlyph(['stack', 'orbit', 'graph', 'target', 'spark'][index % 5])}</div>
+            </div>
+            <div class="process-copy">${escapeHtml(node.label)}</div>
+            ${node.detail ? `<div class="process-detail">${escapeHtml(node.detail)}</div>` : ''}
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `;
+};
+
 const renderDefaultSurface = (slide) => {
   const paragraphs = getParagraphs(slide);
   const lists = getBlocksByType(slide, 'list');
@@ -268,6 +508,19 @@ const renderCtaSurface = (slide) => {
 };
 
 const renderVariantSurface = (slide) => {
+  if (getSemanticBlock(slide, 'quote')) return renderQuoteSurface(slide);
+  if (getSemanticBlock(slide, 'transition')) return renderTransitionSurface(slide);
+  if (getSemanticBlock(slide, 'tags')) return renderTagsSurface(slide);
+  if (getSemanticBlock(slide, 'flow')) return renderFlowSurface(slide);
+  if (getSemanticBlock(slide, 'table-lite')) return renderTableLiteSurface(slide);
+  if (getSemanticBlock(slide, 'timeline')) return renderTimelineSurface(slide);
+  if (getSemanticBlock(slide, 'callout')) return renderCalloutSurface(slide);
+  if (getSemanticBlock(slide, 'stat-strip')) return renderStatStripSurface(slide);
+  if (getSemanticBlock(slide, 'matrix')) return renderMatrixSurface(slide);
+  if (getSemanticBlock(slide, 'people')) return renderPeopleSurface(slide);
+  if (getSemanticBlock(slide, 'faq')) return renderFaqSurface(slide);
+  if (getSemanticBlock(slide, 'risk')) return renderRiskSurface(slide);
+  if (getSemanticBlock(slide, 'architecture')) return renderArchitectureSurface(slide);
   if (slide.variant === 'hero') return renderHeroSurface(slide);
   if (slide.variant === 'compare') return renderCompareSurface(slide);
   if (slide.variant === 'metrics') return renderMetricsSurface(slide);
