@@ -3,12 +3,45 @@ import { preprocessMarkdown } from './preprocess.js';
 import type { MarkdownAnalysis, OutlineResult, PlanContext } from './types.js';
 import { getSkill } from '../shared/skills.js';
 
+const buildPlanQualityGuidance = (focuses: string[]): string[] => {
+  const guidance: string[] = [];
+
+  if (focuses.includes('strong_opening')) {
+    guidance.push('- 如果内容适合做开场主张，第一页优先给出结论式 opening，不要先铺背景。');
+  }
+
+  if (focuses.includes('clear_cta') || focuses.includes('clear_ask')) {
+    guidance.push('- 如果内容存在明确收尾动作空间，最后一页优先形成清楚的 ask / action。');
+  }
+
+  return guidance;
+};
+
+const buildExpandQualityGuidance = (focuses: string[]): string[] => {
+  const guidance: string[] = [];
+
+  if (focuses.includes('strong_opening')) {
+    guidance.push('- 第一页表达必须像主张，不像摘要；优先给出一句能单独成立的 opening。');
+  }
+
+  if (focuses.includes('proof_with_numbers')) {
+    guidance.push('- 如果内容包含指标或业务证据，优先把数字、倍率、百分比前置，不要把证据埋进解释句。');
+  }
+
+  if (focuses.includes('clear_cta') || focuses.includes('clear_ask')) {
+    guidance.push('- 如果最后一页承担收尾职责，必须给出明确动作、合作请求或下一步安排。');
+  }
+
+  return guidance;
+};
+
 // Planner prompt：系统只提供结构事实和最少边界，内容意图、取舍和拆页决策交给 LLM。
 export const buildPlanPrompt = (markdown: string, context?: PlanContext): string => {
   const source = preprocessMarkdown(markdown);
   const analysis = analyzeMarkdown(markdown);
   const answers = context?.answers || {};
   const skill = getSkill(context?.skill || context?.profile);
+  const qualityGuidance = buildPlanQualityGuidance(skill.quality?.focus || []);
 
   return [
     '你是一个高质量中文演示文稿 Planner。',
@@ -45,14 +78,17 @@ export const buildPlanPrompt = (markdown: string, context?: PlanContext): string
     '- 如果输入是草稿或零散笔记，应先提炼主线，再重组页面。',
     '- 如果内容有明显收束价值，最后一页优先做 summary。',
     '- 如果无法明确判断哪些内容应被省略，也要在 uncertainties 中承认这一点，而不是假装确定。',
+    ...qualityGuidance,
     '',
     '当前 skill：',
     JSON.stringify({
       name: skill.name,
       description: skill.description,
       default_theme: skill.default_theme,
+      narrative_pattern: skill.planning.narrative_pattern,
       planner_rules: skill.planner_rules,
-      format_guidance: skill.format_guidance
+      format_guidance: skill.format_guidance,
+      quality_focus: skill.quality?.focus || []
     }, null, 2),
     '',
     '可参考的 skill 示例大纲：',
@@ -87,6 +123,7 @@ export const buildExpandPrompt = ({
   const rewriteHint = analysis.rewrite_strategy;
   const skill = getSkill(outline.meta?.skill || outline.meta?.profile);
   const answers = context?.answers || {};
+  const qualityGuidance = buildExpandQualityGuidance(skill.quality?.focus || []);
 
   return [
     '你是一个高质量中文演示文稿 Expander。',
@@ -125,14 +162,19 @@ export const buildExpandPrompt = ({
     '- 输出 meta.rewrite_quality，范围 0 到 1。',
     '- 如果输出仍然保留草稿痕迹或某页表达不够上屏，要把问题写进 meta.review_issues。',
     '- actions_taken 简要说明你做了哪些改写动作，例如“压缩长句”“改成结论式要点”“合并重复表达”。',
+    ...qualityGuidance,
     '',
     '当前 skill：',
     JSON.stringify({
       name: skill.name,
       description: skill.description,
       default_theme: skill.default_theme,
+      bullet_style: skill.expansion.bullet_style,
+      body_usage: skill.expansion.body_usage,
+      preferred_blocks: skill.blocks.preferred,
       expansion_rules: skill.expansion_rules,
-      format_guidance: skill.format_guidance
+      format_guidance: skill.format_guidance,
+      quality_focus: skill.quality?.focus || []
     }, null, 2),
     '',
     '当前内容意图：',

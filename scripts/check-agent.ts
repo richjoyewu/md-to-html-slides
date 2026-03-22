@@ -4,6 +4,7 @@ import { analyzeMarkdown } from '../agent/analysis.js';
 import { buildClarification, buildClarificationFromPlan } from '../agent/clarification.js';
 import { buildHeuristicExpanded, buildHeuristicOutline } from '../agent/fallback.js';
 import { polishOutline } from '../agent/polisher.js';
+import { evaluateSkillQualityFocus } from '../agent/quality-check.js';
 
 interface QualityScores {
   clarification_score: number;
@@ -18,6 +19,7 @@ interface QualityScores {
   core_message_score: number;
   omission_quality_score: number;
   uncertainty_quality_score: number;
+  skill_focus_score: number;
   overall: number;
 }
 
@@ -181,6 +183,13 @@ const scoreUncertaintyQuality = (confidence: number, uncertainties: string[], cl
   return 1;
 };
 
+const scoreSkillFocus = (checks: ReturnType<typeof evaluateSkillQualityFocus>): number => {
+  const applicable = checks.filter((item) => item.applicable);
+  if (!applicable.length) return 1;
+  const passed = applicable.filter((item) => item.passed).length;
+  return clampScore(passed / applicable.length);
+};
+
 const detectBugs = ({
   level,
   analysis,
@@ -195,7 +204,8 @@ const detectBugs = ({
   omittedTopics,
   planningConfidence,
   uncertainties,
-  deckTitle
+  deckTitle,
+  skillFocusChecks
 }: {
   level: string;
   analysis: ReturnType<typeof analyzeMarkdown>;
@@ -211,6 +221,7 @@ const detectBugs = ({
   planningConfidence: number;
   uncertainties: string[];
   deckTitle: string;
+  skillFocusChecks: ReturnType<typeof evaluateSkillQualityFocus>;
 }): string[] => {
   const bugs: string[] = [];
   if (expectedClarification(level, analysis, sectionCount) && !clarificationTriggered) bugs.push('clarification_miss_bug');
@@ -232,6 +243,7 @@ const detectBugs = ({
   if (scoreCoreMessage(coreMessage, deckTitle, deckGoal) < 1) bugs.push('weak_core_message_bug');
   if (scoreOmissionQuality(omittedTopics, titles, analysis) < 1) bugs.push('omitted_topics_bug');
   if (scoreUncertaintyQuality(planningConfidence, uncertainties, clarificationTriggered) < 1) bugs.push('uncertainty_quality_bug');
+  if (skillFocusChecks.some((item) => item.applicable && !item.passed)) bugs.push('skill_quality_focus_bug');
   return Array.from(new Set(bugs));
 };
 
@@ -257,6 +269,7 @@ const runCase = (filePath: string): CaseResult => {
 
   const titles = outline.slides.map((slide) => slide.title);
   const detailPoints = outline.slides.map((slide) => slide.detail_points);
+  const skillFocusChecks = evaluateSkillQualityFocus(expanded);
   const scores = {
     clarification_score: scoreClarification(level, Boolean(clarification), analysis, sectionCount),
     planning_confidence_score: scorePlanningConfidence(Boolean(clarification), outline.meta.planning_confidence, outline.meta.uncertainties),
@@ -270,6 +283,7 @@ const runCase = (filePath: string): CaseResult => {
     core_message_score: scoreCoreMessage(outline.meta.core_message, outline.deck_title, outline.meta.deck_goal),
     omission_quality_score: scoreOmissionQuality(outline.meta.omitted_topics, titles, analysis),
     uncertainty_quality_score: scoreUncertaintyQuality(outline.meta.planning_confidence, outline.meta.uncertainties, Boolean(clarification)),
+    skill_focus_score: scoreSkillFocus(skillFocusChecks),
     overall: 0
   };
   scores.overall = Number(((
@@ -284,8 +298,9 @@ const runCase = (filePath: string): CaseResult => {
     scores.deck_goal_score +
     scores.core_message_score +
     scores.omission_quality_score +
-    scores.uncertainty_quality_score
-  ) / 12).toFixed(3));
+    scores.uncertainty_quality_score +
+    scores.skill_focus_score
+  ) / 13).toFixed(3));
 
   const bugs = detectBugs({
     level,
@@ -301,7 +316,8 @@ const runCase = (filePath: string): CaseResult => {
     omittedTopics: outline.meta.omitted_topics,
     planningConfidence: outline.meta.planning_confidence,
     uncertainties: outline.meta.uncertainties,
-    deckTitle: outline.deck_title
+    deckTitle: outline.deck_title,
+    skillFocusChecks
   });
 
   return {

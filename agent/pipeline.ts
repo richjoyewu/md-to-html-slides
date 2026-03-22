@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 import { buildClarification, buildClarificationFromPlan } from './clarification.js';
-import { requestExpand } from './expander.js';
+import { finalizeExpanded, requestExpand } from './expander.js';
 import { buildHeuristicExpanded, buildHeuristicOutline } from './fallback.js';
 import { requestPlan } from './planner.js';
 import { polishOutline } from './polisher.js';
@@ -265,7 +265,7 @@ export const createCorePipeline = (options: CorePipelineOptions = {}) => {
       mode = 'fallback';
     }
 
-    expanded = normalizeExpanded(expanded);
+    expanded = finalizeExpanded(expanded);
     remember(expandCache, expandCacheLimit, expandKey, expanded);
     return { kind: 'expanded', payload: expanded, mode };
   };

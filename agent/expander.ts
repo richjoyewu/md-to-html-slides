@@ -2,6 +2,7 @@ import { analyzeMarkdown } from './analysis.js';
 import { buildHeuristicExpanded } from './fallback.js';
 import { normalizeExpanded } from './normalize.js';
 import { buildExpandPrompt } from './prompt-builder.js';
+import { applySkillQualityFocusChecks } from './quality-check.js';
 import type { ExpandedResult, ExpandedSlide, LlmJsonProvider, OutlineResult, PlanContext } from './types.js';
 
 interface ExpandRequestOptions {
@@ -96,6 +97,9 @@ const polishExpanded = (expanded: ExpandedResult): ExpandedResult => {
   };
 };
 
+export const finalizeExpanded = (payload: unknown): ExpandedResult =>
+  applySkillQualityFocusChecks(normalizeExpanded(polishExpanded(normalizeExpanded(payload))));
+
 // Expander 阶段在已确认大纲基础上补足可上屏内容，并保持大纲顺序稳定。
 export const requestExpand = async (
   provider: LlmJsonProvider,
@@ -105,8 +109,6 @@ export const requestExpand = async (
   options: ExpandRequestOptions = {}
 ): Promise<{ expanded: ExpandedResult; mode: 'llm' | 'fallback' }> => {
   const analysis = analyzeMarkdown(markdown);
-  const finalizeExpanded = (payload: unknown): ExpandedResult =>
-    normalizeExpanded(polishExpanded(normalizeExpanded(payload)));
 
   try {
     const payload = await provider.callJson({

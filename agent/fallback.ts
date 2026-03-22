@@ -249,6 +249,14 @@ function coerceFormat(slide: OutlineSlide): ExpandedSlide['format'] {
   return 'title-body';
 }
 
+function coerceGeneralFormat(slide: OutlineSlide, index: number, total: number): ExpandedSlide['format'] {
+  if (slide.intent === 'summary') return 'summary';
+  if (index === total - 1 && total >= 4) return 'summary';
+  if (slide.intent === 'process' || /(路线图|阶段|步骤|流程|方法|路径)/.test(slide.title)) return 'process';
+  if (looksMetricSlide(slide)) return 'metrics';
+  return coerceFormat(slide);
+}
+
 function looksMetricSlide(slide: OutlineSlide): boolean {
   const haystack = `${slide.title} ${(slide.detail_points || []).join(' ')}`.toLowerCase();
   return /(\d+[%x倍万亿k])|(增长|效率|指标|用户|客户|收入|转化|成本|部署|交付|工单|上线|分钟|小时|天|周|月)/.test(haystack);
@@ -294,7 +302,7 @@ export function buildHeuristicExpanded(markdown: string, outline: OutlineResult)
     title: slide.title,
     format: skill.name === 'pitch-tech-launch'
       ? coercePitchFormat(slide, slide.index - 1, outline.slides.length)
-      : coerceFormat(slide),
+      : coerceGeneralFormat(slide, slide.index - 1, outline.slides.length),
     bullets: (slide.detail_points ?? slide.preview_points ?? []).slice(0, 4).map((item) => compactClause(item)).filter(Boolean),
     body: buildSlideBody(slide),
   }));
