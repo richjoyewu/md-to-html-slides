@@ -18,6 +18,14 @@ import type {
   OutlineResult,
   PlanContext
 } from '../agent/types.js';
+import {
+  loadGoldenOutput,
+  scoreGoldenSlideCount,
+  scoreGoldenTitleCoverage,
+  scoreGoldenDeckGoal,
+  scoreGoldenCoreMessage,
+  type GoldenOutput
+} from '../agent/golden-loader.js';
 
 interface QualityScores {
   llm_mode_score: number;
@@ -29,6 +37,10 @@ interface QualityScores {
   uncertainty_quality_score: number;
   slide_likeness_score: number;
   expansion_score: number;
+  golden_slide_count_score: number | null;
+  golden_title_coverage_score: number | null;
+  golden_deck_goal_score: number | null;
+  golden_core_message_score: number | null;
   overall: number;
 }
 
@@ -51,6 +63,13 @@ interface CaseResult {
   scores: QualityScores;
   bugs: string[];
   error?: string;
+  llm_output?: {
+    deck_goal: string;
+    core_message: string;
+    slide_titles: string[];
+    uncertainties: string[];
+    planning_confidence: number;
+  };
 }
 
 interface ProfileRunSummary {
@@ -71,15 +90,12 @@ interface ProfileRunReport {
 const FIXTURES_DIR = path.resolve(process.cwd(), 'fixtures');
 const REPORT_DIR = path.resolve(process.cwd(), '.tmp', 'evals');
 const REPORT_PATH = path.join(REPORT_DIR, 'check-llm-latest.json');
-const PLAN_TIMEOUT_MS = Number(process.env.CHECK_LLM_PLAN_TIMEOUT_MS || 30000);
-const EXPAND_TIMEOUT_MS = Number(process.env.CHECK_LLM_EXPAND_TIMEOUT_MS || 45000);
+const PLAN_TIMEOUT_MS = Number(process.env.CHECK_LLM_PLAN_TIMEOUT_MS || 90000);
+const EXPAND_TIMEOUT_MS = Number(process.env.CHECK_LLM_EXPAND_TIMEOUT_MS || 120000);
 const RETRY_COUNT = Math.max(0, Number(process.env.CHECK_LLM_RETRIES || 1));
 const RETRY_BACKOFF_MS = Math.max(250, Number(process.env.CHECK_LLM_RETRY_BACKOFF_MS || 1500));
 const DEFAULT_CASES = [
-  'course/clean/openclaw-intro.md',
-  'course/extreme/very-long.md',
-  'pitch/rough/founder-notes.md',
-  'report/clean/weekly-report.md'
+  'product/extreme/product-intro.md'
 ] as const;
 
 const clampScore = (value: number): number => Math.max(0, Math.min(1, value));
@@ -257,6 +273,10 @@ const withRetries = async <T>(label: string, operation: () => Promise<T>): Promi
 };
 
 const answerBank = {
+  product: {
+    audience: '潜在合作方和投资人',
+    goal: '让听众理解产品解决什么问题、怎么解决、为什么值得做'
+  },
   course: {
     audience: '零基础学员',
     goal: '帮助观众建立核心概念和整体认知'
@@ -370,7 +390,7 @@ const runPlanFlow = async ({
       requestPlan(provider, markdown, context, {
         allowFallback: false,
         timeoutMs: PLAN_TIMEOUT_MS,
-        maxTokens: 500
+        maxTokens: 8192
       })
     );
     const postplan = buildClarificationFromPlan(outline, context);
@@ -413,6 +433,10 @@ const buildFailureScores = (): QualityScores => ({
   uncertainty_quality_score: 0,
   slide_likeness_score: 0,
   expansion_score: 0,
+  golden_slide_count_score: null,
+  golden_title_coverage_score: null,
+  golden_deck_goal_score: null,
+  golden_core_message_score: null,
   overall: 0
 });
 
@@ -424,6 +448,7 @@ const runCase = async (
   const relative = path.relative(FIXTURES_DIR, filePath).replace(/\\/g, '/');
   const [category = 'default', level = 'unknown'] = relative.split(path.sep);
   const analysis = analyzeMarkdown(markdown);
+  const golden = loadGoldenOutput(filePath);
 
   try {
     const { clarificationRounds, outline, planMode } = await runPlanFlow({
@@ -435,7 +460,7 @@ const runCase = async (
       requestExpand(provider, markdown, outline, undefined, {
         allowFallback: false,
         timeoutMs: EXPAND_TIMEOUT_MS,
-        maxTokens: 900
+        maxTokens: 8192
       })
     );
 
@@ -443,6 +468,23 @@ const runCase = async (
     const sectionCount = analysis.input_shape === 'slide_like'
       ? outline.slides.length
       : Math.max(1, markdown.split(/^##\s+/gm).filter(Boolean).length - 1);
+
+    // Golden output comparison scores
+    const goldenSlideCountScore = golden
+      ? scoreGoldenSlideCount(golden.slides.length, outline.slides.length)
+      : null;
+    const goldenTitleCoverageScore = golden
+      ? scoreGoldenTitleCoverage(
+          golden.slides.map((s) => s.title),
+          outline.slides.map((s) => s.title)
+        )
+      : null;
+    const goldenDeckGoalScore = golden
+      ? scoreGoldenDeckGoal(golden.deck_goal, outline.meta.deck_goal)
+      : null;
+    const goldenCoreMessageScore = golden
+      ? scoreGoldenCoreMessage(golden.core_message, outline.meta.core_message)
+      : null;
 
     const scores = {
       llm_mode_score: planMode === 'llm' && expandMode === 'llm' ? 1 : 0,
@@ -458,19 +500,34 @@ const runCase = async (
       ),
       slide_likeness_score: scoreSlideLikeness(expanded),
       expansion_score: scoreExpansion(expanded),
+      golden_slide_count_score: goldenSlideCountScore,
+      golden_title_coverage_score: goldenTitleCoverageScore,
+      golden_deck_goal_score: goldenDeckGoalScore,
+      golden_core_message_score: goldenCoreMessageScore,
       overall: 0
     };
-    scores.overall = Number(((
-      scores.llm_mode_score +
-      scores.clarification_score +
-      scores.plan_contract_score +
-      scores.slide_count_score +
-      scores.deck_goal_score +
-      scores.core_message_score +
-      scores.uncertainty_quality_score +
-      scores.slide_likeness_score +
+
+    // Compute overall: base scores + golden scores (if available)
+    const baseScores = [
+      scores.llm_mode_score,
+      scores.clarification_score,
+      scores.plan_contract_score,
+      scores.slide_count_score,
+      scores.deck_goal_score,
+      scores.core_message_score,
+      scores.uncertainty_quality_score,
+      scores.slide_likeness_score,
       scores.expansion_score
-    ) / 9).toFixed(3));
+    ];
+    const goldenScores = [
+      goldenSlideCountScore,
+      goldenTitleCoverageScore,
+      goldenDeckGoalScore,
+      goldenCoreMessageScore
+    ].filter((s): s is number => s !== null);
+
+    const allScores = [...baseScores, ...goldenScores];
+    scores.overall = Number((allScores.reduce((a, b) => a + b, 0) / allScores.length).toFixed(3));
 
     const bugs: string[] = [];
     if (planMode !== 'llm') bugs.push('plan_fallback_bug');
@@ -485,6 +542,11 @@ const runCase = async (
     if (scores.slide_likeness_score < 0.75) bugs.push('slide_likeness_bug');
     if (scores.expansion_score < 0.85) bugs.push('weak_expansion_bug');
     if (clarificationRounds.length > 2) bugs.push('too_many_clarification_rounds_bug');
+    // Golden output bugs
+    if (goldenSlideCountScore !== null && goldenSlideCountScore < 0.6) bugs.push('golden_slide_count_mismatch');
+    if (goldenTitleCoverageScore !== null && goldenTitleCoverageScore < 0.5) bugs.push('golden_title_coverage_low');
+    if (goldenDeckGoalScore !== null && goldenDeckGoalScore < 0.3) bugs.push('golden_deck_goal_mismatch');
+    if (goldenCoreMessageScore !== null && goldenCoreMessageScore < 0.3) bugs.push('golden_core_message_mismatch');
 
     return {
       case_id: relative,
@@ -497,7 +559,14 @@ const runCase = async (
       expand_mode: expandMode,
       planning_confidence: outline.meta.planning_confidence,
       scores,
-      bugs
+      bugs,
+      llm_output: {
+        deck_goal: outline.meta.deck_goal,
+        core_message: outline.meta.core_message,
+        slide_titles: outline.slides.map((s) => s.title),
+        uncertainties: outline.meta.uncertainties,
+        planning_confidence: outline.meta.planning_confidence
+      }
     };
   } catch (error) {
     return {

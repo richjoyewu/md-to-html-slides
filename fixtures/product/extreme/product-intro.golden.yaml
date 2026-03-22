@@ -1,0 +1,58 @@
+deck_goal: 让听众理解这个产品解决什么问题、怎么解决、为什么值得做
+core_message: 我们做的不是格式工具，而是把文字语言转成演讲视觉语言的表达转译引擎
+
+slides:
+  - title: 把文字语言，转成适合演讲的视觉语言
+    type: hero
+    notes: 一句话定位，不需要解释
+
+  - title: 写出来 ≠ 讲清楚
+    type: quote
+    notes: 屏幕只放结论，三种场景留给口述
+    points:
+      - 从想法到表达之间，缺一个高效的转化过程
+
+  - title: 好看 ≠ 清楚
+    type: compare
+    notes: 三张卡片对比，底下一句收束
+    points:
+      - PPT 解决排版，不解决结构
+      - 模板解决风格，不解决节奏
+      - AI 解决文字，不解决表达
+      - 没有工具帮你讲得更清楚
+
+  - title: 表达转译
+    type: process
+    notes: 整个 pitch 的价值核心，需要最强视觉呈现
+    points:
+      - 理解主线
+      - 拆分重组
+      - 区分屏与口
+      - 建立节奏
+
+  - title: Markdown → 转译引擎 → HTML Deck
+    type: flow
+    notes: 流程图，三个节点各一句话解释
+    points:
+      - "Markdown: 结构化 + 低门槛"
+      - "引擎: 理解 → 拆 → 改 → 渲染"
+      - "Deck: 有顺序的视觉表达单元"
+
+  - title: 用户价值
+    type: list
+    notes: 三条，每条一句话
+    points:
+      - 降低门槛 — 你管内容，系统管表达
+      - 提升清晰度 — 帮你梳理优先级和结构
+      - 提升效率 — 从几小时到几分钟
+
+  - title: 谁需要这个
+    type: tags
+    notes: 场景标签 + 底下一句收束
+    points:
+      - 方案汇报 / 融资 Pitch / 课程讲解 / 客户 Briefing / 内部分享 / 课题答辩
+      - 不是一年一次，是每周都在发生
+
+  - title: 从散乱的想法到清晰的视觉表达，更简单地讲清楚
+    type: hero
+    notes: 回扣第一页主张，收尾

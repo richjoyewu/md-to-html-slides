@@ -1,3 +1,4 @@
+import { createAnthropicProvider } from './adapters/anthropic.js';
 import { createMoonshotProvider } from './adapters/moonshot.js';
 import { createOpenAiProvider } from './adapters/openai.js';
 import type { JsonMode, LlmJsonProvider, LlmProviderConfig, ProviderKind } from './types.js';
@@ -23,6 +24,7 @@ const normalizeProviderKind = (value: string): ProviderKind | null => {
   if (normalized === 'openai-compatible' || normalized === 'openai_compatible' || normalized === 'compatible') {
     return 'openai-compatible';
   }
+  if (normalized === 'anthropic' || normalized === 'claude') return 'anthropic';
   throw new Error(`Unsupported provider: ${value}`);
 };
 
@@ -37,12 +39,14 @@ const normalizeJsonMode = (value: string): JsonMode | undefined => {
 const defaultBaseUrl = (provider: ProviderKind): string => {
   if (provider === 'moonshot') return 'https://api.moonshot.cn/v1';
   if (provider === 'openai') return 'https://api.openai.com/v1';
+  if (provider === 'anthropic') return 'https://api.anthropic.com/v1';
   return '';
 };
 
 const defaultModel = (provider: ProviderKind): string => {
   if (provider === 'moonshot') return 'kimi-k2-5';
   if (provider === 'openai') return 'gpt-4.1-mini';
+  if (provider === 'anthropic') return 'claude-sonnet-4-6';
   return '';
 };
 
@@ -120,6 +124,7 @@ export const resolveLlmProviderConfig = (
 
 export const createLlmProvider = (config: LlmProviderConfig): LlmJsonProvider => {
   if (config.provider === 'moonshot') return createMoonshotProvider(config);
+  if (config.provider === 'anthropic') return createAnthropicProvider(config);
   if (config.provider === 'openai' || config.provider === 'openai-compatible') {
     return createOpenAiProvider(config);
   }

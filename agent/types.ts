@@ -20,7 +20,7 @@ export type ExpandFormat =
   | 'summary'
   | 'cta';
 export type AgentMode = 'llm' | 'fallback' | 'cache';
-export type ProviderKind = 'moonshot' | 'openai' | 'openai-compatible';
+export type ProviderKind = 'moonshot' | 'openai' | 'openai-compatible' | 'anthropic';
 export type JsonMode = 'prompt' | 'native';
 
 export interface SourceSection {
