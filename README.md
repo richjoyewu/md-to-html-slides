@@ -20,9 +20,9 @@ It is an agentic system that:
 
 Current public boundary:
 
+- the current version only provides `System Mode` (stable, confirmable structured generation)
 - the product is currently `deck`-first
 - output is single-file HTML
-- future presentation modes include `roadmap`, `briefing`, and `storyflow`
 
 ## Preview
 
@@ -56,6 +56,10 @@ The canonical artifact chain is now:
 - `expanded.json`
 - `render-deck.json`
 - `HTML`
+
+Current version statement:
+
+- The current version only provides `System Mode` (stable, confirmable structured generation).
 
 Default shell experience:
 
@@ -93,7 +97,6 @@ What it includes:
 - Input: `Markdown + images`
 - Output: single-file `HTML` presentation surface
 - Current primary mode: `deck`
-- Future modes: `roadmap`, `briefing`, `storyflow`
 - Themes: `dark-card`, `tech-launch`, `editorial-light`
 - Skills: `general`, `pitch-tech-launch`
 - Focus: design quality, responsive layout, and simple publishing
@@ -148,7 +151,7 @@ md-to-html-slides/
 
 ## Status
 
-Early-stage open source project. The current focus is to make one Markdown file reliably generate one strong speaker-friendly HTML presentation, with `deck` as the current default mode.
+Early-stage open source project. The current version only provides `System Mode` (stable, confirmable structured generation), with `deck` as the current default mode.
 
 ## NPM Scripts
 
@@ -245,5 +248,5 @@ Custom skill files:
 ## Design Direction
 
 - [Docs Index](./docs/README.md)
-- [Design Principles](./docs/design-principles.md)
-- [Engineering Spec](./docs/engineering-spec.md)
+- [Design Principles](./docs/public/design-principles.md)
+- [Engineering Spec](./docs/public/engineering-spec.md)

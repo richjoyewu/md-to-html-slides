@@ -1,22 +1,18 @@
-# Docs Index
+# Docs
 
-This directory keeps only the current source-of-truth documents for the project.
+This directory is split into two layers:
 
-## Keep
+- `public/`: public product and integration documentation tracked in Git
+- `internal/`: local internal notes kept out of Git and not uploaded to GitHub
 
-- `internal-product-principles.zh-CN.md`
-- `next-technical-strategy.zh-CN.md`
-- `engineering-spec.md`
-- `design-principles.md`
-- `freeform-html-art-mode-decision.zh-CN.md`
-- `system-mode-vs-art-mode-boundary.zh-CN.md`
-- `demo-openclaw-design-breakdown.zh-CN.md`
-- `system-mode-visual-assets-prd.zh-CN.md`
+Current public statement:
 
-## Rule
+- The current version only provides `System Mode` (stable, confirmable structured generation).
 
-Delete documents when they are:
+Public docs:
 
-- duplicated in another canonical doc
-- outdated phase docs that no longer match the implementation
-- personal notes rather than project-facing references
+- [`public/README.md`](./public/README.md)
+- [`public/engineering-spec.md`](./public/engineering-spec.md)
+- [`public/design-principles.md`](./public/design-principles.md)
+- [`public/block-registry.md`](./public/block-registry.md)
+- [`public/visual-elements-registry.md`](./public/visual-elements-registry.md)

@@ -9,14 +9,14 @@
 ## Canonical Docs
 
 - `README.md`: current product overview, local usage, and public-facing positioning.
-- `docs/design-principles.md`: canonical visual direction and anti-generic design rules.
-- `docs/internal-product-principles.zh-CN.md`: canonical product definition, main flow, and scope guardrails.
-- `docs/next-technical-strategy.zh-CN.md`: current implementation priorities and next-stage direction.
-- `docs/engineering-spec.md`: current Markdown, CLI, and provider contracts.
-- `docs/freeform-html-art-mode-decision.zh-CN.md`: mode-splitting decision record for stable system mode versus freeform art mode.
-- `docs/system-mode-vs-art-mode-boundary.zh-CN.md`: boundary definition for default system mode, future art mode, and task prioritisation.
-- `docs/demo-openclaw-design-breakdown.zh-CN.md`: design asset breakdown of the hand-crafted demo baseline and what should enter System Mode.
-- `docs/system-mode-visual-assets-prd.zh-CN.md`: product requirement doc for System Mode visual components, icons, chips, CTA, and image-slot roadmap.
+- `docs/public/design-principles.md`: canonical visual direction and anti-generic design rules.
+- `docs/public/engineering-spec.md`: current Markdown, CLI, and provider contracts.
+- `docs/internal/internal-product-principles.zh-CN.md`: canonical product definition, main flow, and scope guardrails.
+- `docs/internal/next-technical-strategy.zh-CN.md`: current implementation priorities and next-stage direction.
+- `docs/internal/freeform-html-art-mode-decision.zh-CN.md`: mode-splitting decision record for stable system mode versus freeform art mode.
+- `docs/internal/system-mode-vs-art-mode-boundary.zh-CN.md`: boundary definition for default system mode, future art mode, and task prioritisation.
+- `docs/internal/demo-openclaw-design-breakdown.zh-CN.md`: design asset breakdown of the hand-crafted demo baseline and what should enter System Mode.
+- `docs/internal/system-mode-visual-assets-prd.zh-CN.md`: product requirement doc for System Mode visual components, icons, chips, CTA, and image-slot roadmap.
 
 ## Common Commands
 
@@ -35,7 +35,7 @@
 
 ## Edit Boundaries
 
-- Treat `docs/internal-product-principles.zh-CN.md`, `docs/next-technical-strategy.zh-CN.md`, and `docs/engineering-spec.md` as the architectural source of truth before changing flow, module boundaries, or provider wiring.
+- Treat `docs/internal/internal-product-principles.zh-CN.md`, `docs/internal/next-technical-strategy.zh-CN.md`, and `docs/public/engineering-spec.md` as the architectural source of truth before changing flow, module boundaries, or provider wiring.
 - Keep the deterministic renderer separate from agent reasoning. Do not move content-planning logic into templates or rendering code.
 - Do not introduce provider-specific request logic outside the provider layer.
 - Avoid duplicating parsing, normalization, and schema-mapping logic across CLI, server, and studio code. Prefer shared contracts and shared helpers.

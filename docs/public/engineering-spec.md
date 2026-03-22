@@ -8,6 +8,10 @@ This document combines the current engineering-facing specs for:
 
 It is the single source of truth for contracts that must stay consistent across CLI, Studio, server, and agent layers.
 
+Current version statement:
+
+- The current version only provides `System Mode` (stable, confirmable structured generation).
+
 ## Markdown Input
 
 ### Goal

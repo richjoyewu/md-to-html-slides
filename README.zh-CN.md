@@ -20,9 +20,9 @@
 
 当前公开边界：
 
+- 当前版本只提供 `System Mode`（稳定可确认的结构化生成）
 - 当前产品仍然以 `deck` 为主
 - 当前输出仍是单文件 HTML
-- 后续展示模式会扩展到 `roadmap`、`briefing`、`storyflow`
 
 ## 预览
 
@@ -57,6 +57,10 @@
 - `render-deck.json`
 - `HTML`
 
+当前版本声明：
+
+- 当前版本只提供 `System Mode`（稳定可确认的结构化生成）。
+
 ## Studio Demo
 
 现在有一个可运行的最小 Studio 演示：
@@ -82,7 +86,6 @@ npm run studio
 - 输入：`Markdown + images`
 - 输出：单文件 `HTML` 展示形态
 - 当前默认模式：`deck`
-- 后续目标模式：`roadmap`、`briefing`、`storyflow`
 - 主题：`dark-card`、`tech-launch`、`editorial-light`
 - 技能：`general`、`pitch-tech-launch`
 - 当前重点：设计质量、响应式布局、简单发布
@@ -137,7 +140,7 @@ md-to-html-slides/
 
 ## 当前状态
 
-这是一个早期阶段的开源项目。当前重点是让一份 Markdown 稳定地生成一份适合演讲的 HTML 展示稿，并以 `deck` 作为默认模式。
+这是一个早期阶段的开源项目。当前版本只提供 `System Mode`（稳定可确认的结构化生成），并以 `deck` 作为默认模式。
 
 ## NPM Scripts
 
@@ -211,5 +214,5 @@ Artifact 分工：
 ## 设计方向
 
 - [文档索引](./docs/README.md)
-- [设计原则](./docs/design-principles.md)
-- [工程规范](./docs/engineering-spec.md)
+- [设计原则](./docs/public/design-principles.md)
+- [工程规范](./docs/public/engineering-spec.md)
