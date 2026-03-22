@@ -94,7 +94,7 @@ What it includes:
 - Output: single-file `HTML` presentation surface
 - Current primary mode: `deck`
 - Future modes: `roadmap`, `briefing`, `storyflow`
-- Themes: `dark-card`, `tech-launch`, `signal-blue`, `editorial-light`
+- Themes: `dark-card`, `tech-launch`, `editorial-light`
 - Skills: `general`, `pitch-tech-launch`
 - Focus: design quality, responsive layout, and simple publishing
 - Non-goal for now: full online editor, full PPT replacement, complex runtime dependencies
@@ -200,7 +200,7 @@ node ./scripts/build.mjs plan ./fixtures/pitch/clean/product-pitch.md --skill-fi
 node ./scripts/build.mjs plan ./fixtures/course/clean/openclaw-intro.md --skill general
 node ./scripts/build.mjs expand ./fixtures/course/clean/openclaw-intro.md --skill general
 node ./scripts/build.mjs render-deck ./tmp/expanded.json -o ./tmp/render-deck.json
-node ./scripts/build.mjs render ./tmp/render-deck.json -o ./.tmp/examples/custom.html --theme signal-blue
+node ./scripts/build.mjs render ./tmp/render-deck.json -o ./.tmp/examples/custom.html --theme tech-launch
 node ./scripts/build.mjs build ./fixtures/course/clean/openclaw-intro.md -o ./.tmp/examples/01-agent.html --skill general
 node ./scripts/build.mjs build ./fixtures/course/clean/openclaw-intro.md -o ./.tmp/examples/01-agent-editorial.html --theme editorial-light --skill general
 node ./scripts/build.mjs build ./fixtures/pitch/clean/product-pitch.md -o ./.tmp/examples/01-launch-tech.html --skill pitch-tech-launch

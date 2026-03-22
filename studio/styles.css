@@ -1632,13 +1632,6 @@ button {
     linear-gradient(135deg, #0b0e14 0%, #101621 55%, #0a0d13 100%);
 }
 
-.compare-cover.signal-blue {
-  background:
-    radial-gradient(circle at 15% 0%, rgba(89, 166, 255, 0.2), transparent 28%),
-    radial-gradient(circle at 85% 10%, rgba(124, 230, 187, 0.12), transparent 22%),
-    linear-gradient(135deg, #0a1020 0%, #101a33 55%, #0a0d16 100%);
-}
-
 .compare-cover.tech-launch {
   background:
     radial-gradient(circle at 14% 6%, rgba(105, 240, 255, 0.22), transparent 26%),

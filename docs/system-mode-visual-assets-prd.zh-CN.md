@@ -95,7 +95,6 @@
 
 - `dark-card`
 - `tech-launch`
-- `signal-blue`
 - `editorial-light`
 
 这些 theme 已经能承载基础结构，但还没有完整的组件资产层。

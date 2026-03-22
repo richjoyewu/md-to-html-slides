@@ -1,6 +1,5 @@
 import { renderDarkCardDeck } from './dark-card.mjs';
 import { renderEditorialLightDeck } from './editorial-light.mjs';
-import { renderSignalBlueDeck } from './signal-blue.mjs';
 import { renderTechLaunchDeck } from './tech-launch.mjs';
 
 export const THEMES = [
@@ -17,13 +16,6 @@ export const THEMES = [
     description: 'Neon product-launch theme tuned for hero claims, comparisons, metrics, and CTA slides.',
     swatches: ['#040814', '#71f4ff', '#7f86ff'],
     renderer: renderTechLaunchDeck
-  },
-  {
-    name: 'signal-blue',
-    label: 'Signal Blue',
-    description: 'Cooler product-story palette for roadmaps, systems, and method decks.',
-    swatches: ['#0b1020', '#59a6ff', '#7ce6bb'],
-    renderer: renderSignalBlueDeck
   },
   {
     name: 'editorial-light',

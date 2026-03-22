@@ -83,7 +83,7 @@ npm run studio
 - 输出：单文件 `HTML` 展示形态
 - 当前默认模式：`deck`
 - 后续目标模式：`roadmap`、`briefing`、`storyflow`
-- 主题：`dark-card`、`tech-launch`、`signal-blue`、`editorial-light`
+- 主题：`dark-card`、`tech-launch`、`editorial-light`
 - 技能：`general`、`pitch-tech-launch`
 - 当前重点：设计质量、响应式布局、简单发布
 - 当前非目标：完整在线编辑器、完整 PPT 替代、复杂运行时依赖
@@ -187,7 +187,7 @@ node ./scripts/build.mjs plan ./fixtures/pitch/clean/product-pitch.md --skill-fi
 node ./scripts/build.mjs plan ./fixtures/course/clean/openclaw-intro.md --skill general
 node ./scripts/build.mjs expand ./fixtures/course/clean/openclaw-intro.md --skill general
 node ./scripts/build.mjs render-deck ./tmp/expanded.json -o ./tmp/render-deck.json
-node ./scripts/build.mjs render ./tmp/render-deck.json -o ./.tmp/examples/custom.html --theme signal-blue
+node ./scripts/build.mjs render ./tmp/render-deck.json -o ./.tmp/examples/custom.html --theme tech-launch
 node ./scripts/build.mjs build ./fixtures/course/clean/openclaw-intro.md -o ./.tmp/examples/01-agent.html --skill general
 node ./scripts/build.mjs build ./fixtures/course/clean/openclaw-intro.md -o ./.tmp/examples/01-agent-editorial.html --theme editorial-light --skill general
 node ./scripts/build.mjs build ./fixtures/pitch/clean/product-pitch.md -o ./.tmp/examples/01-launch-tech.html --skill pitch-tech-launch

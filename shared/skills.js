@@ -1,6 +1,6 @@
 export const DEFAULT_SKILL = 'general';
 
-const ALLOWED_THEMES = new Set(['dark-card', 'tech-launch', 'signal-blue', 'editorial-light']);
+const ALLOWED_THEMES = new Set(['dark-card', 'tech-launch', 'editorial-light']);
 const ALLOWED_EXPAND_FORMATS = new Set([
   'hero',
   'title-bullets',

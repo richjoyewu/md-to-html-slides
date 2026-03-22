@@ -57,7 +57,7 @@ const usage = (): string => {
     '  md-to-html-slides render-deck ./tmp/expanded.json -o ./tmp/render-deck.json',
     '  md-to-html-slides build ./fixtures/pitch/clean/product-pitch.md -o ./.tmp/examples/01-launch-tech.html --skill pitch-tech-launch',
     '  md-to-html-slides build ./fixtures/pitch/clean/product-pitch.md -o ./.tmp/examples/01-launch-tech.html --answer audience=投资人 --answer goal=解释融资亮点',
-    '  md-to-html-slides render ./tmp/render-deck.json -o ./.tmp/examples/custom.html --theme signal-blue',
+    '  md-to-html-slides render ./tmp/render-deck.json -o ./.tmp/examples/custom.html --theme tech-launch',
     '  md-to-html-slides preview ./fixtures/course/clean/openclaw-intro.md --skill general',
     '  md-to-html-slides validate-skill ./skills/founder-pitch.json',
     '  md-to-html-slides validate-skill-dir ./skills',
