@@ -49,6 +49,18 @@ const ALLOWED_EXPANSION_KEYS = new Set(['bullet_style', 'bulletStyle', 'body_usa
 const ALLOWED_BLOCKS_KEYS = new Set(['preferred', 'format_guidance', 'formatGuidance']);
 const ALLOWED_QUALITY_KEYS = new Set(['focus']);
 const ALLOWED_EXAMPLES_KEYS = new Set(['outline', 'expanded']);
+const ALLOWED_QUALITY_FOCI = new Set([
+  'clarity',
+  'parallel_bullets',
+  'good_summary',
+  'strong_opening',
+  'proof_with_numbers',
+  'clear_cta',
+  'clear_ask',
+  'founder_conviction'
+]);
+const PITCH_SIGNAL = /pitch|launch|发布|融资|founder|创始人/i;
+const PITCH_REQUIRED_BLOCKS = new Set(['hero', 'compare', 'metrics', 'cta']);
 
 const isPlainObject = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 const nonEmptyText = (value = '') => String(value || '').trim();
@@ -141,17 +153,30 @@ const validateExamples = (value, path) => {
   };
 };
 
-export const validateSkillInput = (skill) => {
+const toIdSet = (value) => {
+  if (!value) return new Set();
+  if (value instanceof Set) return new Set([...value].map((item) => nonEmptyText(item).toLowerCase()).filter(Boolean));
+  if (value instanceof Map) return new Set([...value.keys()].map((item) => nonEmptyText(item).toLowerCase()).filter(Boolean));
+  if (Array.isArray(value)) return new Set(value.map((item) => nonEmptyText(item).toLowerCase()).filter(Boolean));
+  return new Set();
+};
+
+const dedupeStrings = (items = []) => Array.from(new Set(items.map((item) => nonEmptyText(item)).filter(Boolean)));
+
+export const validateSkillInput = (skill, options = {}) => {
   if (!skill || typeof skill !== 'object') throw new Error('Skill definition must be an object');
   assertPlainObject(skill, 'skill');
   assertNoUnknownKeys(skill, ALLOWED_SKILL_TOP_LEVEL_KEYS, 'skill');
+
+  const existingIds = options.existingIds ? toIdSet(options.existingIds) : new Set(runtimeSkills.keys());
+  const knownBaseSkills = options.knownBaseSkills ? toIdSet(options.knownBaseSkills) : new Set(runtimeSkills.keys());
 
   const normalizedId = nonEmptyText(skill.id || skill.name || '').toLowerCase();
   if (!normalizedId) throw new Error('skill.id is required');
   if (!/^[a-z0-9-]{3,48}$/.test(normalizedId)) {
     throw new Error('skill.id must use lowercase letters, numbers, or hyphens, length 3-48');
   }
-  if (runtimeSkills.has(normalizedId)) {
+  if (existingIds.has(normalizedId)) {
     throw new Error(`skill.id already exists: ${normalizedId}`);
   }
 
@@ -161,7 +186,7 @@ export const validateSkillInput = (skill) => {
   }
 
   const baseSkill = readAliasString(skill, ['base_skill', 'baseSkill', 'extends'], 'skill.base_skill');
-  if (baseSkill && !runtimeSkills.has(baseSkill)) {
+  if (baseSkill && !knownBaseSkills.has(baseSkill)) {
     throw new Error(`skill.base_skill must reference an existing skill: ${baseSkill}`);
   }
   if (baseSkill && baseSkill === normalizedId) {
@@ -178,7 +203,7 @@ export const validateSkillInput = (skill) => {
     assertNoUnknownKeys(skill.planning, ALLOWED_PLANNING_KEYS, 'skill.planning');
     return {
       narrative_pattern: readAliasString(skill.planning, ['narrative_pattern', 'narrativePattern'], 'skill.planning.narrative_pattern'),
-      rules: readStringArray(skill.planning.rules, 'skill.planning.rules')
+      rules: dedupeStrings(readStringArray(skill.planning.rules, 'skill.planning.rules'))
     };
   })();
 
@@ -188,7 +213,7 @@ export const validateSkillInput = (skill) => {
     return {
       bullet_style: readAliasString(skill.expansion, ['bullet_style', 'bulletStyle'], 'skill.expansion.bullet_style'),
       body_usage: readAliasString(skill.expansion, ['body_usage', 'bodyUsage'], 'skill.expansion.body_usage'),
-      rules: readStringArray(skill.expansion.rules, 'skill.expansion.rules')
+      rules: dedupeStrings(readStringArray(skill.expansion.rules, 'skill.expansion.rules'))
     };
   })();
 
@@ -196,7 +221,7 @@ export const validateSkillInput = (skill) => {
     assertPlainObject(skill.blocks, 'skill.blocks');
     assertNoUnknownKeys(skill.blocks, ALLOWED_BLOCKS_KEYS, 'skill.blocks');
     return {
-      preferred: readStringArray(skill.blocks.preferred, 'skill.blocks.preferred', ALLOWED_BLOCK_TYPES),
+      preferred: dedupeStrings(readStringArray(skill.blocks.preferred, 'skill.blocks.preferred', ALLOWED_BLOCK_TYPES)),
       format_guidance: validateFormatGuidance(
         skill.blocks.format_guidance ?? skill.blocks.formatGuidance,
         'skill.blocks.format_guidance'
@@ -208,7 +233,7 @@ export const validateSkillInput = (skill) => {
     assertPlainObject(skill.quality, 'skill.quality');
     assertNoUnknownKeys(skill.quality, ALLOWED_QUALITY_KEYS, 'skill.quality');
     return {
-      focus: readStringArray(skill.quality.focus, 'skill.quality.focus')
+      focus: dedupeStrings(readStringArray(skill.quality.focus, 'skill.quality.focus', ALLOWED_QUALITY_FOCI))
     };
   })();
 
@@ -406,7 +431,7 @@ export const SKILLS = [
       ]
     },
     quality: {
-      focus: ['clarity', 'parallel_bullets', 'good_summary']
+      focus: ['clarity', 'good_summary']
     },
     examples: {
       outline: GENERAL_OUTLINE_EXAMPLE,
@@ -470,10 +495,58 @@ export const normalizeSkillName = (value) => {
 };
 
 export const getSkill = (value) => runtimeSkills.get(normalizeSkillName(value)) || runtimeSkills.get(DEFAULT_SKILL);
+export const hasSkill = (value) => runtimeSkills.has(String(value || '').trim().toLowerCase());
 
-export const resolveSkill = (skill) => {
-  const validated = validateSkillInput(skill);
-  const base = getSkill(validated.base_skill || DEFAULT_SKILL);
+export const validateResolvedSkill = (skill) => {
+  if (!skill || typeof skill !== 'object') throw new Error('resolved skill must be an object');
+  if (!ALLOWED_THEMES.has(skill.default_theme)) {
+    throw new Error(`resolved skill ${skill.id} must use a supported default_theme`);
+  }
+  if (!Array.isArray(skill.planning?.rules) || !skill.planning.rules.length) {
+    throw new Error(`resolved skill ${skill.id} must include planning.rules`);
+  }
+  if (!Array.isArray(skill.expansion?.rules) || !skill.expansion.rules.length) {
+    throw new Error(`resolved skill ${skill.id} must include expansion.rules`);
+  }
+  if (!Array.isArray(skill.blocks?.preferred) || !skill.blocks.preferred.length) {
+    throw new Error(`resolved skill ${skill.id} must include blocks.preferred`);
+  }
+  if (!Array.isArray(skill.blocks?.format_guidance) || !skill.blocks.format_guidance.length) {
+    throw new Error(`resolved skill ${skill.id} must include blocks.format_guidance`);
+  }
+  if (!Array.isArray(skill.quality?.focus) || !skill.quality.focus.length) {
+    throw new Error(`resolved skill ${skill.id} must include quality.focus`);
+  }
+
+  const preferred = new Set(skill.blocks.preferred || []);
+  const formats = new Set((skill.blocks.format_guidance || []).map((item) => item.format));
+  const overlap = [...preferred].filter((item) => formats.has(item));
+  if (preferred.size > 0 && formats.size > 0 && overlap.length === 0) {
+    throw new Error(`resolved skill ${skill.id} has no overlap between blocks.preferred and blocks.format_guidance`);
+  }
+
+  const pitchLike = PITCH_SIGNAL.test([skill.id, skill.label, skill.studio_label, skill.description].filter(Boolean).join(' '));
+  if (pitchLike) {
+    const hasPitchSignal = [...preferred, ...formats].some((item) => PITCH_REQUIRED_BLOCKS.has(item));
+    if (!hasPitchSignal) {
+      throw new Error(`resolved skill ${skill.id} must include at least one pitch semantic block: hero, compare, metrics, cta`);
+    }
+    const hasHero = preferred.has('hero') || formats.has('hero');
+    if (!hasHero) {
+      throw new Error(`resolved skill ${skill.id} should include hero guidance for pitch-like storytelling`);
+    }
+  }
+
+  return skill;
+};
+
+export const resolveSkill = (skill, options = {}) => {
+  const registry = options.registry instanceof Map ? options.registry : runtimeSkills;
+  const validated = validateSkillInput(skill, {
+    existingIds: options.existingIds,
+    knownBaseSkills: options.knownBaseSkills || registry
+  });
+  const base = registry.get(validated.base_skill || DEFAULT_SKILL) || getSkill(validated.base_skill || DEFAULT_SKILL);
   const merged = createSkill({
     id: validated.id,
     label: validated.label || base.label,
@@ -505,11 +578,15 @@ export const resolveSkill = (skill) => {
     }
   });
 
-  return merged;
+  return validateResolvedSkill(merged);
 };
 
-export const registerSkill = (skill) => {
-  const merged = resolveSkill(skill);
-  runtimeSkills.set(merged.id, merged);
-  return merged;
+export const registerResolvedSkill = (skill) => {
+  if (runtimeSkills.has(skill.id)) throw new Error(`skill.id already exists: ${skill.id}`);
+  runtimeSkills.set(skill.id, skill);
+  return skill;
 };
+
+export const registerSkill = (skill) => registerResolvedSkill(resolveSkill(skill));
+
+export const listSkills = () => [...runtimeSkills.values()];

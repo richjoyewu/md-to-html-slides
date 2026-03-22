@@ -23,6 +23,7 @@
 
     "example:validate": "node ./scripts/build.mjs validate ./fixtures/course/clean/openclaw-intro.md",
     "example:validate-skill": "node ./scripts/build.mjs validate-skill ./skills/founder-pitch.json",
+    "example:validate-skill-dir": "node ./scripts/build.mjs validate-skill-dir ./skills",
     "example:plan": "node ./scripts/build.mjs plan ./fixtures/course/clean/openclaw-intro.md --skill general",
     "example:plan:skill-file": "node ./scripts/build.mjs plan ./fixtures/pitch/clean/product-pitch.md --skill-file ./skills/founder-pitch.json",
     "example:expand": "node ./scripts/build.mjs expand ./fixtures/course/clean/openclaw-intro.md --skill general",

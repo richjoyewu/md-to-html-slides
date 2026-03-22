@@ -124,6 +124,12 @@ md-to-html-slides skills
 md-to-html-slides validate-skill <skill.json> [-o <normalized-skill.json>]
 ```
 
+#### `validate-skill-dir`
+
+```bash
+md-to-html-slides validate-skill-dir <dir> [-o <skill-report.json>]
+```
+
 #### `validate`
 
 ```bash
@@ -375,7 +381,56 @@ Current validation rules:
 - `base_skill` must reference an existing registered skill
 - `default_theme` must reference a registered built-in theme
 - `blocks.format_guidance[*].format` must be a valid expand format
+- `quality.focus[*]` must be one of the supported deterministic checks
 - unknown top-level or nested keys should fail validation
+
+Directory-level validation rules:
+
+- duplicate local skill ids should fail
+- local skill ids conflicting with built-in skill ids should fail
+- circular local inheritance should fail
+- `base_skill` may point to either:
+  - a built-in skill
+  - another local skill inside the same directory tree
+
+Resolved-skill validation rules:
+
+- the merged skill must still include:
+  - `planning.rules`
+  - `expansion.rules`
+  - `blocks.preferred`
+  - `blocks.format_guidance`
+  - `quality.focus`
+- `blocks.preferred` and `blocks.format_guidance` should have semantic overlap
+- pitch-like skills must include at least one of:
+  - `hero`
+  - `compare`
+  - `metrics`
+  - `cta`
+- pitch-like skills should include `hero` guidance
+
+Example JSON report from `validate-skill-dir ./skills`:
+
+```json
+{
+  "directory": "skills",
+  "loaded": 3,
+  "skills": [
+    {
+      "id": "founder-story-pitch",
+      "base_skill": "pitch-tech-launch",
+      "default_theme": "tech-launch",
+      "file": "skills/founder-pitch.json"
+    },
+    {
+      "id": "custom-general",
+      "base_skill": "general",
+      "default_theme": "dark-card",
+      "file": "skills/templates/general-template.json"
+    }
+  ]
+}
+```
 
 ### Current Non-Goals
 

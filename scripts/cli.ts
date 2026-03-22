@@ -5,9 +5,11 @@ import path from 'node:path';
 import process from 'node:process';
 import { createInterface } from 'node:readline/promises';
 import { normalizeOutline, normalizePlanContext, validateRenderDeck } from '../shared/core.js';
-import { DEFAULT_SKILL, registerSkill, resolveSkill, SKILLS, validateSkillInput } from '../shared/skills.js';
+import { DEFAULT_SKILL, hasSkill, listSkills, registerSkill, resolveSkill, validateSkillInput } from '../shared/skills.js';
 import { parseMarkdownDeck } from '../shared/markdown.js';
 import { createCorePipeline, loadDotEnv, resolveProviderRuntime } from '../agent/pipeline.js';
+import { runInteractiveRepl } from './repl.js';
+import { loadProjectSkills, validateSkillDirectory } from './skill-loader.js';
 import type { ClarificationResult, OutlineResult, PlanContext } from '../agent/types.js';
 
 const MIME_TYPES = new Map([
@@ -40,9 +42,11 @@ const usage = (): string => {
     '  md-to-html-slides build <input.md> -o <output.html> [--theme <name>] [--title <text>] [--skill <name>] [--skill-file <skill.json>] [--profile <name> compatibility alias] [--answer <key=value>] [--outline <outline.json>]',
     '  md-to-html-slides preview <input.md> [--theme <name>] [--title <text>] [--skill <name>] [--skill-file <skill.json>] [--profile <name> compatibility alias] [--answer <key=value>] [--outline <outline.json>]',
     '  md-to-html-slides render <render-deck.json|expanded.json> -o <output.html> [--theme <name>] [--title <text>]',
+    '  md-to-html-slides repl',
     '  md-to-html-slides ... [--interactive|--no-interactive]',
     '  md-to-html-slides skills',
     '  md-to-html-slides validate-skill <skill.json> [-o <normalized-skill.json>]',
+    '  md-to-html-slides validate-skill-dir <dir> [-o <skill-report.json>]',
     '  md-to-html-slides validate <input.md>',
     '  md-to-html-slides validate-render-deck <render-deck.json>',
     '  md-to-html-slides themes',
@@ -56,6 +60,7 @@ const usage = (): string => {
     '  md-to-html-slides render ./tmp/render-deck.json -o ./.tmp/examples/custom.html --theme signal-blue',
     '  md-to-html-slides preview ./fixtures/course/clean/openclaw-intro.md --skill general',
     '  md-to-html-slides validate-skill ./skills/founder-pitch.json',
+    '  md-to-html-slides validate-skill-dir ./skills',
     '  md-to-html-slides validate ./fixtures/course/clean/openclaw-intro.md',
     '  md-to-html-slides validate-render-deck ./tmp/render-deck.json',
     '  md-to-html-slides skills',
@@ -65,7 +70,7 @@ const usage = (): string => {
 
 interface ParsedArgs {
   answers: Record<string, string>;
-  command: 'build' | 'expand' | 'help' | 'plan' | 'preview' | 'render' | 'render-deck' | 'skills' | 'themes' | 'validate' | 'validate-render-deck' | 'validate-skill';
+  command: 'build' | 'expand' | 'help' | 'plan' | 'preview' | 'render' | 'render-deck' | 'repl' | 'skills' | 'themes' | 'validate' | 'validate-render-deck' | 'validate-skill' | 'validate-skill-dir';
   input?: string;
   interactiveMode?: 'auto' | 'force' | 'off';
   jsonOutput?: string;
@@ -90,7 +95,14 @@ const parseArgs = (argv: string[]): ParsedArgs => {
   const args = argv.slice(2);
   const command = args.shift();
 
-  if (!command || command === '--help' || command === '-h') {
+  if (!command) {
+    return {
+      command: process.stdin.isTTY && process.stdout.isTTY ? 'repl' : 'help',
+      answers: {}
+    };
+  }
+
+  if (command === '--help' || command === '-h') {
     return { command: 'help', answers: {} };
   }
 
@@ -101,6 +113,11 @@ const parseArgs = (argv: string[]): ParsedArgs => {
 
   if (command === 'themes') {
     if (args.length) throw new Error('The "themes" command does not accept any arguments.');
+    return { command, answers: {} };
+  }
+
+  if (command === 'repl') {
+    if (args.length) throw new Error('The "repl" command does not accept any arguments.');
     return { command, answers: {} };
   }
 
@@ -343,8 +360,20 @@ const main = async (): Promise<void> => {
   const runtime = resolveProviderRuntime(process.env);
   const pipeline = createCorePipeline({ provider: runtime.provider });
 
+  const shouldAutoloadProjectSkills = !['validate-skill', 'validate-skill-dir'].includes(args.command) && !args.skillFile;
+  if (shouldAutoloadProjectSkills) {
+    loadProjectSkills(process.cwd());
+  }
+
   if (args.skillFile) {
     args.skill = await loadSkillFile(args.skillFile);
+  }
+
+  if (args.command === 'repl') {
+    await runInteractiveRepl(pipeline, {
+      defaultSkill: args.skill || DEFAULT_SKILL
+    });
+    return;
   }
 
   if (args.command === 'themes') {
@@ -363,7 +392,7 @@ const main = async (): Promise<void> => {
     process.stdout.write(
       [
         'Available skills:',
-        ...SKILLS.map((skill) => `- ${skill.id}: ${skill.description} (default theme: ${skill.default_theme})`)
+        ...listSkills().map((skill) => `- ${skill.id}: ${skill.description} (default theme: ${skill.default_theme})`)
       ].join('\n') + '\n'
     );
     return;
@@ -375,6 +404,10 @@ const main = async (): Promise<void> => {
     profile: args.profile,
     answers: args.answers
   }) as PlanContext;
+
+  if (args.skill && !hasSkill(args.skill)) {
+    throw new Error(`Unknown skill: ${args.skill}`);
+  }
 
   if (args.command === 'render') {
     const raw = JSON.parse(await readFile(inputPath, 'utf8'));
@@ -402,6 +435,20 @@ const main = async (): Promise<void> => {
       title: args.title
     });
     await writeJson(args.jsonOutput, renderDeck.deck);
+    return;
+  }
+
+  if (args.command === 'validate-skill-dir') {
+    const report = validateSkillDirectory(inputPath);
+    if (args.jsonOutput) {
+      await writeJson(args.jsonOutput, report);
+    } else {
+      process.stdout.write(`Directory: ${report.directory}\n`);
+      process.stdout.write(`Loaded:    ${report.loaded}\n`);
+      report.skills.forEach((skill) => {
+        process.stdout.write(`- ${skill.id} (${skill.base_skill}) -> ${skill.default_theme} [${skill.file}]\n`);
+      });
+    }
     return;
   }
 

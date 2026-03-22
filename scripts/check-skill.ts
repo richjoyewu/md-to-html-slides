@@ -1,10 +1,12 @@
-import { readFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { resolveSkill, validateSkillInput } from '../shared/skills.js';
+import { validateSkillDirectory } from './skill-loader.js';
 
 interface SkillCheckResult {
   case_id: string;
-  kind: 'positive' | 'negative';
+  kind: 'positive' | 'negative' | 'directory';
   status: 'passed';
   detail: string;
 }
@@ -38,6 +40,17 @@ const expectValid = (caseId: string, relativePath: string): SkillCheckResult => 
   };
 };
 
+const expectDirectoryValid = (caseId: string, relativePath: string): SkillCheckResult => {
+  const report = validateSkillDirectory(relativePath);
+  assert(report.loaded > 0, `[${caseId}] expected at least one loaded skill`);
+  return {
+    case_id: caseId,
+    kind: 'directory',
+    status: 'passed',
+    detail: `${report.loaded} skills`
+  };
+};
+
 const expectInvalid = (
   caseId: string,
   payload: unknown,
@@ -59,10 +72,39 @@ const expectInvalid = (
   throw new Error(`[${caseId}] expected validation to fail`);
 };
 
+const expectDirectoryInvalid = (
+  caseId: string,
+  files: Record<string, unknown>,
+  pattern: RegExp
+): SkillCheckResult => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'md-to-html-slides-skill-dir-'));
+  Object.entries(files).forEach(([relative, payload]) => {
+    const target = path.join(dir, relative);
+    mkdirSync(path.dirname(target), { recursive: true });
+    writeFileSync(target, JSON.stringify(payload, null, 2), 'utf8');
+  });
+
+  try {
+    validateSkillDirectory(dir);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    assert(pattern.test(message), `[${caseId}] unexpected directory error: ${message}`);
+    return {
+      case_id: caseId,
+      kind: 'directory',
+      status: 'passed',
+      detail: message
+    };
+  }
+
+  throw new Error(`[${caseId}] expected directory validation to fail`);
+};
+
 const results: SkillCheckResult[] = [
   expectValid('official-founder-pitch', 'skills/founder-pitch.json'),
   expectValid('template-general', 'skills/templates/general-template.json'),
   expectValid('template-pitch-tech-launch', 'skills/templates/pitch-tech-launch-template.json'),
+  expectDirectoryValid('project-skills-directory', 'skills'),
   expectInvalid(
     'missing-id',
     {
@@ -116,6 +158,29 @@ const results: SkillCheckResult[] = [
       id: 'general'
     },
     /already exists/
+  ),
+  expectDirectoryInvalid(
+    'duplicate-local-id',
+    {
+      'a.json': { version: 'skill-file@1', id: 'dup-skill', base_skill: 'general' },
+      'nested/b.json': { version: 'skill-file@1', id: 'dup-skill', base_skill: 'general' }
+    },
+    /Duplicate skill id/
+  ),
+  expectDirectoryInvalid(
+    'circular-local-inheritance',
+    {
+      'a.json': { version: 'skill-file@1', id: 'loop-a', base_skill: 'loop-b' },
+      'b.json': { version: 'skill-file@1', id: 'loop-b', base_skill: 'loop-a' }
+    },
+    /Circular local skill inheritance/
+  ),
+  expectDirectoryInvalid(
+    'builtin-conflict',
+    {
+      'general.json': { version: 'skill-file@1', id: 'general', base_skill: 'general' }
+    },
+    /conflicts with existing skill/
   )
 ];
 

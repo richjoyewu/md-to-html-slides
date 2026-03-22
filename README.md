@@ -57,6 +57,17 @@ The canonical artifact chain is now:
 - `render-deck.json`
 - `HTML`
 
+Default shell experience:
+
+- run `md-to-html-slides` with no arguments to enter the interactive REPL
+- paste Markdown directly into the terminal
+- paste a local Markdown/TXT file path to load that file directly
+- use `/paste` to enter multi-line paste mode
+- use `/plan` to generate an outline
+- use `/build` to generate HTML
+- use `/end` to finish an explicit paste session
+- when content is very long or contains local image references, the shell will suggest using a file path instead of raw paste
+
 ## Studio Demo
 
 There is now a minimal playable studio demo:
@@ -179,8 +190,10 @@ npm run example:preview
 Or run the canonical CLI directly:
 
 ```bash
+node ./scripts/build.mjs
 node ./scripts/build.mjs themes
 node ./scripts/build.mjs validate-skill ./skills/founder-pitch.json
+node ./scripts/build.mjs validate-skill-dir ./skills
 node ./scripts/build.mjs validate ./fixtures/course/clean/openclaw-intro.md
 node ./scripts/build.mjs skills
 node ./scripts/build.mjs plan ./fixtures/pitch/clean/product-pitch.md --skill-file ./skills/founder-pitch.json
@@ -196,6 +209,25 @@ node ./scripts/build.mjs build ./fixtures/pitch/clean/product-pitch.md -o ./.tmp
 node ./scripts/build.mjs plan ./fixtures/pitch/clean/product-pitch.md --skill pitch-tech-launch --no-interactive
 ```
 
+Interactive shell commands:
+
+- `/help`
+- `/status`
+- `/skills`
+- `/skill <id>`
+- `/themes`
+- `/theme <id>`
+- `/load <path>`
+- `/paste`
+- `/end`
+- `/audience <text>`
+- `/goal <text>`
+- `/pages <text>`
+- `/plan`
+- `/build [path]`
+- `/clear`
+- `/quit`
+
 Artifact responsibilities:
 
 - `outline.json`: page order, focus, and intent
@@ -205,7 +237,9 @@ Artifact responsibilities:
 Custom skill files:
 
 - validate a custom skill with `validate-skill`
+- validate a project skill directory with `validate-skill-dir`
 - load a custom skill into planning/build with `--skill-file`
+- skills under `./skills` are auto-loaded for project-local reuse
 - official templates and examples live in [skills/README.md](./skills/README.md)
 
 ## Design Direction
