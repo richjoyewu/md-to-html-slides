@@ -232,23 +232,6 @@ const reduceAdjacentOverlap = (slides: OutlineSlide[]): OutlineSlide[] => {
   });
 };
 
-const reorderStructuralSlides = (slides: OutlineSlide[]): OutlineSlide[] => {
-  const sortable = slides.map((slide, index) => ({ slide, index }));
-  sortable.sort((left, right) => {
-    const leftWeight = intentOrder[left.slide.intent] ?? 50;
-    const rightWeight = intentOrder[right.slide.intent] ?? 50;
-    if (leftWeight !== rightWeight) return leftWeight - rightWeight;
-
-    const baseMatch = stripContinuation(left.slide.title) === stripContinuation(right.slide.title);
-    if (baseMatch && left.slide.intent !== right.slide.intent) {
-      return (intentOrder[left.slide.intent] ?? 50) - (intentOrder[right.slide.intent] ?? 50);
-    }
-
-    return left.index - right.index;
-  });
-  return sortable.map((entry) => entry.slide);
-};
-
 const reindexSlides = (slides: OutlineSlide[]): OutlineSlide[] =>
   slides.map((slide, index) => ({ ...slide, index: index + 1 }));
 
@@ -261,18 +244,11 @@ const buildReviewMeta = (before: OutlineSlide[], after: OutlineSlide[]): PolishR
   if (before.some((slide, index) => index > 0 && pointOverlapRatio(before[index - 1].detail_points, slide.detail_points) >= 0.5)) {
     issues.push('adjacent_overlap_detected');
   }
-  if (before.some((slide, index) => (intentOrder[slide.intent] ?? 50) < (intentOrder[before[index - 1]?.intent as SlideIntent] ?? 0))) {
-    issues.push('ordering_issue_detected');
-  }
-
   if (after.length > before.length) actions.push('split_overloaded_slides');
   if (after.length < before.length) actions.push('merged_thin_slides');
   if (after.some((slide) => slide.title.endsWith('（续）'))) actions.push('rebalanced_slide_density');
   if (after.some((slide, index) => index > 0 && pointOverlapRatio(after[index - 1].detail_points, slide.detail_points) < pointOverlapRatio(before[Math.max(index - 1, 0)]?.detail_points || [], before[Math.min(index, before.length - 1)]?.detail_points || []))) {
     actions.push('reduced_adjacent_overlap');
-  }
-  if (after.some((slide, index) => (intentOrder[slide.intent] ?? 50) < (intentOrder[after[index - 1]?.intent as SlideIntent] ?? 0))) {
-    actions.push('reordered_structural_slides');
   }
 
   return {
@@ -290,8 +266,7 @@ export const polishOutline = (outline: OutlineResult): OutlineResult => {
   const expanded = expandOverloadedSlides(polished);
   const merged = mergeThinSlides(expanded);
   const deOverlapped = reduceAdjacentOverlap(merged);
-  const reordered = reorderStructuralSlides(deOverlapped);
-  const reviewed = buildReviewMeta(polished, reordered);
+  const reviewed = buildReviewMeta(polished, deOverlapped);
   const confidencePenalty = reviewed.issues.length * 0.04;
 
   return {
@@ -302,6 +277,6 @@ export const polishOutline = (outline: OutlineResult): OutlineResult => {
       review_issues: reviewed.issues,
       actions_taken: reviewed.actions
     },
-    slides: reindexSlides(reordered).slice(0, 16)
+    slides: reindexSlides(deOverlapped).slice(0, 16)
   };
 };

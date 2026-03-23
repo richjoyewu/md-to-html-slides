@@ -527,6 +527,11 @@ const normalizeRenderDeckMeta = (source, slideCount) => {
   };
 };
 
+const normalizeRenderVariant = (value = '') => {
+  const variant = compactText(value);
+  return ALLOWED_VARIANTS.has(variant) ? variant : 'default';
+};
+
 const ensureUniqueSlideIds = (slides = []) => {
   const seen = new Map();
   return slides.map((slide, index) => {
@@ -1585,11 +1590,10 @@ export const normalizeRenderDeck = (deck) => {
           const blocks = Array.isArray(item.blocks)
             ? item.blocks.map(normalizeRenderBlock).filter(Boolean)
             : [];
-          const variant = inferRenderVariant(item, blocks);
           return {
             id: compactIdentifier(String(item.id || item.title || '')) || `slide-${index + 1}`,
             title: compactTitle(String(item.title || '').trim()),
-            variant,
+            variant: normalizeRenderVariant(item.variant),
             source_format: compactText(item.source_format || item.format || ''),
             blocks
           };
@@ -1644,189 +1648,13 @@ export const markdownDeckToRenderDeck = (deck) => {
     slides: Array.isArray(source.slides)
       ? source.slides.map((slide) => {
           const item = slide && typeof slide === 'object' ? slide : {};
-          const normalizedBlocks = Array.isArray(item.blocks)
-            ? item.blocks.map(normalizeRenderBlock).filter(Boolean)
-            : [];
-          const variant = inferRenderVariant(item, normalizedBlocks);
-          const carryBlocks = collectNonTextBlocks(normalizedBlocks);
-          const fallbackSlide = {
+          return {
             title: item.title,
-            variant: 'default',
-            blocks: normalizedBlocks
+            variant: normalizeRenderVariant(item.variant),
+            blocks: Array.isArray(item.blocks)
+              ? item.blocks.map(normalizeRenderBlock).filter(Boolean)
+              : []
           };
-
-          if (variant === 'hero') {
-            const semanticBlock = normalizeRenderBlock(buildHeroBlockFromBlocks(item.title, normalizedBlocks));
-            return {
-              title: item.title,
-              variant: semanticBlock ? variant : 'default',
-              blocks: semanticBlock ? [semanticBlock, ...carryBlocks] : fallbackSlide.blocks
-            };
-          }
-
-          if (variant === 'compare') {
-            const semanticBlock = normalizeRenderBlock(buildCompareBlockFromBlocks(item.title, normalizedBlocks));
-            return {
-              title: item.title,
-              variant: semanticBlock ? variant : 'default',
-              blocks: semanticBlock ? [semanticBlock, ...carryBlocks] : fallbackSlide.blocks
-            };
-          }
-
-          if (variant === 'metrics') {
-            const semanticBlock = normalizeRenderBlock(buildMetricsBlockFromBlocks(item.title, normalizedBlocks));
-            return {
-              title: item.title,
-              variant: semanticBlock ? variant : 'default',
-              blocks: semanticBlock ? [semanticBlock, ...carryBlocks] : fallbackSlide.blocks
-            };
-          }
-
-          if (variant === 'process') {
-            const semanticBlock = normalizeRenderBlock(buildProcessBlockFromBlocks(normalizedBlocks));
-            return {
-              title: item.title,
-              variant: semanticBlock ? variant : 'default',
-              blocks: semanticBlock ? [semanticBlock, ...carryBlocks] : fallbackSlide.blocks
-            };
-          }
-
-          if (variant === 'summary') {
-            const semanticBlock = normalizeRenderBlock(buildSummaryBlockFromBlocks(normalizedBlocks));
-            return {
-              title: item.title,
-              variant: semanticBlock ? variant : 'default',
-              blocks: semanticBlock ? [semanticBlock, ...carryBlocks] : fallbackSlide.blocks
-            };
-          }
-
-          if (variant === 'cta') {
-            const semanticBlock = normalizeRenderBlock(buildCtaBlockFromBlocks(item.title, normalizedBlocks));
-            return {
-              title: item.title,
-              variant: semanticBlock ? variant : 'default',
-              blocks: semanticBlock ? [semanticBlock, ...carryBlocks] : fallbackSlide.blocks
-            };
-          }
-
-          if (/引述|引用|quote|金句|原话/i.test(String(item.title || ''))) {
-            const semanticBlock = normalizeRenderBlock(buildQuoteBlockFromBlocks(item.title, normalizedBlocks));
-            return {
-              title: item.title,
-              variant: 'default',
-              blocks: semanticBlock ? [semanticBlock, ...carryBlocks] : fallbackSlide.blocks
-            };
-          }
-
-          if (/过渡|transition|下一部分|接下来|现在来看|下一章/i.test(String(item.title || ''))) {
-            const semanticBlock = normalizeRenderBlock(buildTransitionBlockFromBlocks(item.title, normalizedBlocks));
-            return {
-              title: item.title,
-              variant: 'default',
-              blocks: semanticBlock ? [semanticBlock, ...carryBlocks] : fallbackSlide.blocks
-            };
-          }
-
-          if (/标签|关键词|tag|标签云|术语/i.test(String(item.title || ''))) {
-            const semanticBlock = normalizeRenderBlock(buildTagsBlockFromBlocks(item.title, normalizedBlocks));
-            return {
-              title: item.title,
-              variant: 'default',
-              blocks: semanticBlock ? [semanticBlock, ...carryBlocks] : fallbackSlide.blocks
-            };
-          }
-
-          if (/流程图|流转|链路|架构流|flow/i.test(String(item.title || ''))) {
-            const semanticBlock = normalizeRenderBlock(buildFlowBlockFromBlocks(item.title, normalizedBlocks));
-            return {
-              title: item.title,
-              variant: 'default',
-              blocks: semanticBlock ? [semanticBlock, ...carryBlocks] : fallbackSlide.blocks
-            };
-          }
-
-          if (/表格|对照表|table|矩阵/i.test(String(item.title || ''))) {
-            const semanticBlock = buildTableLiteBlockFromBlocks(item.title, normalizedBlocks);
-            return {
-              title: item.title,
-              variant: 'default',
-              blocks: semanticBlock ? [normalizeRenderBlock(semanticBlock), ...carryBlocks].filter(Boolean) : fallbackSlide.blocks
-            };
-          }
-
-          if (/时间线|timeline|阶段进展|里程碑/i.test(String(item.title || ''))) {
-            const semanticBlock = normalizeRenderBlock(buildTimelineBlockFromBlocks(item.title, normalizedBlocks));
-            return {
-              title: item.title,
-              variant: 'default',
-              blocks: semanticBlock ? [semanticBlock, ...carryBlocks] : fallbackSlide.blocks
-            };
-          }
-
-          if (/提醒|判断|结论|风险|warning|callout/i.test(String(item.title || ''))) {
-            const semanticBlock = normalizeRenderBlock(buildCalloutBlockFromBlocks(item.title, normalizedBlocks));
-            return {
-              title: item.title,
-              variant: 'default',
-              blocks: semanticBlock ? [semanticBlock, ...carryBlocks] : fallbackSlide.blocks
-            };
-          }
-
-          if (/指标带|核心数字|stat|数据条/i.test(String(item.title || ''))) {
-            const semanticBlock = buildStatStripBlockFromBlocks(item.title, normalizedBlocks);
-            return {
-              title: item.title,
-              variant: 'default',
-              blocks: semanticBlock ? [normalizeRenderBlock(semanticBlock), ...carryBlocks].filter(Boolean) : fallbackSlide.blocks
-            };
-          }
-
-          if (/矩阵|matrix|象限/i.test(String(item.title || ''))) {
-            const semanticBlock = buildMatrixBlockFromBlocks(item.title, normalizedBlocks);
-            return {
-              title: item.title,
-              variant: 'default',
-              blocks: semanticBlock ? [normalizeRenderBlock(semanticBlock), ...carryBlocks].filter(Boolean) : fallbackSlide.blocks
-            };
-          }
-
-          if (/团队|角色|画像|用户群|people|persona/i.test(String(item.title || ''))) {
-            const semanticBlock = buildPeopleBlockFromBlocks(item.title, normalizedBlocks);
-            return {
-              title: item.title,
-              variant: 'default',
-              blocks: semanticBlock ? [normalizeRenderBlock(semanticBlock), ...carryBlocks].filter(Boolean) : fallbackSlide.blocks
-            };
-          }
-
-          if (/faq|常见问题|问答|问题解答/i.test(String(item.title || ''))) {
-            const semanticBlock = buildFaqBlockFromBlocks(item.title, normalizedBlocks);
-            return {
-              title: item.title,
-              variant: 'default',
-              blocks: semanticBlock ? [normalizeRenderBlock(semanticBlock), ...carryBlocks].filter(Boolean) : fallbackSlide.blocks
-            };
-          }
-
-          if (/风险|限制|约束|注意事项|risk/i.test(String(item.title || ''))) {
-            const semanticBlock = buildRiskBlockFromBlocks(item.title, normalizedBlocks);
-            return {
-              title: item.title,
-              variant: 'default',
-              blocks: semanticBlock ? [normalizeRenderBlock(semanticBlock), ...carryBlocks].filter(Boolean) : fallbackSlide.blocks
-            };
-          }
-
-          if (/架构|系统图|architecture|模块图|组件图|平台结构/i.test(String(item.title || ''))) {
-            const semanticBlock = buildArchitectureBlockFromBlocks(item.title, normalizedBlocks);
-            return {
-              title: item.title,
-              variant: 'default',
-              blocks: semanticBlock ? [normalizeRenderBlock(semanticBlock), ...carryBlocks].filter(Boolean) : fallbackSlide.blocks
-            };
-          }
-
-          return fallbackSlide;
         })
       : []
   });
