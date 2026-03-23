@@ -506,6 +506,7 @@ const main = async (): Promise<void> => {
   }
 
   if (args.command === 'analyze') {
+    const ingested = validateIngest(pipeline.ingest(markdown).payload);
     const analyzed = await pipeline.analyze(markdown, context);
     const analysis = validateAnalysis(analyzed.payload);
     if (args.jsonOutput) {
@@ -514,6 +515,7 @@ const main = async (): Promise<void> => {
       process.stdout.write(`${JSON.stringify(analysis, null, 2)}\n`);
     }
     process.stderr.write(`Analysis: ${analysis.contract_version}\n`);
+    process.stderr.write(`Hint:     ${ingested.title_hint}\n`);
     process.stderr.write(`Title:    ${analysis.deck_title}\n`);
     process.stderr.write(`Skill:    ${analysis.meta.skill}\n`);
     process.stderr.write(`DocType:  ${analysis.document.doc_type}\n`);
