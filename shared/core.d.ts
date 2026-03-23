@@ -1,4 +1,4 @@
-import type { AnalysisResult, ClarificationResult, ExpandedResult, OutlineResult, PlanContext, SkillName } from '../agent/types.js';
+import type { AnalysisResult, ClarificationResult, ExpandedResult, IngestArtifact, OutlineResult, PlanContext, SkillName } from '../agent/types.js';
 
 export interface RenderParagraphBlock {
   type: 'paragraph';
@@ -293,6 +293,8 @@ export interface NormalizedPlanContext extends PlanContext {
 
 export function normalizePlanContext(value: unknown): NormalizedPlanContext;
 export function normalizeClarification(payload: unknown): ClarificationResult;
+export function normalizeIngest(payload: unknown): IngestArtifact;
+export function validateIngest(payload: unknown): IngestArtifact;
 export function normalizeAnalysis(payload: unknown): AnalysisResult;
 export function validateAnalysis(payload: unknown): AnalysisResult;
 export function normalizeOutline(payload: unknown): OutlineResult;

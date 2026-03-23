@@ -6,6 +6,8 @@ const ALLOWED_VARIANTS = new Set(['default', 'hero', 'compare', 'metrics', 'proc
 const ALLOWED_DOC_TYPES = new Set(['general', 'pitch', 'tutorial', 'lesson', 'report', 'reference', 'notes']);
 const ALLOWED_SECTION_ROLES = new Set(['opening', 'context', 'problem', 'solution', 'evidence', 'comparison', 'process', 'example', 'summary', 'cta', 'detail']);
 const ALLOWED_ANALYSIS_SIGNALS = new Set(['numbers', 'comparison', 'process', 'example', 'question', 'risk', 'code', 'image', 'quote', 'table']);
+const ALLOWED_INGEST_SOURCE_TYPES = new Set(['plain_text', 'markdown', 'speech_draft', 'mixed']);
+const ALLOWED_INGEST_BLOCK_KINDS = new Set(['heading', 'paragraph', 'list', 'quote', 'code', 'image', 'unknown']);
 
 const compactText = (value = '') => String(value || '').replace(/\s+/g, ' ').trim();
 const normalizeSurfaceText = (value = '') => compactText(value).replace(/^[，、；;:\-]+/g, '').trim();
@@ -127,6 +129,74 @@ const normalizeAnalysisSourceFeatures = (source) => ({
   quote_count: normalizeCount(source?.quote_count, 0),
   link_count: normalizeCount(source?.link_count, 0)
 });
+
+const ensureUniqueIngestBlockIds = (blocks = []) => {
+  const seen = new Map();
+  return blocks.map((block, index) => {
+    const baseId = compactIdentifier(block.id || `b${index + 1}`) || `b${index + 1}`;
+    const count = (seen.get(baseId) || 0) + 1;
+    seen.set(baseId, count);
+    return {
+      ...block,
+      id: count === 1 ? baseId : `${baseId}-${count}`
+    };
+  });
+};
+
+export const normalizeIngest = (payload) => {
+  const source = payload && typeof payload === 'object' ? payload : {};
+  const rawBlocks = Array.isArray(source.blocks) ? source.blocks : [];
+  const blocks = ensureUniqueIngestBlockIds(
+    rawBlocks.map((block, index) => {
+      const item = block && typeof block === 'object' ? block : {};
+      const kind = compactText(item.kind).toLowerCase();
+      const signals = item.signals && typeof item.signals === 'object' ? item.signals : {};
+      return {
+        id: compactIdentifier(String(item.id || `b${index + 1}`)) || `b${index + 1}`,
+        index: normalizeCount(item.index, index + 1),
+        kind: ALLOWED_INGEST_BLOCK_KINDS.has(kind) ? kind : 'unknown',
+        text: String(item.text || '').trim().slice(0, 480),
+        source_section_title: compactText((item.source_section_title ?? item.sourceSectionTitle) || ''),
+        signals: {
+          has_numbers: Boolean(signals.has_numbers ?? signals.hasNumbers),
+          has_question: Boolean(signals.has_question ?? signals.hasQuestion),
+          has_process_words: Boolean(signals.has_process_words ?? signals.hasProcessWords),
+          has_comparison_words: Boolean(signals.has_comparison_words ?? signals.hasComparisonWords)
+        }
+      };
+    })
+  );
+  const sourceType = compactText(source.source_type_hint ?? source.sourceTypeHint).toLowerCase();
+
+  return {
+    contract_version: 'ingest@1',
+    title_hint: compactText((source.title_hint ?? source.titleHint) || source.deck_title || source.title || 'Untitled Deck') || 'Untitled Deck',
+    source_type_hint: ALLOWED_INGEST_SOURCE_TYPES.has(sourceType) ? sourceType : 'plain_text',
+    raw_length: normalizeCount(source.raw_length ?? source.rawLength, blocks.reduce((sum, block) => sum + block.text.length, 0)),
+    block_count: normalizeCount(source.block_count ?? source.blockCount, blocks.length),
+    raw_excerpt: String((source.raw_excerpt ?? source.rawExcerpt) || '').slice(0, 6000),
+    blocks
+  };
+};
+
+export const validateIngest = (payload) => {
+  const normalized = normalizeIngest(payload);
+  if (normalized.contract_version !== 'ingest@1') {
+    throw new Error('Ingest contract version is invalid');
+  }
+  if (normalized.block_count !== normalized.blocks.length) {
+    throw new Error('Ingest block_count does not match blocks length');
+  }
+
+  const ids = new Set();
+  for (const block of normalized.blocks) {
+    if (!block.id) throw new Error('Ingest block is missing id');
+    if (ids.has(block.id)) throw new Error(`Duplicate ingest block id: ${block.id}`);
+    ids.add(block.id);
+  }
+
+  return normalized;
+};
 
 const ensureUniqueAnalysisSectionIds = (sections = []) => {
   const seen = new Map();

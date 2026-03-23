@@ -4,7 +4,7 @@ import { access, mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
 import { createInterface } from 'node:readline/promises';
-import { normalizeOutline, normalizePlanContext, validateAnalysis, validateRenderDeck } from '../shared/core.js';
+import { normalizeOutline, normalizePlanContext, validateAnalysis, validateIngest, validateRenderDeck } from '../shared/core.js';
 import { DEFAULT_SKILL, hasSkill, listSkills, registerSkill, resolveSkill, validateSkillInput } from '../shared/skills.js';
 import { parseMarkdownDeck } from '../shared/markdown.js';
 import { createCorePipeline, loadDotEnv, resolveProviderRuntime } from '../agent/pipeline.js';
@@ -36,6 +36,7 @@ const loadThemesModule = async (): Promise<ThemeModule> =>
 const usage = (): string => {
   return [
     'Usage:',
+    '  md-to-html-slides ingest <input.md> [-o <ingest.json>]',
     '  md-to-html-slides analyze <input.md> [--skill <name>] [--skill-file <skill.json>] [--profile <name> compatibility alias] [--answer <key=value>] [-o <analysis.json>]',
     '  md-to-html-slides plan <input.md> [--skill <name>] [--skill-file <skill.json>] [--profile <name> compatibility alias] [--answer <key=value>] [-o <outline.json>]',
     '  md-to-html-slides expand <input.md> [--skill <name>] [--skill-file <skill.json>] [--profile <name> compatibility alias] [--answer <key=value>] [--outline <outline.json>] [-o <expanded.json>]',
@@ -53,6 +54,7 @@ const usage = (): string => {
     '  md-to-html-slides themes',
     '',
     'Examples:',
+    '  md-to-html-slides ingest ./fixtures/product/extreme/product-intro.md',
     '  md-to-html-slides analyze ./fixtures/product/extreme/product-intro.md',
     '  md-to-html-slides plan ./fixtures/pitch/clean/product-pitch.md --skill pitch-tech-launch',
     '  md-to-html-slides plan ./fixtures/pitch/clean/product-pitch.md --skill-file ./skills/founder-pitch.json',
@@ -72,7 +74,7 @@ const usage = (): string => {
 
 interface ParsedArgs {
   answers: Record<string, string>;
-  command: 'analyze' | 'build' | 'expand' | 'help' | 'plan' | 'preview' | 'render' | 'render-deck' | 'repl' | 'skills' | 'themes' | 'validate' | 'validate-render-deck' | 'validate-skill' | 'validate-skill-dir';
+  command: 'analyze' | 'build' | 'expand' | 'help' | 'ingest' | 'plan' | 'preview' | 'render' | 'render-deck' | 'repl' | 'skills' | 'themes' | 'validate' | 'validate-render-deck' | 'validate-skill' | 'validate-skill-dir';
   input?: string;
   interactiveMode?: 'auto' | 'force' | 'off';
   jsonOutput?: string;
@@ -488,8 +490,24 @@ const main = async (): Promise<void> => {
     return;
   }
 
+  if (args.command === 'ingest') {
+    const ingested = validateIngest(pipeline.ingest(markdown).payload);
+    if (args.jsonOutput) {
+      await writeJson(args.jsonOutput, ingested);
+    } else {
+      process.stdout.write(`${JSON.stringify(ingested, null, 2)}\n`);
+    }
+    process.stderr.write(`Ingest:   ${ingested.contract_version}\n`);
+    process.stderr.write(`Title:    ${ingested.title_hint}\n`);
+    process.stderr.write(`Source:   ${ingested.source_type_hint}\n`);
+    process.stderr.write(`Blocks:   ${ingested.blocks.length}\n`);
+    process.stderr.write(`RawSize:  ${ingested.raw_length}\n`);
+    return;
+  }
+
   if (args.command === 'analyze') {
-    const analysis = validateAnalysis(pipeline.analyze(markdown, context).payload);
+    const analyzed = await pipeline.analyze(markdown, context);
+    const analysis = validateAnalysis(analyzed.payload);
     if (args.jsonOutput) {
       await writeJson(args.jsonOutput, analysis);
     } else {
@@ -502,6 +520,7 @@ const main = async (): Promise<void> => {
     process.stderr.write(`Slides:   ${analysis.document.suggested_slide_count}\n`);
     process.stderr.write(`Sections: ${analysis.structure.sections.length}\n`);
     process.stderr.write(`Ask:      ${analysis.clarification.required ? 'yes' : 'no'}\n`);
+    process.stderr.write(`Mode:     ${analyzed.mode}\n`);
     return;
   }
 

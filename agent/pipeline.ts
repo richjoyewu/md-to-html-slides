@@ -1,8 +1,8 @@
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
-import { buildAnalysisResult } from './analysis.js';
-import { buildClarification, buildClarificationFromPlan } from './clarification.js';
+import { buildAnalysisResult, buildIngestArtifact, requestAnalysis } from './analysis.js';
+import { buildClarificationFromAnalysis, buildClarificationFromPlan } from './clarification.js';
 import { finalizeExpanded, requestExpand } from './expander.js';
 import { buildHeuristicExpanded, buildHeuristicOutline } from './fallback.js';
 import { requestPlan } from './planner.js';
@@ -14,6 +14,7 @@ import type {
   AnalysisResult,
   ClarificationResult,
   ExpandedResult,
+  IngestArtifact,
   LlmJsonProvider,
   OutlineResult,
   PlanContext
@@ -90,6 +91,12 @@ export interface RenderDeckExecutionResult {
 export interface AnalysisExecutionResult {
   kind: 'analysis';
   payload: AnalysisResult;
+  mode: AgentMode;
+}
+
+export interface IngestExecutionResult {
+  kind: 'ingest';
+  payload: IngestArtifact;
 }
 
 export type BuildExecutionResult =
@@ -208,21 +215,47 @@ export const resolveProviderRuntime = (env: NodeJS.ProcessEnv = process.env): Re
 
 export const createCorePipeline = (options: CorePipelineOptions = {}) => {
   const provider = options.provider || null;
+  const analysisCache = new Map<string, CacheEntry<AnalysisResult>>();
   const planCache = new Map<string, CacheEntry<OutlineResult>>();
   const expandCache = new Map<string, CacheEntry<ExpandedResult>>();
   const planCacheLimit = options.planCacheLimit ?? PLAN_CACHE_LIMIT;
   const expandCacheLimit = options.expandCacheLimit ?? EXPAND_CACHE_LIMIT;
 
-  const analyze = (markdown: string, context?: PlanContext): AnalysisExecutionResult => ({
-    kind: 'analysis',
-    payload: buildAnalysisResult(markdown, normalizePlanContext(context) as PlanContext)
+  const ingest = (markdown: string): IngestExecutionResult => ({
+    kind: 'ingest',
+    payload: buildIngestArtifact(markdown)
   });
+
+  const analyze = async (markdown: string, context?: PlanContext): Promise<AnalysisExecutionResult> => {
+    const normalizedContext = normalizePlanContext(context) as PlanContext;
+    const cacheKey = getCacheKey(JSON.stringify({ markdown, context: normalizedContext }));
+    const cached = recall(analysisCache, cacheKey);
+    if (cached) {
+      return { kind: 'analysis', payload: cached.payload, mode: 'cache' };
+    }
+
+    let analysis: AnalysisResult;
+    let mode: AgentMode;
+
+    if (provider) {
+      const result = await requestAnalysis(provider, markdown, normalizedContext);
+      analysis = result.analysis;
+      mode = result.mode;
+    } else {
+      analysis = buildAnalysisResult(markdown, normalizedContext);
+      mode = 'fallback';
+    }
+
+    remember(analysisCache, planCacheLimit, cacheKey, analysis);
+    return { kind: 'analysis', payload: analysis, mode };
+  };
 
   const plan = async (markdown: string, context?: PlanContext): Promise<PlanExecutionResult> => {
     const normalizedContext = normalizePlanContext(context) as PlanContext;
-    const clarification = buildClarification(markdown, normalizedContext);
+    const analyzed = await analyze(markdown, normalizedContext);
+    const clarification = buildClarificationFromAnalysis(analyzed.payload, normalizedContext);
     if (clarification) {
-      return { kind: 'clarification', payload: clarification, source: 'preplan', mode: 'clarification' };
+      return { kind: 'clarification', payload: clarification, source: 'preplan', mode: analyzed.mode };
     }
 
     const cacheKey = getCacheKey(JSON.stringify({ markdown, context: normalizedContext }));
@@ -239,7 +272,7 @@ export const createCorePipeline = (options: CorePipelineOptions = {}) => {
     let mode: AgentMode;
 
     if (provider) {
-      const result = await requestPlan(provider, markdown, normalizedContext);
+      const result = await requestPlan(provider, markdown, normalizedContext, { analysis: analyzed.payload });
       outline = result.outline;
       mode = result.mode;
     } else {
@@ -269,7 +302,8 @@ export const createCorePipeline = (options: CorePipelineOptions = {}) => {
     let mode: AgentMode;
 
     if (provider) {
-      const result = await requestExpand(provider, markdown, outline, normalizedContext);
+      const analyzed = await analyze(markdown, normalizedContext);
+      const result = await requestExpand(provider, markdown, outline, normalizedContext, { analysis: analyzed.payload });
       expanded = result.expanded;
       mode = result.mode;
     } else {
@@ -346,6 +380,7 @@ export const createCorePipeline = (options: CorePipelineOptions = {}) => {
   };
 
   return {
+    ingest,
     analyze,
     build,
     expand,

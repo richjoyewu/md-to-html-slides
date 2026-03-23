@@ -38,6 +38,35 @@ export interface PreprocessedMarkdown {
   raw_excerpt: string;
 }
 
+export type IngestSourceType = 'plain_text' | 'markdown' | 'speech_draft' | 'mixed';
+export type IngestBlockKind = 'heading' | 'paragraph' | 'list' | 'quote' | 'code' | 'image' | 'unknown';
+
+export interface IngestBlockSignals {
+  has_numbers: boolean;
+  has_question: boolean;
+  has_process_words: boolean;
+  has_comparison_words: boolean;
+}
+
+export interface IngestBlock {
+  id: string;
+  index: number;
+  kind: IngestBlockKind;
+  text: string;
+  source_section_title?: string;
+  signals: IngestBlockSignals;
+}
+
+export interface IngestArtifact {
+  contract_version: 'ingest@1';
+  title_hint: string;
+  source_type_hint: IngestSourceType;
+  raw_length: number;
+  block_count: number;
+  raw_excerpt: string;
+  blocks: IngestBlock[];
+}
+
 
 // Analyzer 的输出，用来指导规划阶段，但不会直接暴露给用户。
 export interface MarkdownAnalysis {

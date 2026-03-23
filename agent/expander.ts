@@ -2,12 +2,13 @@ import { buildHeuristicExpanded } from './fallback.js';
 import { normalizeExpanded } from './normalize.js';
 import { buildExpandPrompt } from './prompt-builder.js';
 import { applySkillQualityFocusChecks } from './quality-check.js';
-import type { ExpandedResult, ExpandedSlide, LlmJsonProvider, OutlineResult, PlanContext } from './types.js';
+import type { AnalysisResult, ExpandedResult, ExpandedSlide, LlmJsonProvider, OutlineResult, PlanContext } from './types.js';
 
 interface ExpandRequestOptions {
   allowFallback?: boolean;
   timeoutMs?: number;
   maxTokens?: number;
+  analysis?: AnalysisResult;
 }
 
 const FORMAT_LIMITS: Record<ExpandedSlide['format'], number> = {
@@ -109,7 +110,7 @@ export const requestExpand = async (
 ): Promise<{ expanded: ExpandedResult; mode: 'llm' | 'fallback' }> => {
   try {
     const payload = await provider.callJson({
-      prompt: buildExpandPrompt({ markdown, outline, context }),
+      prompt: buildExpandPrompt({ markdown, outline, context, analysisArtifact: options.analysis }),
       timeoutMs: options.timeoutMs ?? 120000,
       maxTokens: options.maxTokens ?? 8192
     });

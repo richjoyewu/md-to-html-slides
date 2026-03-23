@@ -1,5 +1,5 @@
-import { buildAnalysisResult } from './analysis.js';
-import type { OutlineResult, PlanContext } from './types.js';
+import { buildAnalysisResult, buildIngestArtifact } from './analysis.js';
+import type { AnalysisResult, IngestArtifact, OutlineResult, PlanContext } from './types.js';
 import { getSkill } from '../shared/skills.js';
 
 const buildPlanQualityGuidance = (focuses: string[]): string[] => {
@@ -34,10 +34,77 @@ const buildExpandQualityGuidance = (focuses: string[]): string[] => {
   return guidance;
 };
 
+export const buildAnalysisPrompt = ({
+  markdown,
+  context,
+  ingest
+}: {
+  markdown: string;
+  context?: PlanContext;
+  ingest?: IngestArtifact;
+}): string => {
+  const ingestArtifact = ingest || buildIngestArtifact(markdown);
+  const skill = getSkill(context?.skill || context?.profile);
+  const answers = context?.answers || {};
+
+  return [
+    '你是一个演示内容分析器。',
+    '你的职责不是直接写页面，而是先理解内容，再输出稳定的 analysis JSON。',
+    '用户输入可能是纯文本、演讲稿、随手笔记、半结构化 Markdown 或规范 Markdown。',
+    '不要因为输入不规范而拒绝分析。',
+    '只输出 JSON。',
+    '',
+    '你的任务：',
+    '1. 理解内容主题、受众和目标。',
+    '2. 判断内容更像 pitch、tutorial、report、notes 等哪一类。',
+    '3. 把输入合并成若干语义 section，而不是机械按原文段落逐条照搬。',
+    '4. 判断每个 section 在演示中的角色、重要性和最适合的视觉机会。',
+    '5. 判断哪些内容可以舍弃或后置。',
+    '6. 判断是否需要先向用户追问 1 到 2 个关键问题。',
+    '',
+    '重要原则：',
+    '- 优先理解内容意图，而不是表面格式。',
+    '- 只问会显著改变规划结果的问题，例如 audience、goal、slide_count、must_keep。',
+    '- 不要问系统本应自己判断的问题，例如 section role、intent 或 visual opportunity。',
+    '- 如果能先做出可信分析，就不要追问。',
+    '- questions 最多 2 个。',
+    '',
+    '输出格式：',
+    '必须输出 analysis@1 JSON：',
+    '{"contract_version":"analysis@1","deck_title":"...","meta":{"skill":"...","profile":"...","audience_hint":"...","goal_hint":"..."},"document":{"input_shape":"...","doc_type":"...","density":"...","roughness":"...","rewrite_strategy":"...","heading_depth":2,"section_count":3,"point_count":12,"avg_sentence_length":24,"suggested_slide_count":8,"needs_rewrite":true,"source_features":{"heading_1_count":0,"heading_2_count":0,"bullet_count":0,"image_count":0,"code_block_count":0,"table_count":0,"quote_count":0,"link_count":0}},"structure":{"notes":["..."],"omitted_topics":["..."],"sections":[{"id":"section-1","index":1,"title":"...","point_count":3,"role":"opening","intent":"explain","signals":["question"],"visual_candidates":["hero","title-body"],"key_points":["..."],"summary_hint":"..."}]},"recommendations":{"preferred_opening_format":"hero","preferred_ending_format":"summary","must_keep_sections":["section-1"],"watchouts":["..."]},"clarification":{"required":false,"confidence":0.78,"message":"...","trigger_rule_ids":["..."],"reasons":["..."],"assumptions":["..."],"missing_dimensions":["audience"],"questions":[{"id":"audience","label":"这份内容主要给谁看？","placeholder":"例如：投资人、客户、内部团队","why_it_matters":"会影响表达密度和页面风格"}]}}',
+    '',
+    '字段要求：',
+    `- meta.skill 固定返回 ${skill.name}。`,
+    '- deck_title 应该是可工作的演讲标题；如果原始标题很弱，可以重写。',
+    '- section id 使用稳定短标识，例如 section-1、problem、solution，不要太长。',
+    '- role 只能从 opening, context, problem, solution, evidence, comparison, process, example, summary, cta, detail 中选择。',
+    '- intent 只能从 define, explain, compare, example, process, summary, cta 中选择。',
+    '- visual_candidates 只能从 hero, title-bullets, title-body, compare, metrics, process, summary, cta 中选择，给 1 到 3 个。',
+    '- 如果 clarification.required 为 true，questions 最多 2 个，且必须是高杠杆问题。',
+    '- clarification.confidence 范围 0 到 1。',
+    '',
+    '当前 skill：',
+    JSON.stringify({
+      name: skill.name,
+      description: skill.description,
+      default_theme: skill.default_theme,
+      planner_rules: skill.planner_rules,
+      expansion_rules: skill.expansion_rules,
+      quality_focus: skill.quality?.focus || []
+    }, null, 2),
+    '',
+    '用户补充信息：',
+    JSON.stringify(answers, null, 2),
+    '',
+    '输入 ingest artifact：',
+    JSON.stringify(ingestArtifact, null, 2)
+  ].join('\n');
+};
+
 // Planner prompt：系统只提供结构事实和最少边界，内容意图、取舍和拆页决策交给 LLM。
-export const buildPlanPrompt = (markdown: string, context?: PlanContext): string => {
-  const analysisArtifact = buildAnalysisResult(markdown, context);
-  const analysis = analysisArtifact.document;
+export const buildPlanPrompt = (markdown: string, context?: PlanContext, analysisArtifact?: AnalysisResult): string => {
+  const analysis = analysisArtifact || buildAnalysisResult(markdown, context);
+  const analysisDocument = analysis.document;
   const answers = context?.answers || {};
   const skill = getSkill(context?.skill || context?.profile);
   const qualityGuidance = buildPlanQualityGuidance(skill.quality?.focus || []);
@@ -66,7 +133,7 @@ export const buildPlanPrompt = (markdown: string, context?: PlanContext): string
     '- 每一页都应先定义“讲什么”，再决定最适合的页面结构。',
     '- 不要默认把内容拆成 3 条 bullet 页。',
     '- 如果某页更适合对比、流程、风险、引述、组织、架构、时间线、FAQ 等结构，应优先选择对应结构，而不是退回普通 bullet 页。',
-    `- 目标页数尽量接近 ${analysis.suggested_slide_count} 页，允许上下浮动 1 页。`,
+    `- 目标页数尽量接近 ${analysisDocument.suggested_slide_count} 页，允许上下浮动 1 页。`,
     '- 一页只讲一个核心点。',
     '',
     '标题风格（极其重要）：',
@@ -108,7 +175,7 @@ export const buildPlanPrompt = (markdown: string, context?: PlanContext): string
     JSON.stringify(answers, null, 2),
     '',
     '输入分析工件（仅供参考，不代表最终语义判断）：',
-    JSON.stringify(analysisArtifact, null, 2)
+    JSON.stringify(analysis, null, 2)
   ].join('\n');
 };
 
@@ -116,17 +183,19 @@ export const buildPlanPrompt = (markdown: string, context?: PlanContext): string
 export const buildExpandPrompt = ({
   markdown,
   outline,
-  context
+  context,
+  analysisArtifact
 }: {
   markdown: string;
   outline: OutlineResult;
   context?: PlanContext;
+  analysisArtifact?: AnalysisResult;
 }): string => {
-  const analysisArtifact = buildAnalysisResult(markdown, context);
-  const analysis = analysisArtifact.document;
+  const analysis = analysisArtifact || buildAnalysisResult(markdown, context);
+  const analysisDocument = analysis.document;
   const intentHint = outline.meta?.content_intent || 'general presentation';
   const audienceHint = outline.meta?.audience_guess || '未指定受众';
-  const rewriteHint = analysis.rewrite_strategy;
+  const rewriteHint = analysisDocument.rewrite_strategy;
   const skill = getSkill(outline.meta?.skill || outline.meta?.profile);
   const answers = context?.answers || {};
   const qualityGuidance = buildExpandQualityGuidance(skill.quality?.focus || []);
@@ -207,6 +276,6 @@ export const buildExpandPrompt = ({
     JSON.stringify(outline, null, 2),
     '',
     '输入分析工件：',
-    JSON.stringify(analysisArtifact, null, 2)
+    JSON.stringify(analysis, null, 2)
   ].join('\n');
 };

@@ -1,5 +1,5 @@
 import { buildAnalysisResult } from './analysis.js';
-import type { ClarificationQuestion, ClarificationResult, OutlineResult, PlanContext } from './types.js';
+import type { AnalysisResult, ClarificationQuestion, ClarificationResult, OutlineResult, PlanContext } from './types.js';
 
 function dedupeQuestions(questions: ClarificationQuestion[]): ClarificationQuestion[] {
   const seen = new Set<string>();
@@ -72,15 +72,12 @@ function fallbackQuestions(options: {
 // 兜底追问：只在输入极短或结构极弱时介入，避免规则层抢主判断。
 export function buildClarification(markdown: string, context?: PlanContext): ClarificationResult | null {
   const analysis = buildAnalysisResult(markdown, context);
-  if (!analysis.clarification.required || !analysis.clarification.questions.length) {
-    return null;
-  }
+  return buildClarificationFromAnalysis(analysis, context);
+}
 
-  return buildClarificationResult(
-    analysis.clarification.message,
-    analysis.clarification.questions,
-    context
-  );
+export function buildClarificationFromAnalysis(analysis: AnalysisResult, context?: PlanContext): ClarificationResult | null {
+  if (!analysis.clarification.required || !analysis.clarification.questions.length) return null;
+  return buildClarificationResult(analysis.clarification.message, analysis.clarification.questions, context);
 }
 
 // 主追问逻辑：优先依赖 Planner 的置信度和不确定点。

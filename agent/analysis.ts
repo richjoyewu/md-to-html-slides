@@ -1,4 +1,5 @@
 import { normalizeAnalysis } from '../shared/core.js';
+import { normalizeMarkdownLines } from '../shared/markdown.js';
 import { getSkill } from '../shared/skills.js';
 import type {
   AnalysisClarification,
@@ -7,7 +8,12 @@ import type {
   ClarificationQuestion,
   DocumentType,
   ExpandFormat,
+  IngestArtifact,
+  IngestBlock,
+  IngestBlockKind,
+  IngestSourceType,
   InputShape,
+  LlmJsonProvider,
   MarkdownAnalysis,
   MarkdownSourceFeatures,
   PlanContext,
@@ -40,6 +46,120 @@ const compactIdentifier = (value: string = ''): string =>
     .replace(/[^a-z0-9\u4e00-\u9fa5-]/g, '')
     .replace(/-+/g, '-')
     .replace(/^-|-$/g, '');
+
+const detectBlockSignals = (text: string): IngestBlock['signals'] => {
+  const value = compactText(text).toLowerCase();
+  return {
+    has_numbers: /(\d+[%x倍万亿k])|(增长|效率|指标|用户|客户|收入|转化|成本|部署|分钟|小时|周|月)/.test(value),
+    has_question: /(\?)|(为什么|为何|问题|挑战|疑问)/.test(value),
+    has_process_words: /(步骤|流程|路径|阶段|方法|如何|怎么做|首先|然后|最后)/.test(value),
+    has_comparison_words: /(对比|比较|区别|vs|versus|竞品|优劣)/.test(value)
+  };
+};
+
+const inferBlockKind = (lines: string[]): IngestBlockKind => {
+  const first = String(lines[0] || '').trim();
+  if (!first) return 'unknown';
+  if (/^#{1,6}\s+/.test(first)) return 'heading';
+  if (/^[-*+]\s+/.test(first)) return 'list';
+  if (/^>\s+/.test(first)) return 'quote';
+  if (/^(?:```|~~~)/.test(first)) return 'code';
+  if (/^!\[[^\]]*?\]\((.+?)\)\s*$/.test(first)) return 'image';
+  return 'paragraph';
+};
+
+const detectSourceTypeHint = (markdown: string, inputShape: InputShape): IngestSourceType => {
+  const raw = String(markdown || '');
+  const hasMarkdownMarkers = /(^#{1,6}\s+)|(^[-*+]\s+)|(^>\s+)|(^!\[)|(^```)|(^~~~)/m.test(raw);
+  const oralMarkers = /(大家好|今天我想|我想先|我相信|我们先聊|接下来我想|先讲一个)/.test(raw);
+
+  if (hasMarkdownMarkers && oralMarkers) return 'mixed';
+  if (hasMarkdownMarkers) return 'markdown';
+  if (oralMarkers || inputShape === 'notes_like') return 'speech_draft';
+  return 'plain_text';
+};
+
+const splitRawBlocks = (markdown: string): Array<{ kind: IngestBlockKind; text: string }> => {
+  const lines = normalizeMarkdownLines(markdown);
+  const blocks: Array<{ kind: IngestBlockKind; text: string }> = [];
+  let index = 0;
+
+  while (index < lines.length) {
+    const line = lines[index].trimEnd();
+    if (!line.trim()) {
+      index += 1;
+      continue;
+    }
+
+    if (/^(?:```|~~~)/.test(line.trim())) {
+      const fence = line.trim().slice(0, 3);
+      const blockLines = [line];
+      index += 1;
+      while (index < lines.length) {
+        blockLines.push(lines[index]);
+        if (lines[index].trim().startsWith(fence)) {
+          index += 1;
+          break;
+        }
+        index += 1;
+      }
+      blocks.push({ kind: 'code', text: blockLines.join('\n') });
+      continue;
+    }
+
+    if (/^!\[[^\]]*?\]\((.+?)\)\s*$/.test(line.trim())) {
+      blocks.push({ kind: 'image', text: line.trim() });
+      index += 1;
+      continue;
+    }
+
+    if (/^#{1,6}\s+/.test(line.trim())) {
+      blocks.push({ kind: 'heading', text: line.trim() });
+      index += 1;
+      continue;
+    }
+
+    if (/^[-*+]\s+/.test(line.trim())) {
+      const blockLines = [];
+      while (index < lines.length && /^[-*+]\s+/.test(lines[index].trim())) {
+        blockLines.push(lines[index].trim());
+        index += 1;
+      }
+      blocks.push({ kind: 'list', text: blockLines.join('\n') });
+      continue;
+    }
+
+    if (/^>\s+/.test(line.trim())) {
+      const blockLines = [];
+      while (index < lines.length && /^>\s+/.test(lines[index].trim())) {
+        blockLines.push(lines[index].trim());
+        index += 1;
+      }
+      blocks.push({ kind: 'quote', text: blockLines.join('\n') });
+      continue;
+    }
+
+    const paragraphLines = [];
+    while (index < lines.length && lines[index].trim()) {
+      const current = lines[index].trim();
+      if (/^(?:```|~~~)|^!\[|^#{1,6}\s+|^[-*+]\s+|^>\s+/.test(current)) break;
+      paragraphLines.push(current);
+      index += 1;
+    }
+
+    if (paragraphLines.length) {
+      blocks.push({
+        kind: inferBlockKind(paragraphLines),
+        text: paragraphLines.join(' ')
+      });
+      continue;
+    }
+
+    index += 1;
+  }
+
+  return blocks.slice(0, 24);
+};
 
 const detectInputShape = (source: PreprocessedMarkdown, markdown: string): InputShape => {
   const raw = String(markdown || '');
@@ -150,6 +270,29 @@ const collectSourceFeatures = (markdown: string): MarkdownSourceFeatures => {
     table_count: countTableGroups(raw),
     quote_count: (raw.match(/^>\s+/gm) || []).length,
     link_count: countMarkdownLinks(raw)
+  };
+};
+
+export const buildIngestArtifact = (markdown: string): IngestArtifact => {
+  const source = preprocessMarkdown(markdown);
+  const inputShape = detectInputShape(source, markdown);
+  const blocks = splitRawBlocks(markdown).map((block, index) => ({
+    id: `b${index + 1}`,
+    index: index + 1,
+    kind: block.kind,
+    text: block.text.slice(0, 480).trim(),
+    source_section_title: source.sections.find((section) => block.text.includes(section.title))?.title,
+    signals: detectBlockSignals(block.text)
+  }));
+
+  return {
+    contract_version: 'ingest@1',
+    title_hint: source.deck_title || 'Untitled Deck',
+    source_type_hint: detectSourceTypeHint(markdown, inputShape),
+    raw_length: String(markdown || '').trim().length,
+    block_count: blocks.length,
+    raw_excerpt: source.raw_excerpt,
+    blocks
   };
 };
 
@@ -477,6 +620,13 @@ const buildAnalysisClarification = (
   };
 };
 
+interface AnalysisRequestOptions {
+  allowFallback?: boolean;
+  timeoutMs?: number;
+  maxTokens?: number;
+  ingest?: IngestArtifact;
+}
+
 export const analyzeMarkdown = (markdown: string): MarkdownAnalysis => {
   const source = preprocessMarkdown(markdown);
   const inputShape = detectInputShape(source, markdown);
@@ -508,7 +658,7 @@ export const analyzeMarkdown = (markdown: string): MarkdownAnalysis => {
   };
 };
 
-export const buildAnalysisResult = (markdown: string, context?: PlanContext): AnalysisResult => {
+export const buildHeuristicAnalysisResult = (markdown: string, context?: PlanContext): AnalysisResult => {
   const source = preprocessMarkdown(markdown);
   const analysis = analyzeMarkdown(markdown);
   const skill = getSkill(context?.skill || context?.profile);
@@ -553,4 +703,32 @@ export const buildAnalysisResult = (markdown: string, context?: PlanContext): An
     },
     clarification: buildAnalysisClarification(source, analysis, context, docType, audienceHint, goalHint)
   }) as AnalysisResult;
+};
+
+export const buildAnalysisResult = (markdown: string, context?: PlanContext): AnalysisResult =>
+  buildHeuristicAnalysisResult(markdown, context);
+
+export const requestAnalysis = async (
+  provider: LlmJsonProvider,
+  markdown: string,
+  context?: PlanContext,
+  options: AnalysisRequestOptions = {}
+): Promise<{ analysis: AnalysisResult; mode: 'llm' | 'fallback' }> => {
+  const ingest = options.ingest || buildIngestArtifact(markdown);
+
+  try {
+    const { buildAnalysisPrompt } = await import('./prompt-builder.js');
+    const payload = await provider.callJson({
+      prompt: buildAnalysisPrompt({ markdown, context, ingest }),
+      timeoutMs: options.timeoutMs ?? 90000,
+      maxTokens: options.maxTokens ?? 8192
+    });
+    return { analysis: normalizeAnalysis(payload) as AnalysisResult, mode: 'llm' };
+  } catch (error) {
+    if (options.allowFallback === false) {
+      throw error;
+    }
+    console.error('[analysis-fallback]', (error as Error)?.message || error);
+    return { analysis: buildHeuristicAnalysisResult(markdown, context), mode: 'fallback' };
+  }
 };

@@ -80,6 +80,18 @@ md-to-html-slides build <input.md> -o <output.html>
 
 ### Supported Commands
 
+#### `ingest`
+
+```bash
+md-to-html-slides ingest <input.md> [-o <ingest.json>]
+```
+
+#### `analyze`
+
+```bash
+md-to-html-slides analyze <input.md> [--skill <name>] [--skill-file <skill.json>] [--profile <name> compatibility alias] [--answer <key=value>] [-o <analysis.json>]
+```
+
 #### `plan`
 
 ```bash
@@ -149,7 +161,7 @@ md-to-html-slides themes
 ### Current CLI Principles
 
 - Accept one Markdown file at a time.
-- Expose the core pipeline stages: `plan -> expand -> render-deck -> render -> build`.
+- Expose the core pipeline stages: `ingest -> analyze -> plan -> expand -> render-deck -> render -> build`.
 - Produce one self-contained HTML file.
 - Keep renderer behavior deterministic.
 - Use the same core pipeline as Studio for planning and expansion.
@@ -172,9 +184,64 @@ Make expanded output closer to semantic presentation blocks instead of leaving v
 
 ### Direction
 
+- `ingest.json` answers: what the cleaned input looks like before higher-level interpretation
+- `analysis.json` answers: what the input structurally implies before page planning
 - `outline.json` answers: what to say and in what order
 - `expanded.json` answers: what semantic surface each page should use
 - `render-deck.json` answers: what deterministic render structure the theme consumes
+
+## Ingest Contract
+
+### Goal
+
+Make input cleanup explicit before higher-level analysis or planning.
+
+### Current Rule
+
+- `ingest.json` is deterministic and does not depend on LLM output
+- `ingest.json` contains cleaned input blocks and source-type hints
+- `ingest.json` should not contain planning recommendations, clarification decisions, or page-structure choices
+
+### Fixed Schema: `ingest@1`
+
+```json
+{
+  "contract_version": "ingest@1",
+  "title_hint": "Deck Title",
+  "source_type_hint": "markdown",
+  "raw_length": 1200,
+  "block_count": 6,
+  "raw_excerpt": "First part of normalized input...",
+  "blocks": [
+    {
+      "id": "b1",
+      "index": 1,
+      "kind": "paragraph",
+      "text": "Raw block text",
+      "source_section_title": "Optional section title",
+      "signals": {
+        "has_numbers": false,
+        "has_question": false,
+        "has_process_words": false,
+        "has_comparison_words": false
+      }
+    }
+  ]
+}
+```
+
+### Boundary vs `analysis.json`
+
+- `ingest.json`
+  - deterministic input cleanup
+  - block splitting
+  - source-type hints
+  - lightweight source signals
+- `analysis.json`
+  - document-type understanding
+  - section role inference
+  - visual recommendations
+  - clarification decisions
 
 ### Current Rule
 
