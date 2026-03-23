@@ -1,8 +1,10 @@
 import { normalizeAnalysis } from '../shared/core.js';
 import { getSkill } from '../shared/skills.js';
 import type {
+  AnalysisClarification,
   AnalysisResult,
   AnalysisSection,
+  ClarificationQuestion,
   DocumentType,
   ExpandFormat,
   InputShape,
@@ -15,7 +17,8 @@ import type {
   SectionRole,
   SlideIntent,
   DensityLevel,
-  AnalysisSignal
+  AnalysisSignal,
+  ClarificationDimension
 } from './types.js';
 import { preprocessMarkdown } from './preprocess.js';
 
@@ -190,6 +193,35 @@ const inferGoalHint = (context: PlanContext | undefined, docType: DocumentType, 
   return `让观众快速理解 ${deckTitle || '核心主题'}`;
 };
 
+const clampScore = (value: number): number => Math.max(0, Math.min(1, value));
+
+const hasAnswer = (context: PlanContext | undefined, key: string): boolean =>
+  Boolean(compactText(context?.answers?.[key] || ''));
+
+const isGenericDeckTitle = (title: string): boolean =>
+  /^(untitled deck|未命名页面|大家好|你好|hello|hi|开场|开始|今天想聊聊)/i.test(compactText(title));
+
+const createClarificationQuestion = (
+  id: ClarificationQuestion['id'],
+  label: string,
+  placeholder: string,
+  whyItMatters: string
+): ClarificationQuestion => ({
+  id,
+  label,
+  placeholder,
+  why_it_matters: whyItMatters
+});
+
+const dedupeQuestions = (questions: ClarificationQuestion[]): ClarificationQuestion[] => {
+  const seen = new Set<string>();
+  return questions.filter((question) => {
+    if (seen.has(question.id)) return false;
+    seen.add(question.id);
+    return true;
+  });
+};
+
 const collectSignals = (title: string, points: string[]): AnalysisSignal[] => {
   const haystack = compactText([title, ...points].join(' ')).toLowerCase();
   const signals: AnalysisSignal[] = [];
@@ -314,6 +346,137 @@ const buildWatchouts = (
   return Array.from(new Set(watchouts)).slice(0, 6);
 };
 
+const buildAnalysisClarification = (
+  source: PreprocessedMarkdown,
+  analysis: MarkdownAnalysis,
+  context: PlanContext | undefined,
+  docType: DocumentType,
+  audienceHint: string,
+  goalHint: string
+): AnalysisClarification => {
+  const rawLength = source.raw_excerpt.trim().length;
+  const structurallyThin = analysis.section_count === 0 || (analysis.section_count <= 1 && analysis.point_count <= 1);
+  const roughAndThin = analysis.roughness === 'very_rough' && analysis.section_count <= 1;
+  const genericTitle = isGenericDeckTitle(source.deck_title);
+  const noAudience = !hasAnswer(context, 'audience');
+  const noGoal = !hasAnswer(context, 'goal');
+  const noSlideCount = !hasAnswer(context, 'slide_count');
+  const noMustKeep = !hasAnswer(context, 'must_keep');
+  const missingDimensions: ClarificationDimension[] = [];
+  const triggerRuleIds: string[] = [];
+  const reasons: string[] = [];
+  const assumptions: string[] = [];
+  const questions: ClarificationQuestion[] = [];
+
+  const addTrigger = (ruleId: string, reason: string): void => {
+    if (!triggerRuleIds.includes(ruleId)) triggerRuleIds.push(ruleId);
+    if (!reasons.includes(reason)) reasons.push(reason);
+  };
+
+  const ask = (dimension: ClarificationDimension, question: ClarificationQuestion): void => {
+    if (!missingDimensions.includes(dimension)) missingDimensions.push(dimension);
+    questions.push(question);
+  };
+
+  if (noAudience) {
+    assumptions.push(`默认受众暂按「${audienceHint}」处理`);
+  }
+  if (noGoal) {
+    assumptions.push(`默认目标暂按「${goalHint}」处理`);
+  }
+  if (noSlideCount) {
+    assumptions.push(`默认页数暂按 ${analysis.suggested_slide_count} 页估计`);
+  }
+  if (noMustKeep && analysis.density === 'high') {
+    assumptions.push('默认允许系统主动舍弃次要细节，优先保留主线');
+  }
+
+  if (rawLength < 40 || structurallyThin || roughAndThin) {
+    addTrigger('thin_input', '输入过短或结构过薄，系统无法稳定判断最终表达重点。');
+    if (noAudience) {
+      ask('audience', createClarificationQuestion(
+        'audience',
+        '这份内容主要给谁看？',
+        '例如：零基础学员、内部团队、客户、投资人',
+        '受众会直接影响表达密度、术语假设和页面风格'
+      ));
+    }
+    if (noGoal) {
+      ask('goal', createClarificationQuestion(
+        'goal',
+        '这份演示最想让观众记住什么？',
+        '例如：理解 Agent 和 Chatbot 的区别',
+        '目标会决定整套页面主线和收束方式'
+      ));
+    }
+  }
+
+  if (noAudience && (analysis.roughness === 'very_rough' || docType === 'pitch' || docType === 'report' || analysis.input_shape === 'notes_like')) {
+    addTrigger('audience_gap', '当前内容对受众敏感，缺少受众信息会明显影响规划与语气。');
+    ask('audience', createClarificationQuestion(
+      'audience',
+      '这份内容主要给谁看？',
+      docType === 'pitch' ? '例如：投资人、合作方、客户、内部管理层' : '例如：零基础学员、内部团队、客户',
+      '不同受众会改变标题风格、信息密度和案例选择'
+    ));
+  }
+
+  if (noGoal && (analysis.roughness !== 'clean' || genericTitle || docType === 'pitch' || docType === 'notes')) {
+    addTrigger('goal_gap', '当前标题或素材不足以稳定代表最终演讲目标，需要确认观众记忆点。');
+    ask('goal', createClarificationQuestion(
+      'goal',
+      '这份演示最想让观众记住什么？',
+      '例如：理解产品的核心价值，或理解这套方法为什么值得采用',
+      '目标会决定核心信息、拆页主线和结尾形式'
+    ));
+  }
+
+  if (noSlideCount && ((analysis.density === 'high' && analysis.section_count <= 2) || analysis.point_count >= 12 || analysis.roughness === 'very_rough')) {
+    addTrigger('slide_count_gap', '信息密度较高但结构松散，页数预期会直接影响拆页和取舍策略。');
+    ask('slide_count', createClarificationQuestion(
+      'slide_count',
+      '你希望大约生成多少页？',
+      '例如：6 页、8 页、10 页',
+      '页数会直接影响内容压缩力度和页面粒度'
+    ));
+  }
+
+  if (noMustKeep && analysis.density === 'high' && analysis.point_count >= 16) {
+    addTrigger('must_keep_gap', '当前素材较多，如有必须保留的内容，提前说明可避免系统误删重点。');
+    ask('must_keep', createClarificationQuestion(
+      'must_keep',
+      '有没有必须保留的内容或页面？',
+      '例如：客户案例、关键数字、路线图、某段原话',
+      '必须保留项会影响取舍顺序和 omitted topics 判断'
+    ));
+  }
+
+  let confidence = analysis.roughness === 'clean' ? 0.82 : analysis.roughness === 'rough' ? 0.68 : 0.54;
+  if (analysis.input_shape === 'slide_like') confidence += 0.06;
+  if (analysis.section_count >= 3) confidence += 0.05;
+  if (analysis.section_count <= 1 && analysis.density === 'high') confidence -= 0.08;
+  if (missingDimensions.includes('audience')) confidence -= 0.1;
+  if (missingDimensions.includes('goal')) confidence -= 0.14;
+  if (missingDimensions.includes('slide_count')) confidence -= 0.08;
+  if (missingDimensions.includes('must_keep')) confidence -= 0.05;
+
+  const dedupedQuestions = dedupeQuestions(questions).slice(0, 2);
+  const required = dedupedQuestions.length > 0;
+
+  return {
+    required,
+    confidence: clampScore(confidence),
+    message: required
+      ? '当前分析仍缺少 1 到 2 个会显著影响规划的问题，补充后结果会更稳。'
+      : '当前分析已足够进入规划。',
+    trigger_rule_ids: triggerRuleIds,
+    reasons: reasons.slice(0, 4),
+    assumptions: assumptions.slice(0, 4),
+    missing_dimensions: missingDimensions,
+    questions: dedupedQuestions
+  };
+};
+
 export const analyzeMarkdown = (markdown: string): MarkdownAnalysis => {
   const source = preprocessMarkdown(markdown);
   const inputShape = detectInputShape(source, markdown);
@@ -351,6 +514,8 @@ export const buildAnalysisResult = (markdown: string, context?: PlanContext): An
   const skill = getSkill(context?.skill || context?.profile);
   const features = collectSourceFeatures(markdown);
   const docType = inferDocType(markdown, skill.name, source, analysis, features);
+  const audienceHint = inferAudienceHint(context, docType, analysis.roughness);
+  const goalHint = inferGoalHint(context, docType, source.deck_title);
   const sections = source.sections.map((section, index) => buildSectionAnalysis(section, index, source.sections.length, docType));
   const mustKeepSections = Array.from(new Set(
     sections
@@ -367,8 +532,8 @@ export const buildAnalysisResult = (markdown: string, context?: PlanContext): An
     meta: {
       skill: skill.name,
       profile: skill.name,
-      audience_hint: inferAudienceHint(context, docType, analysis.roughness),
-      goal_hint: inferGoalHint(context, docType, source.deck_title)
+      audience_hint: audienceHint,
+      goal_hint: goalHint
     },
     document: {
       ...analysis,
@@ -385,6 +550,7 @@ export const buildAnalysisResult = (markdown: string, context?: PlanContext): An
       preferred_ending_format: docType === 'pitch' ? 'cta' : 'summary',
       must_keep_sections: mustKeepSections,
       watchouts: buildWatchouts(analysis, features, docType)
-    }
+    },
+    clarification: buildAnalysisClarification(source, analysis, context, docType, audienceHint, goalHint)
   }) as AnalysisResult;
 };

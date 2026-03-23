@@ -9,6 +9,7 @@ export type RewriteStrategy = 'preserve' | 'light_rewrite' | 'aggressive_rewrite
 export type DocumentType = 'general' | 'pitch' | 'tutorial' | 'lesson' | 'report' | 'reference' | 'notes';
 export type SectionRole = 'opening' | 'context' | 'problem' | 'solution' | 'evidence' | 'comparison' | 'process' | 'example' | 'summary' | 'cta' | 'detail';
 export type AnalysisSignal = 'numbers' | 'comparison' | 'process' | 'example' | 'question' | 'risk' | 'code' | 'image' | 'quote' | 'table';
+export type ClarificationDimension = 'audience' | 'goal' | 'slide_count' | 'must_keep';
 export type BuiltinSkillName = 'general' | 'pitch-tech-launch';
 export type SkillName = BuiltinSkillName | (string & {});
 // Legacy compatibility alias. New product-facing code should prefer SkillName.
@@ -107,6 +108,17 @@ export interface AnalysisRecommendations {
   watchouts: string[];
 }
 
+export interface AnalysisClarification {
+  required: boolean;
+  confidence: number;
+  message: string;
+  trigger_rule_ids: string[];
+  reasons: string[];
+  assumptions: string[];
+  missing_dimensions: ClarificationDimension[];
+  questions: ClarificationQuestion[];
+}
+
 export interface AnalysisResult {
   contract_version: 'analysis@1';
   deck_title: string;
@@ -118,6 +130,7 @@ export interface AnalysisResult {
     sections: AnalysisSection[];
   };
   recommendations: AnalysisRecommendations;
+  clarification: AnalysisClarification;
 }
 
 export interface ClarificationResult {
@@ -131,6 +144,7 @@ export interface ClarificationQuestion {
   id: string;
   label: string;
   placeholder?: string;
+  why_it_matters?: string;
 }
 
 export interface PlanContext {

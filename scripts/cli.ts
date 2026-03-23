@@ -501,6 +501,7 @@ const main = async (): Promise<void> => {
     process.stderr.write(`DocType:  ${analysis.document.doc_type}\n`);
     process.stderr.write(`Slides:   ${analysis.document.suggested_slide_count}\n`);
     process.stderr.write(`Sections: ${analysis.structure.sections.length}\n`);
+    process.stderr.write(`Ask:      ${analysis.clarification.required ? 'yes' : 'no'}\n`);
     return;
   }
 

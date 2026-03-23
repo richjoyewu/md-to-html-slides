@@ -16,3 +16,4 @@ Public docs:
 - [`public/design-principles.md`](./public/design-principles.md)
 - [`public/block-registry.md`](./public/block-registry.md)
 - [`public/visual-elements-registry.md`](./public/visual-elements-registry.md)
+- [`public/technical-architecture.md`](./public/technical-architecture.md)

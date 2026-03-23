@@ -84,18 +84,38 @@ export const normalizeClarification = (payload) => ({
     ? payload.questions
         .map((item, index) => {
           if (typeof item === 'string') {
-            return { id: `q_${index + 1}`, label: String(item || '').trim(), placeholder: '' };
+            return { id: `q_${index + 1}`, label: String(item || '').trim(), placeholder: '', why_it_matters: '' };
           }
           return {
             id: String(item?.id || `q_${index + 1}`).trim(),
             label: String(item?.label || '').trim(),
-            placeholder: String(item?.placeholder || '').trim()
+            placeholder: String(item?.placeholder || '').trim(),
+            why_it_matters: String(item?.why_it_matters || item?.whyItMatters || '').trim()
           };
         })
         .filter((item) => item.label)
         .slice(0, 3)
     : []
 });
+
+const normalizeClarificationQuestions = (questions, max = 3) =>
+  Array.isArray(questions)
+    ? questions
+        .map((item, index) => {
+          if (typeof item === 'string') {
+            return { id: `q_${index + 1}`, label: String(item || '').trim(), placeholder: '', why_it_matters: '' };
+          }
+
+          return {
+            id: String(item?.id || `q_${index + 1}`).trim(),
+            label: String(item?.label || '').trim(),
+            placeholder: String(item?.placeholder || '').trim(),
+            why_it_matters: String(item?.why_it_matters || item?.whyItMatters || '').trim()
+          };
+        })
+        .filter((item) => item.label)
+        .slice(0, max)
+    : [];
 
 const normalizeAnalysisSourceFeatures = (source) => ({
   heading_1_count: normalizeCount(source?.heading_1_count ?? source?.heading1_count ?? source?.h1_count, 0),
@@ -127,6 +147,7 @@ export const normalizeAnalysis = (payload) => {
   const documentSource = source.document && typeof source.document === 'object' ? source.document : source;
   const structureSource = source.structure && typeof source.structure === 'object' ? source.structure : source;
   const recommendationsSource = source.recommendations && typeof source.recommendations === 'object' ? source.recommendations : source;
+  const clarificationSource = source.clarification && typeof source.clarification === 'object' ? source.clarification : source;
   const skill = getSkill(metaSource.skill || metaSource.profile || source.skill || source.profile);
   const rawSections = Array.isArray(structureSource.sections) ? structureSource.sections : [];
   const sections = ensureUniqueAnalysisSectionIds(
@@ -178,6 +199,20 @@ export const normalizeAnalysis = (payload) => {
   const defaultEndingFormat = skill.name === 'pitch-tech-launch' ? 'cta' : 'summary';
   const openingFormat = compactText(recommendationsSource.preferred_opening_format ?? recommendationsSource.preferredOpeningFormat).toLowerCase();
   const endingFormat = compactText(recommendationsSource.preferred_ending_format ?? recommendationsSource.preferredEndingFormat).toLowerCase();
+  const clarificationQuestions = normalizeClarificationQuestions(clarificationSource.questions, 3);
+  const clarificationDimensions = dedupeList(
+    (Array.isArray(clarificationSource.missing_dimensions) ? clarificationSource.missing_dimensions : [])
+      .map((entry) => compactText(String(entry || '')).toLowerCase())
+      .filter((entry) => ['audience', 'goal', 'slide_count', 'must_keep'].includes(entry))
+  );
+  const clarificationRuleIds = dedupeList(
+    (Array.isArray(clarificationSource.trigger_rule_ids) ? clarificationSource.trigger_rule_ids : [])
+      .map((entry) => compactText(String(entry || '')).toLowerCase())
+      .filter(Boolean)
+  ).slice(0, 8);
+  const clarificationReasons = normalizeTextList(clarificationSource.reasons, 6).map((entry) => compactMetaText(entry, 88, ''));
+  const clarificationAssumptions = normalizeTextList(clarificationSource.assumptions, 6).map((entry) => compactMetaText(entry, 88, ''));
+  const clarificationRequired = Boolean(clarificationSource.required) && clarificationQuestions.length > 0;
 
   return {
     contract_version: 'analysis@1',
@@ -234,6 +269,20 @@ export const normalizeAnalysis = (payload) => {
         ? mustKeepSections
         : sections.filter((section, index) => index === 0 || index === sections.length - 1).map((section) => section.id).slice(0, 4),
       watchouts: normalizeTextList(recommendationsSource.watchouts, 8).map((entry) => compactMetaText(entry, 88, ''))
+    },
+    clarification: {
+      required: clarificationRequired,
+      confidence: score(clarificationSource.confidence, clarificationRequired ? 0.56 : 0.82),
+      message: compactMetaText(
+        clarificationSource.message,
+        96,
+        clarificationRequired ? '当前分析仍缺少 1 到 2 个会显著影响规划的问题。' : '当前分析已足够进入规划。'
+      ),
+      trigger_rule_ids: clarificationRuleIds,
+      reasons: clarificationReasons,
+      assumptions: clarificationAssumptions,
+      missing_dimensions: clarificationDimensions,
+      questions: clarificationQuestions
     }
   };
 };

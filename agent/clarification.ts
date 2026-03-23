@@ -1,4 +1,4 @@
-import { analyzeMarkdown } from './analysis.js';
+import { buildAnalysisResult } from './analysis.js';
 import type { ClarificationQuestion, ClarificationResult, OutlineResult, PlanContext } from './types.js';
 
 function dedupeQuestions(questions: ClarificationQuestion[]): ClarificationQuestion[] {
@@ -71,24 +71,14 @@ function fallbackQuestions(options: {
 
 // 兜底追问：只在输入极短或结构极弱时介入，避免规则层抢主判断。
 export function buildClarification(markdown: string, context?: PlanContext): ClarificationResult | null {
-  const analysis = analyzeMarkdown(markdown);
-  const rawLength = markdown.trim().length;
-  const obviouslyShort = rawLength < 20;
-  const structurallyThin = analysis.section_count === 0 || (analysis.section_count <= 1 && analysis.point_count <= 1);
-  const roughAndThin = analysis.roughness === 'very_rough' && analysis.section_count <= 1;
-
-  if (!obviouslyShort && !structurallyThin && !roughAndThin) {
+  const analysis = buildAnalysisResult(markdown, context);
+  if (!analysis.clarification.required || !analysis.clarification.questions.length) {
     return null;
   }
 
   return buildClarificationResult(
-    '当前内容过短或结构不足，先补一点关键信息再生成大纲会更准。',
-    fallbackQuestions({
-    rough: analysis.roughness !== 'clean',
-    dense: analysis.density === 'high',
-    thin: structurallyThin,
-    askGoal: true,
-    }),
+    analysis.clarification.message,
+    analysis.clarification.questions,
     context
   );
 }

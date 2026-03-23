@@ -236,7 +236,7 @@ Interactive shell commands:
 
 Artifact responsibilities:
 
-- `analysis.json`: input structure, semantic hints, and visual planning constraints
+- `analysis.json`: input structure, semantic hints, visual planning constraints, and clarification triggers
 - `outline.json`: page order, focus, and intent
 - `expanded.json`: on-screen wording and semantic blocks
 - `render-deck.json`: deterministic renderer input
