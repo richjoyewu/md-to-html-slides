@@ -47,6 +47,39 @@ const compactIdentifier = (value: string = ''): string =>
     .replace(/-+/g, '-')
     .replace(/^-|-$/g, '');
 
+const isWeakTitleLike = (value: string = ''): boolean =>
+  /^(untitled deck|未命名页面|大家好|你好|hello|hi|开场|开始|今天我想|我想先|我想聊|先聊|接下来我想|谢谢大家)/i.test(compactText(value));
+
+const pickWorkingTitleFromText = (markdown: string): string => {
+  const lines = normalizeMarkdownLines(markdown).map((line) => compactText(line)).filter(Boolean);
+  const candidates = lines
+    .flatMap((line) => line.split(/[。！？!?\n]/))
+    .flatMap((part) => part.split(/[；;]/))
+    .flatMap((part) => part.split(/[，,:：]/))
+    .map((part) => compactText(part))
+    .map((part) =>
+      part
+        .replace(/^(大家好|你好|hello|hi)\s*/i, '')
+        .replace(/^(今天我想|我想先|我想聊聊|接下来我想|先讲一个|先聊一个)\s*/i, '')
+        .replace(/^(我们做的这个产品|我们做的事情|真正想做的事情|一句话总结这个产品想做的事情)\s*(是|就是)?\s*/i, '')
+        .trim()
+    )
+    .filter((part) => part.length >= 6 && part.length <= 28)
+    .filter((part) => !isWeakTitleLike(part));
+
+  return candidates[0] || '';
+};
+
+const resolveAnalysisTitleHint = (source: PreprocessedMarkdown, markdown: string): string => {
+  const explicit = compactText(source.deck_title);
+  if (explicit && !isWeakTitleLike(explicit)) return explicit;
+
+  const inferred = pickWorkingTitleFromText(markdown);
+  if (inferred) return inferred.slice(0, 28).trim();
+
+  return 'Untitled Deck';
+};
+
 const detectBlockSignals = (text: string): IngestBlock['signals'] => {
   const value = compactText(text).toLowerCase();
   return {
@@ -276,6 +309,7 @@ const collectSourceFeatures = (markdown: string): MarkdownSourceFeatures => {
 export const buildIngestArtifact = (markdown: string): IngestArtifact => {
   const source = preprocessMarkdown(markdown);
   const inputShape = detectInputShape(source, markdown);
+  const titleHint = resolveAnalysisTitleHint(source, markdown);
   const blocks = splitRawBlocks(markdown).map((block, index) => ({
     id: `b${index + 1}`,
     index: index + 1,
@@ -287,7 +321,7 @@ export const buildIngestArtifact = (markdown: string): IngestArtifact => {
 
   return {
     contract_version: 'ingest@1',
-    title_hint: source.deck_title || 'Untitled Deck',
+    title_hint: titleHint,
     source_type_hint: detectSourceTypeHint(markdown, inputShape),
     raw_length: String(markdown || '').trim().length,
     block_count: blocks.length,
@@ -663,9 +697,10 @@ export const buildHeuristicAnalysisResult = (markdown: string, context?: PlanCon
   const analysis = analyzeMarkdown(markdown);
   const skill = getSkill(context?.skill || context?.profile);
   const features = collectSourceFeatures(markdown);
+  const titleHint = resolveAnalysisTitleHint(source, markdown);
   const docType = inferDocType(markdown, skill.name, source, analysis, features);
   const audienceHint = inferAudienceHint(context, docType, analysis.roughness);
-  const goalHint = inferGoalHint(context, docType, source.deck_title);
+  const goalHint = inferGoalHint(context, docType, titleHint);
   const sections = source.sections.map((section, index) => buildSectionAnalysis(section, index, source.sections.length, docType));
   const mustKeepSections = Array.from(new Set(
     sections
@@ -678,7 +713,7 @@ export const buildHeuristicAnalysisResult = (markdown: string, context?: PlanCon
 
   return normalizeAnalysis({
     contract_version: 'analysis@1',
-    deck_title: source.deck_title || 'Untitled Deck',
+    deck_title: titleHint,
     meta: {
       skill: skill.name,
       profile: skill.name,
