@@ -3,6 +3,9 @@ import { getSkill, normalizeSkillName } from './skills.js';
 const ALLOWED_INTENTS = new Set(['define', 'explain', 'compare', 'example', 'process', 'summary', 'cta']);
 const ALLOWED_FORMATS = new Set(['hero', 'title-bullets', 'title-body', 'compare', 'metrics', 'process', 'summary', 'cta']);
 const ALLOWED_VARIANTS = new Set(['default', 'hero', 'compare', 'metrics', 'process', 'summary', 'cta']);
+const ALLOWED_DOC_TYPES = new Set(['general', 'pitch', 'tutorial', 'lesson', 'report', 'reference', 'notes']);
+const ALLOWED_SECTION_ROLES = new Set(['opening', 'context', 'problem', 'solution', 'evidence', 'comparison', 'process', 'example', 'summary', 'cta', 'detail']);
+const ALLOWED_ANALYSIS_SIGNALS = new Set(['numbers', 'comparison', 'process', 'example', 'question', 'risk', 'code', 'image', 'quote', 'table']);
 
 const compactText = (value = '') => String(value || '').replace(/\s+/g, ' ').trim();
 const normalizeSurfaceText = (value = '') => compactText(value).replace(/^[，、；;:\-]+/g, '').trim();
@@ -53,6 +56,11 @@ const preserveNamedValue = (value) => {
   return normalized || undefined;
 };
 
+const normalizeCount = (value, fallback = 0) => {
+  const n = Number(value);
+  return Number.isFinite(n) ? Math.max(0, Math.round(n)) : fallback;
+};
+
 export const normalizePlanContext = (value) => {
   const source = value && typeof value === 'object' ? value : {};
   const answers = source.answers && typeof source.answers === 'object' ? source.answers : {};
@@ -88,6 +96,163 @@ export const normalizeClarification = (payload) => ({
         .slice(0, 3)
     : []
 });
+
+const normalizeAnalysisSourceFeatures = (source) => ({
+  heading_1_count: normalizeCount(source?.heading_1_count ?? source?.heading1_count ?? source?.h1_count, 0),
+  heading_2_count: normalizeCount(source?.heading_2_count ?? source?.heading2_count ?? source?.h2_count, 0),
+  bullet_count: normalizeCount(source?.bullet_count, 0),
+  image_count: normalizeCount(source?.image_count, 0),
+  code_block_count: normalizeCount(source?.code_block_count ?? source?.code_blocks, 0),
+  table_count: normalizeCount(source?.table_count, 0),
+  quote_count: normalizeCount(source?.quote_count, 0),
+  link_count: normalizeCount(source?.link_count, 0)
+});
+
+const ensureUniqueAnalysisSectionIds = (sections = []) => {
+  const seen = new Map();
+  return sections.map((section, index) => {
+    const baseId = compactIdentifier(section.id || section.title || '') || `section-${index + 1}`;
+    const count = (seen.get(baseId) || 0) + 1;
+    seen.set(baseId, count);
+    return {
+      ...section,
+      id: count === 1 ? baseId : `${baseId}-${count}`
+    };
+  });
+};
+
+export const normalizeAnalysis = (payload) => {
+  const source = payload && typeof payload === 'object' ? payload : {};
+  const metaSource = source.meta && typeof source.meta === 'object' ? source.meta : source;
+  const documentSource = source.document && typeof source.document === 'object' ? source.document : source;
+  const structureSource = source.structure && typeof source.structure === 'object' ? source.structure : source;
+  const recommendationsSource = source.recommendations && typeof source.recommendations === 'object' ? source.recommendations : source;
+  const skill = getSkill(metaSource.skill || metaSource.profile || source.skill || source.profile);
+  const rawSections = Array.isArray(structureSource.sections) ? structureSource.sections : [];
+  const sections = ensureUniqueAnalysisSectionIds(
+    rawSections
+      .map((section, index) => {
+        const item = section && typeof section === 'object' ? section : {};
+        const role = compactText(item.role || '').toLowerCase();
+        const intent = compactText(item.intent || '').toLowerCase();
+        const visualCandidates = Array.isArray(item.visual_candidates)
+          ? item.visual_candidates
+          : Array.isArray(item.visualCandidates)
+            ? item.visualCandidates
+            : [];
+        const normalizedVisualCandidates = dedupeList(
+          visualCandidates
+            .map((entry) => compactText(String(entry || '')).toLowerCase())
+            .filter((entry) => ALLOWED_FORMATS.has(entry))
+        ).slice(0, 3);
+
+        return {
+          id: compactIdentifier(String(item.id || item.title || '')) || `section-${index + 1}`,
+          index: normalizeCount(item.index, index + 1),
+          title: compactTitle(String(item.title || '').trim()),
+          point_count: normalizeCount(item.point_count ?? item.pointCount ?? (Array.isArray(item.key_points) ? item.key_points.length : 0), 0),
+          role: ALLOWED_SECTION_ROLES.has(role) ? role : 'detail',
+          intent: ALLOWED_INTENTS.has(intent) ? intent : 'explain',
+          signals: dedupeList(
+            (Array.isArray(item.signals) ? item.signals : [])
+              .map((entry) => compactText(String(entry || '')).toLowerCase())
+              .filter((entry) => ALLOWED_ANALYSIS_SIGNALS.has(entry))
+          ).slice(0, 6),
+          visual_candidates: normalizedVisualCandidates.length
+            ? normalizedVisualCandidates
+            : [Array.isArray(item.key_points) && item.key_points.length <= 1 ? 'title-body' : 'title-bullets'],
+          key_points: normalizeTextList(item.key_points ?? item.keyPoints, 4).map((entry) => compactOutlinePoint(entry)),
+          summary_hint: compactMetaText(item.summary_hint ?? item.summaryHint, 72, compactTitle(String(item.title || '').trim()))
+        };
+      })
+      .filter((section) => section.title)
+  );
+
+  const validSectionIds = new Set(sections.map((section) => section.id));
+  const mustKeepSections = normalizeTextList(
+    recommendationsSource.must_keep_sections ?? recommendationsSource.mustKeepSections,
+    8
+  ).map((entry) => compactIdentifier(entry)).filter((entry) => validSectionIds.has(entry));
+
+  const defaultOpeningFormat = skill.name === 'pitch-tech-launch' ? 'hero' : 'title-bullets';
+  const defaultEndingFormat = skill.name === 'pitch-tech-launch' ? 'cta' : 'summary';
+  const openingFormat = compactText(recommendationsSource.preferred_opening_format ?? recommendationsSource.preferredOpeningFormat).toLowerCase();
+  const endingFormat = compactText(recommendationsSource.preferred_ending_format ?? recommendationsSource.preferredEndingFormat).toLowerCase();
+
+  return {
+    contract_version: 'analysis@1',
+    deck_title: compactText(source.deck_title || source.title || 'Untitled Deck') || 'Untitled Deck',
+    meta: {
+      skill: skill.name,
+      profile: skill.name,
+      audience_hint: compactMetaText(metaSource.audience_hint ?? metaSource.audienceHint, 72, '未指定受众'),
+      goal_hint: compactMetaText(metaSource.goal_hint ?? metaSource.goalHint, 72, '帮助观众快速理解主题')
+    },
+    document: {
+      input_shape: compactText(documentSource.input_shape || documentSource.inputShape).toLowerCase() === 'slide_like'
+        ? 'slide_like'
+        : compactText(documentSource.input_shape || documentSource.inputShape).toLowerCase() === 'notes_like'
+          ? 'notes_like'
+          : 'document_like',
+      doc_type: ALLOWED_DOC_TYPES.has(compactText(documentSource.doc_type || documentSource.docType).toLowerCase())
+        ? compactText(documentSource.doc_type || documentSource.docType).toLowerCase()
+        : 'general',
+      density: compactText(documentSource.density).toLowerCase() === 'high'
+        ? 'high'
+        : compactText(documentSource.density).toLowerCase() === 'medium'
+          ? 'medium'
+          : 'low',
+      roughness: compactText(documentSource.roughness).toLowerCase() === 'very_rough'
+        ? 'very_rough'
+        : compactText(documentSource.roughness).toLowerCase() === 'rough'
+          ? 'rough'
+          : 'clean',
+      rewrite_strategy: compactText(documentSource.rewrite_strategy || documentSource.rewriteStrategy).toLowerCase() === 'aggressive_rewrite'
+        ? 'aggressive_rewrite'
+        : compactText(documentSource.rewrite_strategy || documentSource.rewriteStrategy).toLowerCase() === 'light_rewrite'
+          ? 'light_rewrite'
+          : 'preserve',
+      heading_depth: normalizeCount(documentSource.heading_depth ?? documentSource.headingDepth, 1),
+      section_count: normalizeCount(documentSource.section_count ?? documentSource.sectionCount ?? sections.length, sections.length),
+      point_count: normalizeCount(documentSource.point_count ?? documentSource.pointCount, sections.reduce((sum, section) => sum + section.point_count, 0)),
+      avg_sentence_length: Number.isFinite(Number(documentSource.avg_sentence_length ?? documentSource.avgSentenceLength))
+        ? Number(Number(documentSource.avg_sentence_length ?? documentSource.avgSentenceLength).toFixed(2))
+        : 0,
+      suggested_slide_count: normalizeCount(documentSource.suggested_slide_count ?? documentSource.suggestedSlideCount ?? sections.length, Math.max(1, sections.length)),
+      needs_rewrite: Boolean(documentSource.needs_rewrite ?? documentSource.needsRewrite),
+      source_features: normalizeAnalysisSourceFeatures(documentSource.source_features ?? documentSource.sourceFeatures)
+    },
+    structure: {
+      notes: normalizeTextList(structureSource.notes, 8).map((entry) => compactMetaText(entry, 72, '')),
+      omitted_topics: normalizeTextList(structureSource.omitted_topics ?? structureSource.omittedTopics, 4).map((entry) => compactMetaText(entry, 48, '')),
+      sections
+    },
+    recommendations: {
+      preferred_opening_format: ALLOWED_FORMATS.has(openingFormat) ? openingFormat : defaultOpeningFormat,
+      preferred_ending_format: ALLOWED_FORMATS.has(endingFormat) ? endingFormat : defaultEndingFormat,
+      must_keep_sections: mustKeepSections.length
+        ? mustKeepSections
+        : sections.filter((section, index) => index === 0 || index === sections.length - 1).map((section) => section.id).slice(0, 4),
+      watchouts: normalizeTextList(recommendationsSource.watchouts, 8).map((entry) => compactMetaText(entry, 88, ''))
+    }
+  };
+};
+
+export const validateAnalysis = (payload) => {
+  const normalized = normalizeAnalysis(payload);
+  if (normalized.contract_version !== 'analysis@1') {
+    throw new Error('Analysis contract version is invalid');
+  }
+
+  const ids = new Set();
+  for (const section of normalized.structure.sections) {
+    if (!section.id) throw new Error('Analysis section is missing id');
+    if (ids.has(section.id)) throw new Error(`Duplicate analysis section id: ${section.id}`);
+    ids.add(section.id);
+  }
+
+  return normalized;
+};
 
 const normalizePlanMeta = (source) => {
   const skill = getSkill(source?.skill || source?.profile || source?.deck_profile);

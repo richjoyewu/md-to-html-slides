@@ -1,4 +1,3 @@
-import { analyzeMarkdown } from './analysis.js';
 import { buildHeuristicExpanded } from './fallback.js';
 import { normalizeExpanded } from './normalize.js';
 import { buildExpandPrompt } from './prompt-builder.js';
@@ -108,11 +107,9 @@ export const requestExpand = async (
   context?: PlanContext,
   options: ExpandRequestOptions = {}
 ): Promise<{ expanded: ExpandedResult; mode: 'llm' | 'fallback' }> => {
-  const analysis = analyzeMarkdown(markdown);
-
   try {
     const payload = await provider.callJson({
-      prompt: buildExpandPrompt({ markdown, outline, analysis, context }),
+      prompt: buildExpandPrompt({ markdown, outline, context }),
       timeoutMs: options.timeoutMs ?? 120000,
       maxTokens: options.maxTokens ?? 8192
     });

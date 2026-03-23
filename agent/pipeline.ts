@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
+import { buildAnalysisResult } from './analysis.js';
 import { buildClarification, buildClarificationFromPlan } from './clarification.js';
 import { finalizeExpanded, requestExpand } from './expander.js';
 import { buildHeuristicExpanded, buildHeuristicOutline } from './fallback.js';
@@ -10,6 +11,7 @@ import { buildExpandCacheKey, getCacheKey } from './preprocess.js';
 import { createLlmProvider, describeLlmProvider, resolveLlmProviderConfig } from './provider.js';
 import type {
   AgentMode,
+  AnalysisResult,
   ClarificationResult,
   ExpandedResult,
   LlmJsonProvider,
@@ -83,6 +85,11 @@ export interface RenderExecutionResult {
 export interface RenderDeckExecutionResult {
   kind: 'render_deck';
   deck: RenderDeck;
+}
+
+export interface AnalysisExecutionResult {
+  kind: 'analysis';
+  payload: AnalysisResult;
 }
 
 export type BuildExecutionResult =
@@ -205,6 +212,11 @@ export const createCorePipeline = (options: CorePipelineOptions = {}) => {
   const expandCache = new Map<string, CacheEntry<ExpandedResult>>();
   const planCacheLimit = options.planCacheLimit ?? PLAN_CACHE_LIMIT;
   const expandCacheLimit = options.expandCacheLimit ?? EXPAND_CACHE_LIMIT;
+
+  const analyze = (markdown: string, context?: PlanContext): AnalysisExecutionResult => ({
+    kind: 'analysis',
+    payload: buildAnalysisResult(markdown, normalizePlanContext(context) as PlanContext)
+  });
 
   const plan = async (markdown: string, context?: PlanContext): Promise<PlanExecutionResult> => {
     const normalizedContext = normalizePlanContext(context) as PlanContext;
@@ -334,6 +346,7 @@ export const createCorePipeline = (options: CorePipelineOptions = {}) => {
   };
 
   return {
+    analyze,
     build,
     expand,
     plan,

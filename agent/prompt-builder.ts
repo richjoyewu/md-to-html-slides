@@ -1,6 +1,5 @@
-import { analyzeMarkdown } from './analysis.js';
-import { preprocessMarkdown } from './preprocess.js';
-import type { MarkdownAnalysis, OutlineResult, PlanContext } from './types.js';
+import { buildAnalysisResult } from './analysis.js';
+import type { OutlineResult, PlanContext } from './types.js';
 import { getSkill } from '../shared/skills.js';
 
 const buildPlanQualityGuidance = (focuses: string[]): string[] => {
@@ -37,8 +36,8 @@ const buildExpandQualityGuidance = (focuses: string[]): string[] => {
 
 // Planner prompt：系统只提供结构事实和最少边界，内容意图、取舍和拆页决策交给 LLM。
 export const buildPlanPrompt = (markdown: string, context?: PlanContext): string => {
-  const source = preprocessMarkdown(markdown);
-  const analysis = analyzeMarkdown(markdown);
+  const analysisArtifact = buildAnalysisResult(markdown, context);
+  const analysis = analysisArtifact.document;
   const answers = context?.answers || {};
   const skill = getSkill(context?.skill || context?.profile);
   const qualityGuidance = buildPlanQualityGuidance(skill.quality?.focus || []);
@@ -108,11 +107,8 @@ export const buildPlanPrompt = (markdown: string, context?: PlanContext): string
     '用户补充信息：',
     JSON.stringify(answers, null, 2),
     '',
-    '输入结构事实（仅供参考，不代表最终语义判断）：',
-    JSON.stringify(analysis, null, 2),
-    '',
-    '输入 sections：',
-    JSON.stringify(source, null, 2)
+    '输入分析工件（仅供参考，不代表最终语义判断）：',
+    JSON.stringify(analysisArtifact, null, 2)
   ].join('\n');
 };
 
@@ -120,15 +116,14 @@ export const buildPlanPrompt = (markdown: string, context?: PlanContext): string
 export const buildExpandPrompt = ({
   markdown,
   outline,
-  analysis,
   context
 }: {
   markdown: string;
   outline: OutlineResult;
-  analysis: MarkdownAnalysis;
   context?: PlanContext;
 }): string => {
-  const source = preprocessMarkdown(markdown);
+  const analysisArtifact = buildAnalysisResult(markdown, context);
+  const analysis = analysisArtifact.document;
   const intentHint = outline.meta?.content_intent || 'general presentation';
   const audienceHint = outline.meta?.audience_guess || '未指定受众';
   const rewriteHint = analysis.rewrite_strategy;
@@ -208,13 +203,10 @@ export const buildExpandPrompt = ({
     '可参考的 skill 示例成稿：',
     JSON.stringify(skill.expanded_example, null, 2),
     '',
-    '结构分析（仅供参考）：',
-    JSON.stringify(analysis, null, 2),
-    '',
     '已确认大纲：',
     JSON.stringify(outline, null, 2),
     '',
-    '原始内容摘要：',
-    JSON.stringify(source, null, 2)
+    '输入分析工件：',
+    JSON.stringify(analysisArtifact, null, 2)
   ].join('\n');
 };

@@ -6,6 +6,9 @@ export type InputShape = 'slide_like' | 'document_like' | 'notes_like';
 export type DensityLevel = 'low' | 'medium' | 'high';
 export type RoughnessLevel = 'clean' | 'rough' | 'very_rough';
 export type RewriteStrategy = 'preserve' | 'light_rewrite' | 'aggressive_rewrite';
+export type DocumentType = 'general' | 'pitch' | 'tutorial' | 'lesson' | 'report' | 'reference' | 'notes';
+export type SectionRole = 'opening' | 'context' | 'problem' | 'solution' | 'evidence' | 'comparison' | 'process' | 'example' | 'summary' | 'cta' | 'detail';
+export type AnalysisSignal = 'numbers' | 'comparison' | 'process' | 'example' | 'question' | 'risk' | 'code' | 'image' | 'quote' | 'table';
 export type BuiltinSkillName = 'general' | 'pitch-tech-launch';
 export type SkillName = BuiltinSkillName | (string & {});
 // Legacy compatibility alias. New product-facing code should prefer SkillName.
@@ -48,6 +51,73 @@ export interface MarkdownAnalysis {
   suggested_slide_count: number;
   needs_rewrite: boolean;
   notes: string[];
+}
+
+export interface MarkdownSourceFeatures {
+  heading_1_count: number;
+  heading_2_count: number;
+  bullet_count: number;
+  image_count: number;
+  code_block_count: number;
+  table_count: number;
+  quote_count: number;
+  link_count: number;
+}
+
+export interface AnalysisSection {
+  id: string;
+  index: number;
+  title: string;
+  point_count: number;
+  role: SectionRole;
+  intent: SlideIntent;
+  signals: AnalysisSignal[];
+  visual_candidates: ExpandFormat[];
+  key_points: string[];
+  summary_hint: string;
+}
+
+export interface AnalysisMeta {
+  skill: SkillName;
+  // Compatibility alias for legacy consumers.
+  profile?: DeckProfileName;
+  audience_hint: string;
+  goal_hint: string;
+}
+
+export interface AnalysisDocument {
+  input_shape: InputShape;
+  doc_type: DocumentType;
+  density: DensityLevel;
+  roughness: RoughnessLevel;
+  rewrite_strategy: RewriteStrategy;
+  heading_depth: number;
+  section_count: number;
+  point_count: number;
+  avg_sentence_length: number;
+  suggested_slide_count: number;
+  needs_rewrite: boolean;
+  source_features: MarkdownSourceFeatures;
+}
+
+export interface AnalysisRecommendations {
+  preferred_opening_format: ExpandFormat;
+  preferred_ending_format: ExpandFormat;
+  must_keep_sections: string[];
+  watchouts: string[];
+}
+
+export interface AnalysisResult {
+  contract_version: 'analysis@1';
+  deck_title: string;
+  meta: AnalysisMeta;
+  document: AnalysisDocument;
+  structure: {
+    notes: string[];
+    omitted_topics: string[];
+    sections: AnalysisSection[];
+  };
+  recommendations: AnalysisRecommendations;
 }
 
 export interface ClarificationResult {

@@ -52,6 +52,7 @@ The project is now moving toward a `CLI-first` model:
 
 The canonical artifact chain is now:
 
+- `analysis.json`
 - `outline.json`
 - `expanded.json`
 - `render-deck.json`
@@ -177,6 +178,7 @@ npm run test:llm:ab
 ### Example Commands
 
 ```bash
+npm run example:analyze
 npm run example:validate-skill
 npm run example:plan:skill-file
 npm run example:validate
@@ -195,6 +197,7 @@ Or run the canonical CLI directly:
 ```bash
 node ./scripts/build.mjs
 node ./scripts/build.mjs themes
+node ./scripts/build.mjs analyze ./fixtures/product/extreme/product-intro.md -o ./.tmp/examples/01-analysis.json
 node ./scripts/build.mjs validate-skill ./skills/founder-pitch.json
 node ./scripts/build.mjs validate-skill-dir ./skills
 node ./scripts/build.mjs validate ./fixtures/course/clean/openclaw-intro.md
@@ -233,6 +236,7 @@ Interactive shell commands:
 
 Artifact responsibilities:
 
+- `analysis.json`: input structure, semantic hints, and visual planning constraints
 - `outline.json`: page order, focus, and intent
 - `expanded.json`: on-screen wording and semantic blocks
 - `render-deck.json`: deterministic renderer input

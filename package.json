@@ -22,6 +22,7 @@
     "test": "npm run test:fallback && npm run test:skills && npm run test:render-deck && npm run test:cli",
 
     "example:validate": "node ./scripts/build.mjs validate ./fixtures/course/clean/openclaw-intro.md",
+    "example:analyze": "node ./scripts/build.mjs analyze ./fixtures/product/extreme/product-intro.md -o ./.tmp/examples/01-analysis.json",
     "example:validate-skill": "node ./scripts/build.mjs validate-skill ./skills/founder-pitch.json",
     "example:validate-skill-dir": "node ./scripts/build.mjs validate-skill-dir ./skills",
     "example:plan": "node ./scripts/build.mjs plan ./fixtures/course/clean/openclaw-intro.md --skill general",
