@@ -12,7 +12,6 @@
     "core:studio:legacy": "node ./scripts/studio-server.mjs",
     "core:skills": "node ./scripts/build.mjs skills",
     "core:themes": "node ./scripts/build.mjs themes",
-
     "test:fallback": "npm run core:compile && node ./dist-ts/scripts/check-agent.js",
     "test:ingest": "npm run core:compile && node ./dist-ts/scripts/check-ingest.js",
     "test:skills": "npm run core:compile && node ./dist-ts/scripts/check-skill.js",
@@ -21,7 +20,6 @@
     "test:llm": "npm run core:compile && node ./dist-ts/scripts/check-llm.js",
     "test:llm:ab": "npm run core:compile && node ./dist-ts/scripts/check-llm.js --ab",
     "test": "npm run test:ingest && npm run test:fallback && npm run test:skills && npm run test:render-deck && npm run test:cli",
-
     "example:validate": "node ./scripts/build.mjs validate ./fixtures/course/clean/openclaw-intro.md",
     "example:ingest": "node ./scripts/build.mjs ingest ./fixtures/product/extreme/product-intro.md -o ./.tmp/examples/01-ingest.json",
     "example:analyze": "node ./scripts/build.mjs analyze ./fixtures/product/extreme/product-intro.md -o ./.tmp/examples/01-analysis.json",
@@ -36,7 +34,6 @@
     "example:build:editorial": "node ./scripts/build.mjs build ./fixtures/course/clean/openclaw-intro.md -o ./.tmp/examples/01-agent-editorial.html --theme editorial-light",
     "example:build:launch": "node ./scripts/build.mjs build ./fixtures/pitch/clean/product-pitch.md -o ./.tmp/examples/01-launch-tech.html --theme tech-launch --skill pitch-tech-launch",
     "example:preview": "node ./scripts/build.mjs preview ./fixtures/course/clean/openclaw-intro.md --theme dark-card",
-
     "studio": "npm run core:studio",
     "skills": "npm run core:skills",
     "themes": "npm run core:themes",
@@ -45,5 +42,9 @@
   "devDependencies": {
     "@types/node": "^25.4.0",
     "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "remark-parse": "^11.0.0",
+    "unified": "^11.0.5"
   }
 }

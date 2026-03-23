@@ -1,5 +1,5 @@
 import { normalizeAnalysis } from '../shared/core.js';
-import { normalizeMarkdownLines } from '../shared/markdown.js';
+import { normalizeMarkdownLines, partitionMarkdownBlocks } from '../shared/markdown.js';
 import { getSkill } from '../shared/skills.js';
 import type {
   AnalysisClarification,
@@ -10,7 +10,6 @@ import type {
   ExpandFormat,
   IngestArtifact,
   IngestBlock,
-  IngestBlockKind,
   IngestSourceType,
   InputShape,
   LlmJsonProvider,
@@ -80,6 +79,59 @@ const resolveAnalysisTitleHint = (source: PreprocessedMarkdown, markdown: string
   return 'Untitled Deck';
 };
 
+const SENTENCE_SEGMENTER = typeof Intl !== 'undefined' && typeof Intl.Segmenter === 'function'
+  ? new Intl.Segmenter('zh', { granularity: 'sentence' })
+  : null;
+
+const splitTextIntoSentences = (text: string): string[] => {
+  const normalized = compactText(text);
+  if (!normalized) return [];
+
+  if (SENTENCE_SEGMENTER) {
+    const sentences = Array.from(SENTENCE_SEGMENTER.segment(normalized), (entry) => compactText(entry.segment)).filter(Boolean);
+    if (sentences.length) return sentences;
+  }
+
+  return normalized
+    .split(/(?<=[。！？!?；;])\s*|(?<=\.)\s+(?=[A-Z0-9])/)
+    .map((part) => compactText(part))
+    .filter(Boolean);
+};
+
+const chunkSentences = (
+  text: string,
+  options: {
+    maxChunkChars?: number;
+    maxSentencesPerChunk?: number;
+  } = {}
+): string[] => {
+  const {
+    maxChunkChars = 240,
+    maxSentencesPerChunk = 4
+  } = options;
+
+  const sentences = splitTextIntoSentences(text);
+  if (!sentences.length) return [];
+
+  const chunks: string[] = [];
+  let current: string[] = [];
+  let currentLength = 0;
+
+  for (const sentence of sentences) {
+    const nextLength = currentLength + sentence.length;
+    if (current.length > 0 && (current.length >= maxSentencesPerChunk || nextLength > maxChunkChars)) {
+      chunks.push(current.join(' ').trim());
+      current = [];
+      currentLength = 0;
+    }
+    current.push(sentence);
+    currentLength += sentence.length;
+  }
+
+  if (current.length) chunks.push(current.join(' ').trim());
+  return chunks.filter(Boolean);
+};
+
 const detectBlockSignals = (text: string): IngestBlock['signals'] => {
   const value = compactText(text).toLowerCase();
   return {
@@ -88,17 +140,6 @@ const detectBlockSignals = (text: string): IngestBlock['signals'] => {
     has_process_words: /(步骤|流程|路径|阶段|方法|如何|怎么做|首先|然后|最后)/.test(value),
     has_comparison_words: /(对比|比较|区别|vs|versus|竞品|优劣)/.test(value)
   };
-};
-
-const inferBlockKind = (lines: string[]): IngestBlockKind => {
-  const first = String(lines[0] || '').trim();
-  if (!first) return 'unknown';
-  if (/^#{1,6}\s+/.test(first)) return 'heading';
-  if (/^[-*+]\s+/.test(first)) return 'list';
-  if (/^>\s+/.test(first)) return 'quote';
-  if (/^(?:```|~~~)/.test(first)) return 'code';
-  if (/^!\[[^\]]*?\]\((.+?)\)\s*$/.test(first)) return 'image';
-  return 'paragraph';
 };
 
 const detectSourceTypeHint = (markdown: string, inputShape: InputShape): IngestSourceType => {
@@ -112,10 +153,11 @@ const detectSourceTypeHint = (markdown: string, inputShape: InputShape): IngestS
   return 'plain_text';
 };
 
-const splitRawBlocks = (markdown: string): Array<{ kind: IngestBlockKind; text: string }> => {
+const splitPlainTextBlocks = (markdown: string): Array<{ kind: IngestBlock['kind']; text: string; sourceSectionTitle?: string }> => {
   const lines = normalizeMarkdownLines(markdown);
-  const blocks: Array<{ kind: IngestBlockKind; text: string }> = [];
+  const blocks: Array<{ kind: IngestBlock['kind']; text: string; sourceSectionTitle?: string }> = [];
   let index = 0;
+  let sectionIndex = 0;
 
   while (index < lines.length) {
     const line = lines[index].trimEnd();
@@ -124,30 +166,8 @@ const splitRawBlocks = (markdown: string): Array<{ kind: IngestBlockKind; text: 
       continue;
     }
 
-    if (/^(?:```|~~~)/.test(line.trim())) {
-      const fence = line.trim().slice(0, 3);
-      const blockLines = [line];
-      index += 1;
-      while (index < lines.length) {
-        blockLines.push(lines[index]);
-        if (lines[index].trim().startsWith(fence)) {
-          index += 1;
-          break;
-        }
-        index += 1;
-      }
-      blocks.push({ kind: 'code', text: blockLines.join('\n') });
-      continue;
-    }
-
-    if (/^!\[[^\]]*?\]\((.+?)\)\s*$/.test(line.trim())) {
-      blocks.push({ kind: 'image', text: line.trim() });
-      index += 1;
-      continue;
-    }
-
-    if (/^#{1,6}\s+/.test(line.trim())) {
-      blocks.push({ kind: 'heading', text: line.trim() });
+    if (/^---+\s*$/.test(line.trim())) {
+      sectionIndex += 1;
       index += 1;
       continue;
     }
@@ -158,33 +178,35 @@ const splitRawBlocks = (markdown: string): Array<{ kind: IngestBlockKind; text: 
         blockLines.push(lines[index].trim());
         index += 1;
       }
-      blocks.push({ kind: 'list', text: blockLines.join('\n') });
-      continue;
-    }
-
-    if (/^>\s+/.test(line.trim())) {
-      const blockLines = [];
-      while (index < lines.length && /^>\s+/.test(lines[index].trim())) {
-        blockLines.push(lines[index].trim());
-        index += 1;
-      }
-      blocks.push({ kind: 'quote', text: blockLines.join('\n') });
+      blocks.push({
+        kind: 'list',
+        text: blockLines.join('\n'),
+        sourceSectionTitle: sectionIndex > 0 ? `section-${sectionIndex + 1}` : ''
+      });
       continue;
     }
 
     const paragraphLines = [];
-    while (index < lines.length && lines[index].trim()) {
+    while (index < lines.length && lines[index].trim() && !/^---+\s*$/.test(lines[index].trim())) {
       const current = lines[index].trim();
-      if (/^(?:```|~~~)|^!\[|^#{1,6}\s+|^[-*+]\s+|^>\s+/.test(current)) break;
+      if (/^[-*+]\s+/.test(current)) break;
       paragraphLines.push(current);
       index += 1;
     }
 
     if (paragraphLines.length) {
-      blocks.push({
-        kind: inferBlockKind(paragraphLines),
-        text: paragraphLines.join(' ')
+      const paragraphText = paragraphLines.join(' ');
+      const chunks = chunkSentences(paragraphText, {
+        maxChunkChars: 240,
+        maxSentencesPerChunk: 4
       });
+      for (const chunk of chunks) {
+        blocks.push({
+          kind: 'paragraph',
+          text: chunk,
+          sourceSectionTitle: sectionIndex > 0 ? `section-${sectionIndex + 1}` : ''
+        });
+      }
       continue;
     }
 
@@ -310,19 +332,27 @@ export const buildIngestArtifact = (markdown: string): IngestArtifact => {
   const source = preprocessMarkdown(markdown);
   const inputShape = detectInputShape(source, markdown);
   const titleHint = resolveAnalysisTitleHint(source, markdown);
-  const blocks = splitRawBlocks(markdown).map((block, index) => ({
+  const sourceTypeHint = detectSourceTypeHint(markdown, inputShape);
+  const partitionedBlocks = sourceTypeHint === 'markdown' || sourceTypeHint === 'mixed'
+    ? partitionMarkdownBlocks(markdown, {
+        maxBlocks: 24,
+        maxChunkChars: 240,
+        maxSentencesPerChunk: 4
+      })
+    : splitPlainTextBlocks(markdown);
+  const blocks = partitionedBlocks.map((block, index) => ({
     id: `b${index + 1}`,
     index: index + 1,
     kind: block.kind,
     text: block.text.slice(0, 480).trim(),
-    source_section_title: source.sections.find((section) => block.text.includes(section.title))?.title,
+    source_section_title: block.sourceSectionTitle || source.sections.find((section) => block.text.includes(section.title))?.title,
     signals: detectBlockSignals(block.text)
   }));
 
   return {
     contract_version: 'ingest@1',
     title_hint: titleHint,
-    source_type_hint: detectSourceTypeHint(markdown, inputShape),
+    source_type_hint: sourceTypeHint,
     raw_length: String(markdown || '').trim().length,
     block_count: blocks.length,
     raw_excerpt: source.raw_excerpt,
